@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSA Dashboard - Sistema de Análise de Sistemas de Medição</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F1F1F1;--card:#fff;--sidebar:#034067;--sidebar-hover:rgba(4,187,238,.16);--accent:#0064B3;--accent-light:#04BBEE;--accent-dark:#034067;--text:#253746;--text-muted:#4E575E;--border:#DCE7EE;--success:#6CC24A;--danger:#DC3545;--warning:#E1E000;--info:#04BBEE;--brand-blue:#0064B3;--brand-indigo:#034067;--brand-cyan:#04BBEE;--brand-green:#6CC24A}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg) radial-gradient(1200px 600px at 100% -10%,rgba(0,100,179,.12),transparent 60%);color:var(--text);overflow:hidden;height:100vh}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(0,100,179,.25);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,100,179,.4)}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
+#appShell{padding:14px;gap:14px}
+.sidebar{width:260px;min-width:260px;background:linear-gradient(165deg,var(--brand-blue),var(--brand-indigo));height:calc(100vh - 28px);display:flex;flex-direction:column;transition:all .3s;border-radius:22px;overflow:hidden;box-shadow:0 20px 40px -12px rgba(0,64,103,.45)}
+.sidebar .logo{padding:24px 24px 18px;display:block}
+.sidebar .brand-logo{display:block;width:184px;height:auto;color:#fff}
+.sidebar .logo-divider{height:1px;background:rgba(255,255,255,.2);margin:18px 0 14px}
+.sidebar .logo-icon{width:40px;height:40px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700}
+.sidebar .logo-text{color:#fff;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;line-height:1.2}
+.sidebar .logo-sub{color:rgba(255,255,255,.72);font-size:11px;font-weight:400}
+.nav-section{padding:18px 20px 8px;color:rgba(255,255,255,.55);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 16px;margin:3px 12px;border-radius:14px;color:rgba(255,255,255,.75);cursor:pointer;transition:all .2s;font-size:13.5px;font-weight:600;position:relative}
+.nav-item:hover{background:var(--sidebar-hover);color:#fff}
+.nav-item.active{background:#fff;color:var(--accent-dark);box-shadow:0 8px 20px rgba(0,0,0,.15)}
+.nav-item i{width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.15);text-align:center;line-height:28px;font-size:13px;flex-shrink:0}
+.nav-item.active i{background:rgba(0,100,179,.12);color:var(--accent)}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-radius:22px}
+.topbar{background:transparent;padding:6px 8px 18px;display:flex;align-items:center;justify-content:space-between;min-height:60px;gap:16px}
+.topbar-title{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:var(--text)}
+.topbar-actions{display:flex;gap:10px;align-items:center}
+.btn{padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 16px -4px rgba(0,100,179,.5)}.btn-primary:hover{background:var(--accent-dark)}
+.btn-outline{background:#fff;color:var(--text-muted);border:1px solid var(--border)}.btn-outline:hover{background:var(--bg);color:var(--text)}
+.btn-sm{padding:8px 14px;font-size:12px}
+.content-area{flex:1;overflow-y:auto;padding:0 4px 24px}
+.module{display:none}.module.active{display:block}
+.card{background:var(--card);border-radius:20px;border:1px solid var(--border);padding:22px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,100,179,.06)}
+.card-title{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title i{color:var(--accent);font-size:13px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.info-field label{display:block;font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.info-field input,.info-field select{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);transition:border-color .2s}
+.info-field input:focus,.info-field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,100,179,.12)}
+.data-table-wrap{overflow-x:auto;margin:12px 0;border-radius:14px}
+.data-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.data-table th{background:var(--bg);color:var(--text-muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 6px;border:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1}
+.data-table td{padding:6px 6px;border:1px solid var(--border);text-align:center;white-space:nowrap}
+.data-table td[contenteditable=true]{cursor:text;transition:background .15s}
+.data-table td[contenteditable=true]:focus{background:rgba(0,100,179,.08);outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+.data-table tr:nth-child(even) td{background:rgba(0,100,179,.03)}
+.data-table .row-label{background:var(--bg);font-weight:700;color:var(--text-muted);text-align:left;padding-left:10px;min-width:80px}
+.data-table td.out-ctrl{background:rgba(239,68,68,.14)!important;color:#991b1b;font-weight:700}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.result-box{background:var(--bg);border-radius:16px;padding:14px 16px;text-align:center;border:1px solid var(--border)}
+.result-box .label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.result-box .value{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:var(--text);margin-top:4px}
+.result-box.accent .value{color:var(--accent)}
+.result-box.success .value{color:var(--success)}
+.result-box.danger .value{color:var(--danger)}
+.verdict-box{padding:16px 20px;border-radius:16px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:10px;margin-top:12px}
+.verdict-ok{background:rgba(16,185,129,.1);color:#065f46;border:1px solid rgba(16,185,129,.3)}
+.verdict-fail{background:rgba(239,68,68,.1);color:#991b1b;border:1px solid rgba(239,68,68,.3)}
+.chart-container{position:relative;height:280px;margin:8px 0}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-ok{background:rgba(16,185,129,.15);color:#065f46}
+.badge-fail{background:rgba(239,68,68,.15);color:#991b1b}
+.criteria-note{font-size:11.5px;color:var(--text-muted);margin-top:12px;background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:10px 14px;line-height:1.6}
+.criteria-note strong{color:var(--text)}
+.kappa-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+.kappa-table th,.kappa-table td{padding:8px 12px;border:1px solid var(--border);text-align:center}
+.kappa-table th{background:var(--bg);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;color:#fff;font-size:13px;font-weight:500;z-index:9999;transform:translateY(100px);opacity:0;transition:all .4s;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast-ok{background:var(--success)}
+.toast-fail{background:var(--danger)}
+/* ===== DASHBOARD / KPIs ===== */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
+.kpi-card{background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:18px 20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.kpi-card:hover{transform:translateY(-3px);box-shadow:0 14px 28px rgba(0,100,179,.14);border-color:var(--accent-light);background:#fff}
+.kpi-card.ok .kpi-icon{background:rgba(108,194,74,.14);color:var(--success)}
+.kpi-card.fail .kpi-icon{background:rgba(220,53,69,.14);color:var(--danger)}
+.kpi-card .kpi-top{display:flex;justify-content:space-between;align-items:flex-start}
+.kpi-card .kpi-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(0,100,179,.12);color:var(--accent)}
+.kpi-card .kpi-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:12px}
+.kpi-card .kpi-value{font-family:'Space Grotesk',sans-serif;font-size:25px;font-weight:700;color:var(--text);margin-top:2px}
+.kpi-card .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.kpi-card .kpi-chevron{position:absolute;right:16px;bottom:16px;color:var(--text-muted);font-size:11px;opacity:0;transition:opacity .2s}
+.kpi-card:hover .kpi-chevron{opacity:1}
+.kpi-card .kpi-print{position:absolute;right:40px;bottom:16px;color:var(--text-muted);font-size:12px;opacity:0;transition:all .2s;padding:4px 6px;border-radius:8px;cursor:pointer}
+.kpi-card:hover .kpi-print{opacity:1}
+.kpi-card .kpi-print:hover{color:var(--accent);background:rgba(0,100,179,.1)}
+.dash-charts-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.gen-btn{background:linear-gradient(135deg,#0064B3,#04BBEE);color:#fff}
+.gen-btn:hover{filter:brightness(1.08)}
+.gen-note{font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:flex-start;gap:6px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:10px 12px}
+.gen-note i{color:var(--warning);margin-top:1px}
+.card-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:8px}
+/* ===== BIBLIOTECA ===== */
+.saved-item{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--border);border-radius:16px;margin-bottom:10px;background:var(--bg)}
+.saved-item .saved-main{display:flex;align-items:center;gap:12px}
+.saved-item .saved-type-icon{width:38px;height:38px;border-radius:12px;background:rgba(0,100,179,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.saved-item .saved-name{font-weight:700;font-size:13.5px;color:var(--text)}
+.saved-item .saved-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+.saved-item .saved-actions{display:flex;gap:6px;align-items:center}
+.saved-item .saved-actions button{background:#fff;border:1px solid var(--border);border-radius:10px;width:32px;height:32px;cursor:pointer;color:var(--text-muted);transition:all .15s}
+.saved-item .saved-actions button:hover{color:var(--accent);border-color:var(--accent-light);background:rgba(0,100,179,.06)}
+.saved-item .saved-actions button.danger:hover{color:var(--danger);border-color:#fecaca;background:rgba(239,68,68,.06)}
+.editing-banner{display:flex;justify-content:space-between;align-items:center;background:rgba(0,100,179,.08);border:1px solid rgba(0,100,179,.25);border-radius:14px;padding:10px 16px;margin-bottom:14px;font-size:12.5px;color:var(--accent-dark)}
+.editing-banner button{background:none;border:none;color:var(--accent-dark);text-decoration:underline;cursor:pointer;font-size:12.5px}
+/* ===== MODAIS ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,30,61,.55);z-index:9998;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--card);border-radius:22px;padding:26px;width:380px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(36,30,61,.25)}
+.modal-box h3{font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--text)}
+.modal-box .info-field{margin-bottom:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.modal-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;font-weight:700;color:var(--text-muted);margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--border)}
+.chk-line{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:8px}
+.chk-line input{width:auto}
+
+/* ============================================================
+   RELATÓRIO / IMPRESSÃO — layout profissional para clientes e auditores
+   ============================================================ */
+.print-only{display:none}
+.report-cover{display:none}
+.report-header,.report-footer{display:none}
+.report-last-page{display:none}
+.ficha-print{display:none}
+.module-print-title{display:none}
+.sign-block{display:none}
+
+@page{margin:5mm 5mm 5mm 5mm}
+
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{overflow:visible!important;height:auto!important;background:#fff!important;font-size:10.5px}
+  .sidebar,.topbar,.btn,.nav-section,.editing-banner,.gen-note,.modal-overlay,.toast,.kpi-chevron,.kpi-print{display:none!important}
+  #appShell{display:block!important;height:auto!important;overflow:visible!important;padding:0!important}
+  .main-area{margin:0!important;display:block!important;overflow:visible!important;height:auto!important;border-radius:0!important}
+  .content-area{padding:0!important;overflow:visible!important;height:auto!important;max-height:none!important}
+  .module{display:none!important}
+  .module.active{display:block!important}
+  .print-only{display:block}
+
+  /* cabeçalho e rodapé repetidos em todas as páginas */
+  /*
+   * O cabeçalho e o rodapé são fixos para se repetirem em todas as páginas.
+   * O cabeçalho fixo é calculado por alguns navegadores a partir da área
+   * de conteúdo, e não da borda física da folha. O deslocamento negativo
+   * coloca-o na margem superior reservada pelo @page, longe do conteúdo.
+   */
+  .report-header{display:flex!important;position:fixed;top:-20mm;left:0;right:0;align-items:center;justify-content:space-between;gap:10px;padding:0 0 4px;background:#fff;border-bottom:2px solid var(--accent);z-index:20}
+  .report-header .rh-left{display:flex;align-items:center;gap:9px}
+  .report-header .rh-logo{width:26px;height:26px;border-radius:6px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px}
+  .report-header .rh-company{font-size:10.5px;font-weight:700;color:var(--text);line-height:1.25}
+  .report-header .rh-sub{font-size:8px;color:var(--text-muted);letter-spacing:.3px}
+  .report-header .rh-right{text-align:right;font-size:8px;color:var(--text-muted);line-height:1.5}
+  .report-header .rh-right b{display:block;font-size:10px;color:var(--accent-dark);font-family:'Space Grotesk',sans-serif}
+  .report-footer{display:flex!important;position:fixed;bottom:3mm;left:0;right:0;justify-content:space-between;align-items:center;font-size:7.2px;color:#7a7592;background:#fff;border-top:1px solid #e2e8f0;padding-top:3px;letter-spacing:.2px;z-index:20}
+
+  /* O cabeçalho/rodapé não são repetidos: a cópia final aparece uma única vez. */
+  .report-header,.report-footer{display:none!important;position:static!important}
+  /* O contêiner final só participa da impressão quando o JS realmente
+     inseriu o cabeçalho e o rodapé. Um contêiner vazio não pode criar uma
+     folha adicional. */
+  .report-last-page{display:none!important}
+  .report-last-page:not(:empty){display:flex!important;flex-direction:column;gap:3mm;margin-top:10mm;break-inside:avoid;page-break-inside:avoid}
+  .report-last-page .report-header{display:flex!important;position:static!important;left:auto;right:auto;top:auto;z-index:auto;width:100%;padding:0 0 4px;background:#fff;border-bottom:2px solid var(--accent)}
+  .report-last-page .report-footer{display:flex!important;position:static!important;left:auto;right:auto;bottom:auto;z-index:auto;width:100%;padding-top:3px;background:#fff;border-top:1px solid #e2e8f0}
+
+  /* capa */
+  /* A capa ocupava uma folha própria e deixava a página seguinte vazia em
+     alguns navegadores. O relatório compacto começa diretamente no conteúdo. */
+  .report-cover{display:none!important;width:0!important;height:0!important;min-height:0!important;max-height:0!important;padding:0!important;margin:0!important;break-after:auto!important;page-break-after:auto!important}
+  /* Quando a capa é desmarcada, o display inline aplicado pelo JS deve
+     continuar valendo também na impressão. */
+  .report-cover[style*="display: none"]{display:none!important;break-after:auto!important;page-break-after:auto!important}
+  /* Remove o bloco isolado que gerava uma página praticamente vazia. */
+  .report-cover > div:last-child{display:none!important}
+  .cover-top{border-top:0;padding-top:0}
+  .cover-badge{display:inline-block;background:rgba(0,100,179,.12);color:var(--accent-dark);font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;padding:5px 12px;border-radius:20px}
+  .cover-title{font-family:'Space Grotesk',sans-serif;font-size:30px;line-height:1.15;color:var(--text);margin-top:16px;font-weight:700}
+  .cover-sub{font-size:12px;color:var(--text-muted);margin-top:8px}
+  .cover-meta{margin-top:26px;width:100%;border-collapse:collapse;font-size:10px}
+  .cover-meta td{border:1px solid var(--border);padding:7px 10px}
+  .cover-meta td.k{background:var(--bg);color:var(--text-muted);text-transform:uppercase;font-size:8.5px;letter-spacing:.6px;font-weight:700;width:26%}
+  .cover-scope{margin-top:18px;font-size:10px}
+  .cover-scope h4{font-size:11px;color:var(--accent-dark);margin-bottom:6px}
+  .cover-scope ul{margin-left:16px;line-height:1.7}
+  .cover-legal{font-size:8.6px;color:var(--text-muted);line-height:1.6;border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-top:16px;background:var(--bg)}
+
+  /* bloco de assinaturas */
+  .sign-block{display:block!important;break-inside:avoid;page-break-inside:avoid;margin-top:20px;margin-bottom:14mm}
+  .sign-block[style*="display: none"]{display:none!important}
+  .sign-block .sign-title{font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--accent-dark);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  .sign-row{display:flex;gap:14px}
+  .sign-cell{flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 12px 8px}
+  .sign-cell .sign-role{font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700}
+  .sign-cell .sign-name{font-size:10px;font-weight:700;color:var(--text);margin-top:3px}
+  .sign-cell .sign-line{border-bottom:1px solid #9d97b8;height:26px;margin-top:12px}
+  .sign-cell .sign-hint{font-size:7.5px;color:var(--text-muted);margin-top:3px}
+
+  /* títulos de seção por estudo
+     O primeiro módulo não pode criar uma quebra própria: se houver capa,
+     ela já faz a quebra; sem capa, o relatório começa na primeira folha.
+     Apenas os módulos ativos seguintes iniciam uma nova página. */
+  .module.active{break-before:auto!important;page-break-before:auto!important}
+  .module.active ~ .module.active{break-before:auto!important;page-break-before:auto!important}
+  body.print-with-cover .module.active.first-module{break-before:page!important;page-break-before:always!important}
+  .module-print-title{display:flex!important;align-items:baseline;justify-content:space-between;gap:10px;font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:700;color:var(--accent-dark);margin-bottom:8px;border-bottom:2px solid var(--accent);padding-bottom:5px;break-after:avoid;page-break-after:avoid}
+  .module-print-title .mpt-tag{font-size:8.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+
+  /* cartões e conteúdo */
+  /*
+   * Cartões curtos ficam inteiros para evitar títulos, tabelas de resumo e
+   * critérios cortados. Os cartões de dados brutos recebem a classe
+   * data-card e são os únicos autorizados a continuar entre páginas.
+   */
+  /* Cartões curtos ficam juntos; somente cartões com dados brutos podem fluir. */
+  .card{break-inside:avoid!important;page-break-inside:avoid!important;box-shadow:none!important;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;padding:8px 10px}
+  .card.data-card,.card:has(.data-table-wrap){break-inside:auto!important;page-break-inside:auto!important}
+  .card-title{font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-dark);break-after:avoid;page-break-after:avoid}
+  .card-title i{font-size:9px}
+  .charts-row,.dash-charts-row{grid-template-columns:1fr 1fr;gap:12px}
+  .info-grid{display:none!important}
+  .ficha-print{display:block!important}
+  .data-table-wrap{overflow:visible!important;break-inside:auto!important;page-break-inside:auto!important;margin:7px 0}
+  .ficha-print table{width:100%;border-collapse:collapse;font-size:9px}
+  .ficha-print td{border:1px solid var(--border);padding:4px 7px;vertical-align:top}
+  .ficha-print td.k{background:var(--bg);color:var(--text-muted);text-transform:uppercase;font-size:7.6px;letter-spacing:.4px;font-weight:700;width:15%}
+  .ficha-print td.v{font-weight:600;color:var(--text);width:18%}
+  .data-table{font-size:8.2px}
+  .data-table th{position:static!important;padding:4px 3px;font-size:7.4px;background:#EAF3F8!important}
+  .data-table td{padding:2px 3px}
+  .data-table thead{display:table-header-group}
+  .kappa-table{font-size:9px}
+  .kappa-table th,.kappa-table td{padding:4px 8px}
+   .result-grid{grid-template-columns:repeat(4,1fr);gap:7px}
+  .result-box{padding:7px 6px;border-radius:6px}
+  .result-box .label{font-size:7px}
+  .result-box .value{font-size:11.5px}
+  .verdict-box{font-size:10.5px;padding:9px 12px;border-radius:8px;margin-top:9px}
+  .criteria-note{font-size:8.4px;padding:7px 10px;margin-top:8px;break-inside:avoid!important;page-break-inside:avoid!important}
+  .kpi-grid{grid-template-columns:repeat(5,1fr);gap:8px}
+  .kpi-card{padding:9px 10px;border-radius:8px}
+  .kpi-card .kpi-value{font-size:14px}
+  .kpi-card .kpi-label{font-size:7.6px;margin-top:6px}
+  .kpi-card .kpi-sub{font-size:7.6px}
+  .kpi-card .kpi-icon{width:24px;height:24px;font-size:10px}
+  .badge{font-size:7.6px;padding:2px 7px}
+  .data-table{break-inside:auto;page-break-inside:auto}
+  .kappa-table{break-inside:avoid!important;page-break-inside:avoid!important}
+  .data-table tr,.kappa-table tr,.result-box,.result-grid,.verdict-box,.kpi-card,.chart-container{break-inside:avoid;page-break-inside:avoid}
+  canvas{display:none!important}
+  .chart-container{height:auto!important;margin:0}
+  .chart-print-img{display:block!important;width:100%;height:auto;object-fit:contain;border:1px solid var(--border);border-radius:6px}
+  .page-break{break-before:page;page-break-before:always}
+  a[href]:after{content:none!important}
+}
+.chart-print-img{display:none}
+
+/* ===== CAMADA EDITORIAL DO RELATÓRIO ===== */
+.report-executive{display:none}
+.report-executive-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:3px 0 14px;border-bottom:1px solid var(--border)}
+.report-kicker{color:var(--accent);font-size:8px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:4px}
+.report-executive h3{font-size:15px;color:var(--text);margin:0;line-height:1.25}
+.report-executive p{font-size:9.5px;color:var(--text-muted);margin-top:5px;line-height:1.45}
+.report-score{min-width:92px;padding:9px 11px;text-align:right;border:1px solid var(--border);border-radius:9px;background:linear-gradient(145deg,#fff,rgba(0,100,179,.06))}
+.report-score strong{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;line-height:1;color:var(--accent-dark)}
+.report-score span{display:block;color:var(--text-muted);font-size:7px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-top:4px}
+.report-status-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}
+.report-status-item{display:flex;align-items:center;gap:6px;min-width:0;padding:6px 7px;border:1px solid var(--border);border-radius:7px;background:#fff}
+.report-status-dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:var(--danger)}
+.report-status-item.ok .report-status-dot{background:var(--success)}
+.report-status-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:7.6px;font-weight:700}
+.report-status-value{margin-left:auto;color:var(--text-muted);font-size:7.2px;white-space:nowrap}
+
+@media print{
+  .report-executive{display:block!important;margin-bottom:10px}
+  .report-executive .report-status-item{break-inside:avoid;page-break-inside:avoid}
+  .chart-container{height:58mm!important;min-height:58mm!important;margin:0!important;padding:2px 0 0}
+  .charts-row,.dash-charts-row{align-items:stretch}
+  .charts-row .card,.dash-charts-row .card{min-width:0}
+  .chart-print-img{min-height:0!important;max-height:55mm}
+}
+
+/*
+ * Layout específico para A4 paisagem.
+ * Não aplicar rotação no conteúdo: o navegador já orienta a folha por meio
+ * do @page. As dimensões abaixo aproveitam a largura horizontal disponível.
+ */
+@media print and (orientation:landscape){
+  html,body{width:auto!important;min-width:0!important;max-width:none!important}
+  #appShell,.main-area,.content-area{width:100%!important;min-width:0!important;max-width:none!important}
+  .report-header{top:-13mm!important}
+  .report-footer{bottom:2mm!important}
+  .report-cover{display:none!important;width:0!important;height:0!important;min-height:0!important;max-height:0!important;padding:0!important;margin:0!important;break-after:auto!important;page-break-after:auto!important}
+  .report-cover > div:last-child{display:none!important}
+  .cover-title{font-size:24px!important;margin-top:8px!important}
+  .cover-sub{font-size:9px!important;margin-top:4px!important}
+  .cover-meta{margin-top:10px!important;font-size:8px!important;line-height:1.15!important}
+  .cover-meta td{padding:3px 6px!important}
+  .cover-meta td.k{font-size:7px!important}
+  .cover-scope{margin-top:7px!important;font-size:8px!important}
+  .cover-scope h4{font-size:9px!important;margin-bottom:3px!important}
+  .cover-scope ul{line-height:1.25!important}
+  .cover-legal{margin-top:6px!important;padding:5px 7px!important;font-size:7.2px!important;line-height:1.25!important}
+  .module-print-title{font-size:13px!important;margin-bottom:6px!important}
+  .card{padding:7px 9px!important;margin-bottom:5px!important}
+  .card-title{font-size:9.5px!important;margin-bottom:5px!important}
+  .charts-row,.dash-charts-row{grid-template-columns:1fr 1fr!important;gap:10px!important}
+  .chart-container{height:48mm!important;min-height:48mm!important}
+  .chart-print-img{max-height:45mm!important}
+  .data-table{font-size:7.8px!important}
+  .data-table th{font-size:7px!important;padding:3px 3px!important}
+  .data-table td{padding:2px 3px!important}
+  .ficha-print table{font-size:8.5px!important}
+  .ficha-print td{padding:3px 6px!important}
+  .result-grid{gap:5px!important}
+  .result-box{padding:6px 5px!important}
+}
+
+@media print{
+  /* Reforça que nenhum estilo de impressão possa girar o relatório. */
+  #appShell,.main-area,.content-area,.module.active{transform:none!important;writing-mode:horizontal-tb!important}
+}
+/* Paginação final: a capa ocupa uma única folha; o primeiro estudo segue
+   nela apenas quando a capa está desativada. */
+@media print{
+  .report-cover{display:none!important;break-after:auto!important;page-break-after:auto!important}
+  .module.active,
+  body.print-with-cover .module.active.first-module{
+    break-before:auto!important;
+    page-break-before:auto!important;
+  }
+  .module.active ~ .module.active{break-before:auto!important;page-break-before:auto!important}
+  .report-last-page{display:none!important}
+}
+.brand-symbols{position:absolute;inline-size:0;block-size:0;overflow:hidden}
+.rh-brand-logo{width:78px;height:27px;color:var(--brand-blue);flex:0 0 auto}
+.provided-brand-logo{display:block;object-fit:contain;object-position:left center}
+  .cover-brand{display:none!important}
+.cover-brand svg{width:116px;height:39px;color:var(--brand-blue)}
+</style>
+<style id="pageStyle"></style>
+</head>
+<body>
+
+<!-- Símbolo oficial Röchling, com a paleta publicada em roechling.com -->
+<svg class="brand-symbols" aria-hidden="true" width="0" height="0" viewBox="0 0 0 0">
+  <defs>
+    <symbol id="roechling-logo" viewBox="0 250 150 50">
+      <path fill="currentColor" d="m57.867128 273.95111c-.634008-1.51466-2.007783-2.64161-3.769463-2.64161-2.219483 0-4.016112 1.726-4.016112 4.22727 0 2.50163 1.796629 4.22781 4.016112 4.22781 1.76168 0 3.135455-1.12767 3.769463-2.64215l4.650303 2.46613c-1.514666 3.06464-4.75588 5.14324-8.419766 5.14324-5.178916 0-9.371051-3.80478-9.371051-9.19503 0-5.39025 4.192135-9.19503 9.371051-9.19503 3.663886 0 6.9051 2.07859 8.419766 5.14342zm13.478907-5.95363c1.092358-1.02155 2.712965-1.65574 4.580039-1.65574 4.579676 0 7.15175 3.20572 7.15175 7.96214v10.04038h-5.320171v-9.1244c0-2.36092-.950921-4.05179-2.994018-4.05179-1.374139 0-2.677833.6695-3.4176 1.62078v11.55541h-5.319442v-25.71765h5.319442zm-60.90082 1.26838c1.655558 0 2.85331-.95147 2.85331-2.39551 0-1.51503-1.197752-2.39605-2.85331-2.39605H6.851593v4.79156zm.668959-9.9348c4.720929 0 7.750808 3.38211 7.750808 7.53929 0 3.24104-1.726002 5.31963-4.896771 6.44675l8.84262 11.02716H16.081936L7.7677465 274.0221H6.851593v10.32216H1.250187v-25.0132zm21.141065 20.43352c2.219667 0 3.910719-1.72618 3.910719-4.22781 0-2.50127-1.691052-4.22727-3.910719-4.22727-2.219482 0-3.910353 1.726-3.910353 4.22727 0 2.50163 1.690871 4.22781 3.910353 4.22781zm-9.265291-4.22781c0-5.17874 4.192135-9.19503 9.265291-9.19503 5.072976 0 9.265657 4.01629 9.265657 9.19503 0 5.17873-4.192681 9.19503-9.265657 9.19503-5.072792 0-9.265291-4.01629-9.265291-9.19503zm92.040022-7.53929c1.09218-1.02155 2.71315-1.65574 4.58023-1.65574 4.57985 0 7.15102 3.20572 7.15102 7.96214v10.04038h-5.31927v-9.1244c0-2.36092-.95128-4.05179-2.99492-4.05179-1.37341 0-2.67692.6695-3.41706 1.62078v11.55541h-5.31962v-17.6148h5.31962zm-26.98548 16.34678v-25.71765h5.319812v25.71765zm10.921037 0v-17.6148h5.319623v17.6148zm-.53644-23.83729c0-1.73329 1.433475-3.13363 3.133633-3.13363 1.76641 0 3.16658 1.40034 3.16658 3.13363 0 1.73329-1.40017 3.13345-3.16658 3.13345-1.700158 0-3.133633-1.40016-3.133633-3.13345zm-56.993199.85827c0 1.73365-1.399987 3.13345-3.166763 3.13345-1.700155 0-3.133635-1.3998-3.133635-3.13345 0-1.73346 1.43348-3.13382 3.133635-3.13382 1.766776 0 3.166763 1.40036 3.166763 3.13382zm-12.061262 0c0 1.73365-1.399987 3.13345-3.166764 3.13345-1.699972 0-3.133452-1.39999-3.133452-3.13345 0-1.73346 1.43348-3.13382 3.133452-3.13382 1.766777 0 3.166764 1.40035 3.166764 3.13382zm6.030449-7.3163c0 1.73364-1.399806 3.13363-3.166582 3.13363-1.699971 0-3.133634-1.39999-3.133634-3.13363 0-1.73347 1.433663-3.13382 3.133634-3.13382 1.766776 0 3.166582 1.40035 3.166582 3.13382zm108.024565 23.3904v-4.61535c-.73904-.95129-1.69105-1.65592-3.34624-1.65592-2.36074 0-4.15737 1.62078-4.15737 3.98116 0 2.36074 1.79663 3.98134 4.15737 3.98134 1.65519 0 2.6072-.705 3.34624-1.69123zm0-9.61788v-1.092h5.32017v17.21652c0 6.4118-5.00235 8.13889-9.37141 8.13889-2.67711 0-5.63635-.59906-7.71531-2.25516l2.78323-3.98098c1.51502 1.16226 3.27634 1.58511 4.86199 1.58511 1.97229 0 4.12133-1.05668 4.12133-3.41724v-1.57491c-.91579.88138-2.39514 1.51539-4.22726 1.51539-5.03712 0-8.80712-3.87559-8.77218-8.80785.035-4.93227 3.73506-8.80749 8.77218-8.80749 1.83212 0 3.31147.63419 4.22726 1.47972z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ===== CABEÇALHO / RODAPÉ DE PÁGINA (somente impressão) ===== -->
+<div class="report-header">
+  <div class="rh-left">
+    <svg class="rh-brand-logo" viewBox="0 250 150 50" aria-label="Röchling"><use href="#roechling-logo"></use></svg>
+    <div>
+      <div class="rh-company" id="rhEmpresa">Röchling Automotive</div>
+      <div class="rh-sub">Análise do Sistema de Medição (MSA) · AIAG 4ª Edição</div>
+    </div>
+  </div>
+  <div class="rh-right">
+    <b id="rhTitulo">Relatório MSA</b>
+    <span>Doc.: <span id="rhDoc">-</span> · Rev.: <span id="rhRev">-</span> · Emissão: <span id="rhData">-</span></span>
+  </div>
+</div>
+<div class="report-footer">
+  <span id="rfEmpresa">Röchling Automotive</span>
+  <span id="rfClass">Documento controlado · Confidencial · Uso interno e auditoria</span>
+  <span id="rfId">MSA-—</span>
+</div>
+
+<!-- ===== CAPA (somente impressão) ===== -->
+<div class="report-cover" id="reportCover">
+  <div class="cover-top">
+    <div class="cover-brand"><svg viewBox="0 250 150 50" aria-label="Röchling"><use href="#roechling-logo"></use></svg><span>Automotive · Brasil</span></div>
+    <span class="cover-badge">Relatório Técnico da Qualidade</span>
+    <div class="cover-title" id="cvTitulo">Análise do Sistema de Medição (MSA)</div>
+    <div class="cover-sub" id="cvSub">Estudos conforme Manual MSA — AIAG, 4ª Edição</div>
+    <table class="cover-meta">
+      <tbody>
+        <tr><td class="k">Empresa</td><td id="cvEmpresa">-</td><td class="k">Planta / Área</td><td id="cvPlanta">-</td></tr>
+        <tr><td class="k">Documento</td><td id="cvDoc">-</td><td class="k">Revisão</td><td id="cvRev">-</td></tr>
+        <tr><td class="k">Cliente</td><td id="cvCliente">-</td><td class="k">Emissão</td><td id="cvData">-</td></tr>
+        <tr><td class="k">Norma de referência</td><td colspan="3">AIAG MSA 4ª Ed. · IATF 16949:2016 (cláusula 7.1.5.1.1)</td></tr>
+        <tr><td class="k">Identificador</td><td colspan="3" id="cvId">-</td></tr>
+      </tbody>
+    </table>
+    <div class="cover-scope">
+      <h4>Escopo deste relatório</h4>
+      <ul id="cvEscopo"></ul>
+    </div>
+    <div class="cover-scope" style="margin-top:16px">
+      <h4>Critérios de aceitação aplicados</h4>
+      <table class="cover-meta" style="margin-top:6px">
+        <tbody>
+          <tr><td class="k">Estabilidade</td><td colspan="3">Todos os pontos das cartas X̄ e R dentro dos limites de controle (sem causas especiais).</td></tr>
+          <tr><td class="k">Tendência (Bias)</td><td colspan="3">|t| calculado ≤ t crítico (α = 0,05) → tendência estatisticamente igual a zero.</td></tr>
+          <tr><td class="k">Linearidade</td><td colspan="3">H₀: a = 0 e H₀: b = 0 não rejeitadas (α = 0,05).</td></tr>
+          <tr><td class="k">R&amp;R Variável</td><td colspan="3">%R&amp;R &lt; 10% aceitável · 10–30% condicional · &gt; 30% inaceitável. NDC ≥ 5.</td></tr>
+          <tr><td class="k">R&amp;R Atributo</td><td colspan="3">Kappa ≥ 0,90 (vs. referência e entre operadores) e eficácia ≥ 90%.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="cover-legal" id="cvAviso">
+      Este relatório apresenta os resultados dos estudos de análise do sistema de medição executados com os dados registrados no sistema MSA Dashboard. Os valores calculados seguem as fórmulas e as constantes do Manual MSA (AIAG, 4ª Edição). Documento confidencial: sua reprodução parcial ou total sem autorização é proibida.
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;height:calc(100vh - 28px)" id="appShell">
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <svg class="brand-logo" viewBox="0 250 150 50" aria-label="Röchling"><use href="#roechling-logo"></use></svg>
+    <div class="logo-divider"></div>
+    <div class="logo-text">MSA Dashboard</div>
+    <div class="logo-sub">Automotive Brasil · Manual AIAG 4ª Ed.</div>
+  </div>
+  <div class="nav-section">Visão Geral</div>
+  <div class="nav-item active" data-mod="dashboard" onclick="switchModule('dashboard')"><i class="fas fa-gauge-high"></i>Dashboard</div>
+  <div class="nav-section">Estudos de Variável</div>
+  <div class="nav-item" data-mod="estabilidade" onclick="switchModule('estabilidade')"><i class="fas fa-chart-line"></i>Estabilidade</div>
+  <div class="nav-item" data-mod="tendencia" onclick="switchModule('tendencia')"><i class="fas fa-bullseye"></i>Tendência (Bias)</div>
+  <div class="nav-item" data-mod="linearidade" onclick="switchModule('linearidade')"><i class="fas fa-arrows-left-right"></i>Linearidade</div>
+  <div class="nav-item" data-mod="rr" onclick="switchModule('rr')"><i class="fas fa-repeat"></i>R&R Variável</div>
+  <div class="nav-section">Estudos de Atributo</div>
+  <div class="nav-item" data-mod="atributos" onclick="switchModule('atributos')"><i class="fas fa-check-double"></i>R&R Atributo</div>
+  <div class="nav-section">Biblioteca</div>
+  <div class="nav-item" data-mod="salvos" onclick="switchModule('salvos')"><i class="fas fa-folder-open"></i>Estudos Salvos</div>
+  <div style="flex:1"></div>
+  <div class="nav-item" onclick="openSettings()"><i class="fas fa-gear"></i>Configurações</div>
+  <div style="padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.3);font-size:11px">
+    <div>Baseado no Manual MSA</div>
+    <div style="margin-top:2px">AIAG 4ª Edição</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-area">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">Dashboard Geral</div>
+    <div class="topbar-actions">
+      <span id="fbStatus" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);padding:8px 14px;border-radius:12px" title="Status da conexão com o banco de dados"><i class="fas fa-circle-notch fa-spin" style="font-size:8px"></i> Conectando...</span>
+      <button class="btn btn-outline btn-sm" onclick="recalcCurrent()"><i class="fas fa-calculator"></i> Recalcular</button>
+      <button class="btn btn-primary btn-sm" onclick="openPrintModal()"><i class="fas fa-file-pdf"></i> Gerar Relatório</button>
+      <button class="btn btn-outline btn-sm" onclick="openSettings()" style="width:38px;height:38px;padding:0;justify-content:center;border-radius:12px" title="Configurações do relatório"><i class="fas fa-gear"></i></button>
+      <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);padding:6px 14px 6px 6px;border-radius:14px">
+        <div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px">M</div>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">MSA Admin</span>
+      </div>
+    </div>
+  </div>
+  <div class="content-area">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div class="module active" id="mod-dashboard">
+      <div class="module-print-title"><span>Resumo Executivo dos Estudos</span><span class="mpt-tag">Seção 1</span></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-gauge-high"></i>Indicadores dos Estudos (clique para abrir)</div>
+          <button class="btn gen-btn btn-sm" onclick="gerarTodosAprovados()"><i class="fas fa-wand-magic-sparkles"></i> Gerar Todos os Estudos (Simulação Aprovada)</button>
+        </div>
+        <div class="report-executive print-only">
+          <div class="report-executive-head">
+            <div>
+              <div class="report-kicker">Visão executiva</div>
+              <h3>Resumo de conformidade do sistema de medição</h3>
+              <p id="reportExecutiveLead">Síntese dos estudos selecionados e dos respectivos critérios de aceitação.</p>
+            </div>
+            <div class="report-score"><strong id="reportScore">—</strong><span>estudos aprovados</span></div>
+          </div>
+          <div class="report-status-strip" id="reportStatusStrip"></div>
+        </div>
+        <div class="kpi-grid" id="dashKpis"></div>
+      </div>
+      <div class="dash-charts-row">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-chart-bar"></i>Indicador Crítico por Estudo (%)</div>
+          <div class="chart-container"><canvas id="chartDashBar"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-chart-pie"></i>Status Geral dos Estudos</div>
+          <div class="chart-container"><canvas id="chartDashPie"></canvas></div>
+        </div>
+      </div>
+      <div class="card print-only">
+        <div class="card-title"><i class="fas fa-list-check"></i>Conclusão Geral</div>
+        <div id="dashConclusao"></div>
+      </div>
+      <div class="gen-note"><i class="fas fa-triangle-exclamation"></i> Dados gerados pela simulação servem apenas para treinamento, template e testes do sistema. Não substituem medições reais para liberação oficial de estudos MSA.</div>
+    </div>
+
+    <!-- ========== ESTABILIDADE ========== -->
+    <div class="module" id="mod-estabilidade">
+      <div class="module-print-title"><span>Estudo de Estabilidade</span><span class="mpt-tag">Carta X̄ – R</span></div>
+      <div class="editing-banner" id="editBanner-estabilidade" style="display:none"><span><i class="fas fa-pen"></i> Editando estudo salvo: <strong id="editBannerNome-estabilidade"></strong></span><button onclick="cancelarEdicao('estabilidade')">Criar novo em branco</button></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-info-circle"></i>Informações do Estudo</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gen-btn btn-sm" onclick="gerarAprovado('estabilidade')"><i class="fas fa-wand-magic-sparkles"></i> Gerar Estudo Aprovado</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaveModal('estabilidade')"><i class="fas fa-floppy-disk"></i> Salvar Estudo</button>
+          </div>
+        </div>
+        <div class="info-grid" id="estInfo"></div>
+        <div class="ficha-print" id="estInfoPrint"></div>
+      </div>
+       <div class="card data-card">
+        <div class="card-title"><i class="fas fa-table"></i>Dados de Medição (clique na célula para editar)</div>
+        <div class="data-table-wrap" id="estTableWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i>Cartas de Controle</div>
+        <div class="charts-row">
+          <div class="chart-container"><canvas id="chartXbarra"></canvas></div>
+          <div class="chart-container"><canvas id="chartR"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Resultados</div>
+        <div class="result-grid" id="estResults"></div>
+        <div id="estVerdict"></div>
+        <div class="criteria-note"><strong>Critério de aceitação (MSA 4ª Ed.):</strong> o sistema é considerado estável quando todos os pontos das cartas X̄ e R permanecem dentro dos limites de controle e não há padrões não aleatórios (tendências, ciclos ou sequências).</div>
+      </div>
+    </div>
+
+    <!-- ========== TENDÊNCIA ========== -->
+    <div class="module" id="mod-tendencia">
+      <div class="module-print-title"><span>Estudo de Tendência (Bias)</span><span class="mpt-tag">Teste t · α = 0,05</span></div>
+      <div class="editing-banner" id="editBanner-tendencia" style="display:none"><span><i class="fas fa-pen"></i> Editando estudo salvo: <strong id="editBannerNome-tendencia"></strong></span><button onclick="cancelarEdicao('tendencia')">Criar novo em branco</button></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-info-circle"></i>Informações do Estudo</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gen-btn btn-sm" onclick="gerarAprovado('tendencia')"><i class="fas fa-wand-magic-sparkles"></i> Gerar Estudo Aprovado</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaveModal('tendencia')"><i class="fas fa-floppy-disk"></i> Salvar Estudo</button>
+          </div>
+        </div>
+        <div class="info-grid" id="tenInfo"></div>
+        <div class="ficha-print" id="tenInfoPrint"></div>
+      </div>
+       <div class="card data-card">
+        <div class="card-title"><i class="fas fa-table"></i>Dados de Medição</div>
+        <div class="data-table-wrap" id="tenTableWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i>Gráfico de Tendência</div>
+        <div class="chart-container" style="height:300px"><canvas id="chartTendencia"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Resultados</div>
+        <div class="result-grid" id="tenResults"></div>
+        <div id="tenVerdict"></div>
+        <div class="criteria-note"><strong>Critério de aceitação:</strong> a tendência é considerada aceitável quando o valor zero está contido no intervalo de confiança de 95% da tendência, ou seja, |t| calculado ≤ t crítico (α = 0,05; gl = n − 1).</div>
+      </div>
+    </div>
+
+    <!-- ========== LINEARIDADE ========== -->
+    <div class="module" id="mod-linearidade">
+      <div class="module-print-title"><span>Estudo de Linearidade</span><span class="mpt-tag">Regressão do Bias</span></div>
+      <div class="editing-banner" id="editBanner-linearidade" style="display:none"><span><i class="fas fa-pen"></i> Editando estudo salvo: <strong id="editBannerNome-linearidade"></strong></span><button onclick="cancelarEdicao('linearidade')">Criar novo em branco</button></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-info-circle"></i>Informações do Estudo</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gen-btn btn-sm" onclick="gerarAprovado('linearidade')"><i class="fas fa-wand-magic-sparkles"></i> Gerar Estudo Aprovado</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaveModal('linearidade')"><i class="fas fa-floppy-disk"></i> Salvar Estudo</button>
+          </div>
+        </div>
+        <div class="info-grid" id="linInfo"></div>
+        <div class="ficha-print" id="linInfoPrint"></div>
+      </div>
+       <div class="card data-card">
+        <div class="card-title"><i class="fas fa-table"></i>Dados de Medição</div>
+        <div class="data-table-wrap" id="linTableWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i>Análise Gráfica</div>
+        <div class="chart-container" style="height:320px"><canvas id="chartLinearidade"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Resultados da Regressão</div>
+        <div class="result-grid" id="linResults"></div>
+        <div id="linVerdict"></div>
+        <div class="criteria-note"><strong>Critério de aceitação:</strong> a linearidade é aceitável quando as hipóteses H₀: a = 0 (intercepto) e H₀: b = 0 (inclinação) não são rejeitadas ao nível de 5%, e a linha do zero está totalmente contida na banda de confiança do bias.</div>
+      </div>
+    </div>
+
+    <!-- ========== R&R VARIÁVEL ========== -->
+    <div class="module" id="mod-rr">
+      <div class="module-print-title"><span>Estudo R&amp;R Variável</span><span class="mpt-tag">Método da Média e Amplitude</span></div>
+      <div class="editing-banner" id="editBanner-rr" style="display:none"><span><i class="fas fa-pen"></i> Editando estudo salvo: <strong id="editBannerNome-rr"></strong></span><button onclick="cancelarEdicao('rr')">Criar novo em branco</button></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-info-circle"></i>Informações do Estudo</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gen-btn btn-sm" onclick="gerarAprovado('rr')"><i class="fas fa-wand-magic-sparkles"></i> Gerar Estudo Aprovado</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaveModal('rr')"><i class="fas fa-floppy-disk"></i> Salvar Estudo</button>
+          </div>
+        </div>
+        <div class="info-grid" id="rrInfo"></div>
+        <div class="ficha-print" id="rrInfoPrint"></div>
+      </div>
+       <div class="card data-card">
+        <div class="card-title"><i class="fas fa-table"></i>Dados de Medição</div>
+        <div class="data-table-wrap" id="rrTableWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i>Gráficos de Controle</div>
+        <div class="charts-row">
+          <div class="chart-container"><canvas id="chartRRMean"></canvas></div>
+          <div class="chart-container"><canvas id="chartRRRange"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Componentes de Variação</div>
+        <div class="result-grid" id="rrResults"></div>
+        <div id="rrVerdict"></div>
+        <div class="criteria-note"><strong>Critério de aceitação (MSA 4ª Ed.):</strong> %R&amp;R &lt; 10% — sistema aceitável; entre 10% e 30% — aceitação condicional conforme a importância da aplicação, custo do instrumento e custo do reparo; &gt; 30% — inaceitável. Número de categorias distintas (NDC) deve ser ≥ 5.</div>
+      </div>
+    </div>
+
+    <!-- ========== ATRIBUTOS ========== -->
+    <div class="module" id="mod-atributos">
+      <div class="module-print-title"><span>Estudo R&amp;R por Atributo</span><span class="mpt-tag">Kappa de Cohen · Eficácia</span></div>
+      <div class="editing-banner" id="editBanner-atributos" style="display:none"><span><i class="fas fa-pen"></i> Editando estudo salvo: <strong id="editBannerNome-atributos"></strong></span><button onclick="cancelarEdicao('atributos')">Criar novo em branco</button></div>
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-info-circle"></i>Informações do Estudo</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gen-btn btn-sm" onclick="gerarAprovado('atributos')"><i class="fas fa-wand-magic-sparkles"></i> Gerar Estudo Aprovado</button>
+            <button class="btn btn-primary btn-sm" onclick="openSaveModal('atributos')"><i class="fas fa-floppy-disk"></i> Salvar Estudo</button>
+          </div>
+        </div>
+        <div class="info-grid" id="atrInfo"></div>
+        <div class="criteria-note"><strong>Identificação dos avaliadores:</strong> informe abaixo os nomes das pessoas que estão realizando o estudo. Esses nomes serão usados nas tabelas, gráficos, indicadores e no relatório impresso.</div>
+        <div class="ficha-print" id="atrInfoPrint"></div>
+      </div>
+       <div class="card data-card">
+        <div class="card-title"><i class="fas fa-table"></i>Dados de Medição (A = Aceita, R = Rejeita — clique na célula para alternar)</div>
+        <div class="data-table-wrap" id="atrTableWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Análise Kappa</div>
+        <div id="atrKappaWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-column"></i>Eficácia, Falha e Falso Alarme por Avaliador</div>
+        <div class="chart-container"><canvas id="chartAtributos"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calculator"></i>Eficácia dos Operadores</div>
+        <div class="result-grid" id="atrResults"></div>
+        <div id="atrVerdict"></div>
+        <div class="criteria-note"><strong>Critério de aceitação:</strong> Kappa ≥ 0,90 indica excelente concordância; entre 0,70 e 0,89 concordância aceitável com plano de ação; &lt; 0,70 inadequada. A eficácia de cada avaliador contra o padrão de referência deve ser ≥ 90%, com taxa de falha (peça ruim aceita) e falso alarme (peça boa rejeitada) ≤ 5%.</div>
+      </div>
+    </div>
+
+    <!-- ========== ESTUDOS SALVOS ========== -->
+    <div class="module" id="mod-salvos">
+      <div class="card">
+        <div class="card-header-row">
+          <div class="card-title"><i class="fas fa-folder-open"></i>Biblioteca de Estudos Salvos</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="salvosFiltro" onchange="renderSalvos()" style="width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text)">
+              <option value="">Todos os tipos</option>
+              <option value="estabilidade">Estabilidade</option>
+              <option value="tendencia">Tendência</option>
+              <option value="linearidade">Linearidade</option>
+              <option value="rr">R&R Variável</option>
+              <option value="atributos">R&R Atributo</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="carregarListaSalvos()"><i class="fas fa-rotate"></i> Atualizar</button>
+          </div>
+        </div>
+        <div id="salvosLista"><p style="color:var(--text-muted);font-size:13px">Carregando estudos salvos...</p></div>
+      </div>
+    </div>
+
+    <!-- Bloco de assinaturas no fim do relatório -->
+    <div class="sign-block" id="signEnd">
+      <div class="sign-title">Registro de Aprovação do Relatório</div>
+      <div class="sign-row">
+        <div class="sign-cell"><div class="sign-role">Elaborado por</div><div class="sign-name" id="sgElab2">-</div><div class="sign-line"></div><div class="sign-hint">Assinatura / Data</div></div>
+        <div class="sign-cell"><div class="sign-role">Verificado por</div><div class="sign-name" id="sgVerif2">-</div><div class="sign-line"></div><div class="sign-hint">Assinatura / Data</div></div>
+        <div class="sign-cell"><div class="sign-role">Aprovado por (Qualidade)</div><div class="sign-name" id="sgAprov2">-</div><div class="sign-line"></div><div class="sign-hint">Assinatura / Data</div></div>
+      </div>
+    </div>
+    <div class="report-last-page" id="reportLastPage" aria-hidden="true"></div>
+
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL CONFIGURAÇÕES -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box" style="width:440px">
+    <h3><i class="fas fa-gear"></i> Configurações do Relatório</h3>
+    <div class="modal-sec" style="border-top:none;padding-top:0;margin-top:0">Identificação</div>
+    <div class="info-field"><label>Nome da Empresa</label><input id="cfgEmpresa" type="text"></div>
+    <div class="info-field"><label>Planta / Área</label><input id="cfgPlanta" type="text" placeholder="Ex: Planta São José dos Pinhais - Qualidade"></div>
+    <div class="info-field"><label>Cliente / Programa</label><input id="cfgCliente" type="text" placeholder="Ex: VW - Projeto SK"></div>
+    <div class="info-field"><label>Código do Documento</label><input id="cfgDoc" type="text" placeholder="Ex: FR-QLD-045"></div>
+    <div class="info-field"><label>Revisão</label><input id="cfgRev" type="text" placeholder="Ex: 02"></div>
+    <div class="modal-sec">Aprovações</div>
+    <div class="info-field"><label>Elaborado por</label><input id="cfgElab" type="text" placeholder="Nome / Função"></div>
+    <div class="info-field"><label>Verificado por</label><input id="cfgVerif" type="text" placeholder="Nome / Função"></div>
+    <div class="info-field"><label>Aprovado por (Qualidade)</label><input id="cfgAprov" type="text" placeholder="Nome / Função"></div>
+    <div class="modal-sec">Apresentação</div>
+    <div class="info-field"><label>Casas Decimais (resultados)</label>
+      <select id="cfgDec">
+        <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+        <option value="5">5</option><option value="6">6</option>
+      </select>
+    </div>
+    <div class="info-field"><label>Classificação do documento</label><input id="cfgClass" type="text" placeholder="Confidencial · Uso interno e auditoria"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeSettings()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="saveSettings()"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SALVAR -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal-box" style="width:400px">
+    <h3><i class="fas fa-floppy-disk"></i> Salvar Estudo</h3>
+    <div class="info-field"><label>Nome do Estudo</label><input id="saveNome" type="text" placeholder="Ex: Paquímetro 0-150mm - Linha 3"></div>
+    <div id="saveOverwriteBox" style="display:none">
+      <label class="chk-line" style="font-size:12.5px"><input type="checkbox" id="saveComoNovo"> Salvar como um novo estudo (não sobrescrever o carregado)</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeSaveModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmSave()"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO -->
+<div class="modal-overlay" id="printModal">
+  <div class="modal-box" style="width:440px">
+    <h3><i class="fas fa-file-pdf"></i> Gerar Relatório MSA</h3>
+    <div class="info-field">
+      <label style="display:flex;justify-content:space-between;align-items:center">
+        <span>Conteúdo do relatório</span>
+        <a href="javascript:void(0)" onclick="toggleAllPrint()" style="font-size:11px;font-weight:600;color:var(--accent);text-decoration:none">Marcar/Desmarcar todos</a>
+      </label>
+      <div id="printChecklist" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+    </div>
+    <div class="modal-sec">Opções do documento</div>
+    <label class="chk-line"><input type="checkbox" id="optCapa" checked> Incluir capa com identificação e critérios</label>
+    <label class="chk-line"><input type="checkbox" id="optAssin" checked> Incluir bloco de assinaturas ao final</label>
+    <label class="chk-line"><input type="checkbox" id="optDados" checked> Incluir tabelas de dados brutos</label>
+    <div class="info-field" style="margin-top:10px"><label>Orientação da página</label>
+      <select id="optOrient">
+        <option value="portrait">Retrato (A4)</option>
+        <option value="landscape">Paisagem (A4) — recomendado com R&amp;R e Atributo</option>
+      </select>
+    </div>
+    <div class="info-field" style="font-size:11px;color:var(--text-muted);line-height:1.6">
+      <i class="fas fa-circle-info"></i> Todos os cálculos e gráficos são recalculados antes da geração. Na janela de impressão do navegador, escolha <strong>“Salvar como PDF”</strong> e desative “Cabeçalhos e rodapés” para um documento limpo.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closePrintModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmPrint()"><i class="fas fa-print"></i> Gerar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== CONSTANTES MSA (AIAG 4ª Ed.) ===================== */
+const SPC={2:{D4:3.267,A2:1.880,D3:0,D2:1.128},3:{D4:2.575,A2:1.023,D3:0,D2:1.693},4:{D4:2.282,A2:0.729,D3:0,D2:2.059},5:{D4:2.114,A2:0.577,D3:0,D2:2.326},6:{D4:2.004,A2:0.483,D3:0,D2:2.534},7:{D4:1.924,A2:0.419,D3:0.076,D2:2.704},8:{D4:1.864,A2:0.373,D3:0.136,D2:2.847},9:{D4:1.816,A2:0.337,D3:0.184,D2:2.970},10:{D4:1.777,A2:0.308,D3:0.223,D2:3.078}};
+const K1={2:0.8862,3:0.5908,4:0.4857,5:0.4030};
+const K2={2:0.7071,3:0.5231,4:0.4467};
+const K3={2:0.7071,3:0.5231,4:0.4467,5:0.4030,6:0.3742,7:0.3534,8:0.3375,9:0.3249,10:0.3146};
+
+/* ===================== CONFIGURAÇÕES DO RELATÓRIO ===================== */
+const CFG={empresa:'Röchling Automotive',planta:'',cliente:'',doc:'',rev:'',dec:4,
+  elab:'',verif:'',aprov:'',classif:'Documento controlado · Confidencial · Uso interno e auditoria'};
+
+function txt(v){return (v===undefined||v===null||String(v).trim()==='')?'-':String(v)}
+function esc(s){return String(s===undefined||s===null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function loadCFG(){
+  try{const s=JSON.parse(localStorage.getItem('msaCfg')||'null');if(s)Object.assign(CFG,s);}catch(e){}
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('rhEmpresa',txt(CFG.empresa)); set('rhDoc',txt(CFG.doc)); set('rhRev',txt(CFG.rev));
+  set('rfEmpresa',txt(CFG.empresa)); set('rfClass',txt(CFG.classif));
+  set('cvEmpresa',txt(CFG.empresa)); set('cvPlanta',txt(CFG.planta)); set('cvCliente',txt(CFG.cliente));
+  set('cvDoc',txt(CFG.doc)); set('cvRev',txt(CFG.rev));
+  set('sgElab',txt(CFG.elab)); set('sgVerif',txt(CFG.verif)); set('sgAprov',txt(CFG.aprov));
+  set('sgElab2',txt(CFG.elab)); set('sgVerif2',txt(CFG.verif)); set('sgAprov2',txt(CFG.aprov));
+}
+function openSettings(){
+  document.getElementById('cfgEmpresa').value=CFG.empresa||'';
+  document.getElementById('cfgPlanta').value=CFG.planta||'';
+  document.getElementById('cfgCliente').value=CFG.cliente||'';
+  document.getElementById('cfgDoc').value=CFG.doc||'';
+  document.getElementById('cfgRev').value=CFG.rev||'';
+  document.getElementById('cfgElab').value=CFG.elab||'';
+  document.getElementById('cfgVerif').value=CFG.verif||'';
+  document.getElementById('cfgAprov').value=CFG.aprov||'';
+  document.getElementById('cfgClass').value=CFG.classif||'';
+  document.getElementById('cfgDec').value=CFG.dec;
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
+function saveSettings(){
+  CFG.empresa=document.getElementById('cfgEmpresa').value.trim()||'Röchling Automotive';
+  CFG.planta=document.getElementById('cfgPlanta').value.trim();
+  CFG.cliente=document.getElementById('cfgCliente').value.trim();
+  CFG.doc=document.getElementById('cfgDoc').value.trim();
+  CFG.rev=document.getElementById('cfgRev').value.trim();
+  CFG.elab=document.getElementById('cfgElab').value.trim();
+  CFG.verif=document.getElementById('cfgVerif').value.trim();
+  CFG.aprov=document.getElementById('cfgAprov').value.trim();
+  CFG.classif=document.getElementById('cfgClass').value.trim()||'Documento controlado · Confidencial';
+  CFG.dec=parseInt(document.getElementById('cfgDec').value)||4;
+  localStorage.setItem('msaCfg',JSON.stringify(CFG));
+  loadCFG();
+  closeSettings();
+  recalcCurrent();
+  showToast('Configurações salvas');
+}
+
+/* ===================== UTILITÁRIOS NUMÉRICOS ===================== */
+function num(v){ // aceita vírgula ou ponto como separador decimal
+  if(typeof v==='number')return isFinite(v)?v:0;
+  if(v===null||v===undefined)return 0;
+  const x=parseFloat(String(v).replace(/\s/g,'').replace(/\./g,m=>m).replace(',', '.'));
+  return isNaN(x)?0:x;
+}
+function numOr(v,def){const s=String(v??'').replace(',','.');const x=parseFloat(s);return isNaN(x)?def:x}
+function fmt(v,d){if(d===undefined)d=CFG.dec;if(v===null||v===undefined||!isFinite(v))return'-';return Number(v).toFixed(d).replace('.',',')}
+function fmtPct(v,d=2){if(v===null||v===undefined||!isFinite(v))return'-';return Number(v).toFixed(d).replace('.',',')+'%'}
+function mean(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:0}
+function stdev(a){if(a.length<2)return 0;const m=mean(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1))}
+function range(a){return a.length?Math.max(...a)-Math.min(...a):0}
+
+/* Quantil da normal padrão (Acklam) */
+function normInv(p){
+  if(p<=0||p>=1)return 0;
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425;let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+  if(p<=1-pl){q=p-0.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
+  q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+/* t crítico bicaudal (Algoritmo de Hill 396) — alpha2 = probabilidade bicaudal */
+function tCritico(alpha2,df){
+  const n=df;let p=alpha2;
+  if(!(n>=1)||p<=0||p>=1)return NaN;
+  if(n===1)return Math.cos(p*Math.PI/2)/Math.sin(p*Math.PI/2);
+  if(n===2)return Math.sqrt(2/(p*(2-p))-2);
+  const a=1/(n-0.5),b=48/(a*a);
+  let c=((20700*a/b-98)*a-16)*a+96.36;
+  const dd=((94.5/(b+c)-3)/b+1)*Math.sqrt(a*Math.PI/2)*n;
+  let x=dd*p,y=Math.pow(x,2/n);
+  if(y>0.05+a){
+    x=-normInv(p*0.5); y=x*x;
+    if(n<5)c=c+0.3*(n-4.5)*(x+0.6);
+    c=(((0.05*dd*x-5)*x-7)*x-2)*x+b+c;
+    y=(((((0.4*y+6.3)*y+36)*y+94.5)/c-y-3)/b+1)*x;
+    y=a*y*y;
+    y=y>0.002?Math.exp(y)-1:0.5*y*y+y;
+  }else{
+    y=((1/(((n+6)/(n*y)-0.089*dd-0.822)*(n+2)*3)+0.5/(n+4))*y-1)*(n+1)/(n+2)+1/y;
+  }
+  return Math.sqrt(n*y);
+}
+function showToast(msg,ok=true){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(ok?'toast-ok':'toast-fail');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.className='toast',3000)}
+
+/* ===================== PERSISTÊNCIA (FIRESTORE) ===================== */
+const firebaseConfig={
+  apiKey:"AIzaSyAcmnS6S47tznpns-ZEarMXqXAFsD_Ylqk",
+  authDomain:"msa-novo.firebaseapp.com",
+  projectId:"msa-novo",
+  storageBucket:"msa-novo.firebasestorage.app",
+  messagingSenderId:"154466050071",
+  appId:"1:154466050071:web:7e17a9fe24e448bfb9fc52"
+};
+let db=null;
+function setFbStatus(ok){
+  const el=document.getElementById('fbStatus');if(!el)return;
+  el.innerHTML=ok?'<i class="fas fa-circle" style="font-size:8px;color:var(--success)"></i> Conectado'
+                 :'<i class="fas fa-circle" style="font-size:8px;color:var(--danger)"></i> Offline (dados locais)';
+}
+try{
+  firebase.initializeApp(firebaseConfig);
+  db=firebase.firestore();
+  db.collection('msa_estudos').limit(1).get().then(()=>setFbStatus(true)).catch(()=>{db=null;setFbStatus(false)});
+}catch(e){db=null;setFbStatus(false)}
+
+/* ===================== ESTADO GLOBAL ===================== */
+let currentModule='dashboard';
+let charts={};
+let KPI={};
+let reportOpts={capa:true,assin:true,dados:true,orient:'portrait'};
+
+/* ===================== DADOS ===================== */
+const estData={
+  info:{partNo:'N 75001',caracteristica:'Dimensão Externa',especificacao:'40,33 -0,1 mm',responsavel:'Fábio Sousa',equipamento:'Paquímetro Digital',tag:'04.02.00343',capacidade:'0-200 mm / 0,01 mm',valorRef:'40,3314',numMed:'5',numAmostras:'25',erroAmostral:'5%'},
+  amostras:[
+    {data:'08/11/21',hora:'8:00',m:[40.25,40.25,40.24,40.25,40.25]},
+    {data:'08/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'08/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.26,40.25]},
+    {data:'09/11/21',hora:'8:00',m:[40.25,40.26,40.25,40.26,40.25]},
+    {data:'09/11/21',hora:'11:00',m:[40.25,40.26,40.25,40.25,40.25]},
+    {data:'09/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'10/11/21',hora:'8:00',m:[40.25,40.25,40.26,40.25,40.25]},
+    {data:'10/11/21',hora:'11:00',m:[40.25,40.26,40.25,40.26,40.25]},
+    {data:'10/11/21',hora:'14:00',m:[40.25,40.25,40.26,40.25,40.25]},
+    {data:'11/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'11/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.26,40.25]},
+    {data:'11/11/21',hora:'14:00',m:[40.25,40.24,40.25,40.25,40.25]},
+    {data:'12/11/21',hora:'8:00',m:[40.25,40.25,40.24,40.25,40.25]},
+    {data:'12/11/21',hora:'11:00',m:[40.25,40.25,40.26,40.25,40.25]},
+    {data:'12/11/21',hora:'14:00',m:[40.26,40.25,40.26,40.25,40.25]},
+    {data:'16/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'16/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'16/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'17/11/21',hora:'8:00',m:[40.25,40.24,40.25,40.26,40.25]},
+    {data:'17/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'17/11/21',hora:'14:00',m:[40.25,40.26,40.26,40.25,40.25]},
+    {data:'18/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.26,40.25]},
+    {data:'18/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
+    {data:'18/11/21',hora:'14:00',m:[40.26,40.25,40.25,40.25,40.25]},
+    {data:'19/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.26,40.25]}
+  ]
+};
+const tenData={
+  info:{partNo:'N 75001',caracteristica:'DIM',responsavel:'Welington Freitas',data:'',equipamento:'Relógio Comparador',tag:'RC-016',valorRef:'6,000',numMed:'15',erroAmostral:'5%',tolerancia:'0,02',processo:'0,4'},
+  medidas:[6.01,6.02,5.98,6.01,6.02,5.99,5.97,5.96,5.94,6.03,6.02,6.01,5.99,5.98,6.02]
+};
+const linData={
+  info:{peca:'5 peças',caracteristica:'Dimensão',equipamento:'Relógio Comparador',tag:'RC-016',operador:'Welington Freitas',numPecas:'5',numMed:'12',erroAmostral:'5%',tolerancia:'1,0'},
+  refs:[2,4,6,8,10],
+  medicoes:[
+    [2.70,2.50,2.40,2.50,2.70,2.30,2.50,2.50,2.40,2.40,2.60,2.40],
+    [5.10,3.90,4.20,5.00,3.80,3.90,3.90,3.90,3.90,4.00,4.10,3.80],
+    [5.80,5.70,5.90,5.90,6.00,6.10,6.00,6.10,6.40,6.30,6.00,6.10],
+    [7.60,7.70,7.80,7.70,7.80,7.80,7.80,7.70,7.80,7.50,7.60,7.70],
+    [9.10,9.30,9.50,9.30,9.40,9.50,9.50,9.50,9.60,9.20,9.30,9.40]
+  ]
+};
+const rrData={
+  info:{partNumber:'COLETOR 1.6',caracteristicas:'Comprimento',especificacoes:'DIM 5,80 ± 0,10',data:'05/06/2025',equipamento:'Paquímetro',tag:'PA-027',responsavel:'Welington Freitas',numPecas:'10',numOp:'3',numRep:'3',tolerancia:'0,2'},
+  operadores:['EDSON','ROSE','LUIZ'],
+  dados:[
+    [[5.68,5.74,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76],[5.69,5.75,5.74,5.76,5.75,5.78,5.77,5.79,5.79,5.76],[5.68,5.74,5.75,5.74,5.76,5.77,5.78,5.79,5.80,5.76]],
+    [[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.74,5.75,5.74,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76]],
+    [[5.68,5.74,5.75,5.76,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.75],[5.68,5.74,5.75,5.76,5.76,5.77,5.78,5.79,5.80,5.76]]
+  ]
+};
+/* 50 peças · referência com 50 posições (corrigido: antes havia 64 caracteres) */
+const atrData={
+  info:{partNumber:'SURG TANK',caracteristicas:'14,30 a 14,70',tolerancia:'0,4',data:'31/10/2025',equipamento:'PNP',tag:'PNP-003',responsavel:'Welington Freitas',avaliador1:'',avaliador2:'',avaliador3:''},
+  operadores:['Avaliador 1','Avaliador 2','Avaliador 3'],
+  dados:[[],[],[]],
+  referencia:''
+};
+(function initAtr(){
+  const nP=50;
+  let ref='';
+  for(let p=0;p<nP;p++) ref += (p%4===3?'R':'A');   // padrão de referência conhecido
+  atrData.referencia=ref;
+  for(let o=0;o<3;o++){
+    atrData.dados[o]=[];
+    for(let p=0;p<nP;p++) atrData.dados[o].push(ref[p].repeat(3));
+  }
+})();
+
+/* ===================== NAVEGAÇÃO ===================== */
+const moduleTitles={dashboard:'Resumo Executivo',estabilidade:'Estudo de Estabilidade',tendencia:'Estudo de Tendência (Bias)',linearidade:'Estudo de Linearidade',rr:'Estudo R&R Variável',atributos:'Estudo R&R Atributo',salvos:'Estudos Salvos'};
+const navTitles={dashboard:'Dashboard Geral',estabilidade:'Estudo de Estabilidade',tendencia:'Estudo de Tendência (Bias)',linearidade:'Estudo de Linearidade',rr:'Estudo R&R Variável',atributos:'Estudo R&R Atributo',salvos:'Estudos Salvos'};
+const calcFns={estabilidade:calcEstabilidade,tendencia:calcTendencia,linearidade:calcLinearidade,rr:calcRR,atributos:calcAtributos};
+const dataObjs={estabilidade:estData,tendencia:tenData,linearidade:linData,rr:rrData,atributos:atrData};
+let loadedIds={estabilidade:null,tendencia:null,linearidade:null,rr:null,atributos:null};
+let loadedNomes={estabilidade:null,tendencia:null,linearidade:null,rr:null,atributos:null};
+
+function switchModule(mod){
+  currentModule=mod;
+  document.querySelectorAll('.nav-item[data-mod]').forEach(n=>n.classList.toggle('active',n.dataset.mod===mod));
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active','page-break','first-module'));
+  const el=document.getElementById('mod-'+mod);
+  if(el)el.classList.add('active');
+  document.getElementById('topbarTitle').textContent=navTitles[mod]||mod;
+  recalcCurrent(true);
+}
+function recalcCurrent(silent){
+  if(currentModule==='dashboard'){calcDashboard();if(!silent)showToast('Dashboard atualizado');return;}
+  if(currentModule==='salvos'){carregarListaSalvos();return;}
+  calcFns[currentModule]();
+  if(!silent)showToast('Cálculos atualizados com sucesso');
+  atualizarBannerEdicao(currentModule);
+}
+
+/* ===================== FICHA / CAMPOS DE INFORMAÇÃO ===================== */
+/* Corrige o bug em que os campos de informação não gravavam o que era digitado. */
+function renderInfo(elId,obj,fields,onChange){
+  const el=document.getElementById(elId);
+  if(!el)return;
+  el.innerHTML=fields.map(f=>
+    '<div class="info-field"><label>'+esc(f.l)+'</label><input data-k="'+f.k+'" type="'+(f.t||'text')+'"'+
+    (f.min!==undefined?' min="'+f.min+'"':'')+(f.max!==undefined?' max="'+f.max+'"':'')+
+    ' value="'+esc(obj[f.k]??'')+'"></div>').join('');
+  el.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change',()=>{obj[inp.dataset.k]=inp.value;onChange();});
+  });
+  // ficha para impressão (valores em texto, sem caixas de formulário)
+  const ps=document.getElementById(elId+'Print');
+  if(ps){
+    let rows='',i=0;
+    fields.forEach(f=>{
+      if(i%3===0)rows+='<tr>';
+      rows+='<td class="k">'+esc(f.l)+'</td><td class="v">'+esc(txt(obj[f.k]))+'</td>';
+      i++;
+      if(i%3===0)rows+='</tr>';
+    });
+    if(i%3!==0){for(let j=i%3;j<3;j++)rows+='<td class="k"></td><td class="v"></td>';rows+='</tr>';}
+    ps.innerHTML='<table><tbody>'+rows+'</tbody></table>';
+  }
+}
+
+function atualizarBannerEdicao(tipo){
+  const banner=document.getElementById('editBanner-'+tipo);
+  if(!banner)return;
+  if(loadedIds[tipo]){
+    banner.style.display='flex';
+    document.getElementById('editBannerNome-'+tipo).textContent=loadedNomes[tipo]||'';
+  }else banner.style.display='none';
+}
+function cancelarEdicao(tipo){
+  loadedIds[tipo]=null;loadedNomes[tipo]=null;atualizarBannerEdicao(tipo);
+  showToast('Modo de edição encerrado — o próximo salvamento criará um novo estudo');
+}
+
+/* ===================== SALVAR / BIBLIOTECA ===================== */
+let saveTargetTipo=null;
+function openSaveModal(tipo){
+  if(!db){showToast('Sem conexão com o banco de dados',false);return;}
+  saveTargetTipo=tipo;
+  const editando=!!loadedIds[tipo];
+  document.getElementById('saveNome').value=editando?(loadedNomes[tipo]||''):'';
+  document.getElementById('saveOverwriteBox').style.display=editando?'block':'none';
+  document.getElementById('saveComoNovo').checked=false;
+  document.getElementById('saveModal').classList.add('show');
+}
+function closeSaveModal(){document.getElementById('saveModal').classList.remove('show')}
+function confirmSave(){
+  const tipo=saveTargetTipo;
+  const nome=document.getElementById('saveNome').value.trim();
+  if(!nome){showToast('Informe um nome para o estudo',false);return;}
+  if(!db){showToast('Sem conexão com o banco de dados',false);return;}
+  calcFns[tipo]();
+  const comoNovo=document.getElementById('saveComoNovo').checked;
+  const sobrescrever=loadedIds[tipo]&&!comoNovo;
+  const payload={
+    tipo,nome,
+    dados:JSON.stringify(dataObjs[tipo]),
+    resultado:KPI[tipo]?{ok:KPI[tipo].ok,value:KPI[tipo].value,sub:KPI[tipo].sub}:null,
+    atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  closeSaveModal();
+  if(sobrescrever){
+    db.collection('msa_estudos').doc(loadedIds[tipo]).set(payload,{merge:true})
+      .then(()=>{loadedNomes[tipo]=nome;atualizarBannerEdicao(tipo);showToast('Estudo atualizado com sucesso');})
+      .catch(err=>showToast('Erro ao salvar: '+err.message,false));
+  }else{
+    payload.criadoEm=firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('msa_estudos').add(payload)
+      .then(ref=>{loadedIds[tipo]=ref.id;loadedNomes[tipo]=nome;atualizarBannerEdicao(tipo);showToast('Estudo salvo com sucesso');})
+      .catch(err=>showToast('Erro ao salvar: '+err.message,false));
+  }
+}
+let salvosCache=[];
+function carregarListaSalvos(){
+  const box=document.getElementById('salvosLista');
+  if(!db){box.innerHTML='<p style="color:var(--danger);font-size:13px">Sem conexão com o banco de dados. Os estudos permanecem disponíveis apenas nesta sessão.</p>';return;}
+  box.innerHTML='<p style="color:var(--text-muted);font-size:13px">Carregando...</p>';
+  db.collection('msa_estudos').orderBy('atualizadoEm','desc').get()
+    .then(snap=>{salvosCache=[];snap.forEach(doc=>salvosCache.push(Object.assign({id:doc.id},doc.data())));renderSalvos();})
+    .catch(err=>{box.innerHTML='<p style="color:var(--danger);font-size:13px">Erro ao carregar: '+esc(err.message)+'</p>';});
+}
+const tipoIcons={estabilidade:'fa-chart-line',tendencia:'fa-bullseye',linearidade:'fa-arrows-left-right',rr:'fa-repeat',atributos:'fa-check-double'};
+function renderSalvos(){
+  const filtro=document.getElementById('salvosFiltro').value;
+  const lista=salvosCache.filter(s=>!filtro||s.tipo===filtro);
+  const box=document.getElementById('salvosLista');
+  if(lista.length===0){box.innerHTML='<p style="color:var(--text-muted);font-size:13px">Nenhum estudo salvo. Use o botão "Salvar Estudo" dentro de cada módulo.</p>';return;}
+  box.innerHTML=lista.map(s=>{
+    const data=s.atualizadoEm&&s.atualizadoEm.toDate?s.atualizadoEm.toDate().toLocaleString('pt-BR'):'-';
+    const ok=s.resultado?s.resultado.ok:null;
+    return '<div class="saved-item"><div class="saved-main"><div class="saved-type-icon"><i class="fas '+(tipoIcons[s.tipo]||'fa-file')+'"></i></div>'+
+      '<div><div class="saved-name">'+esc(s.nome)+'</div><div class="saved-meta">'+esc(moduleTitles[s.tipo]||s.tipo)+' · '+data+
+      (ok!==null&&ok!==undefined?' · <span style="color:'+(ok?'var(--success)':'var(--danger)')+';font-weight:600">'+(ok?'Aprovado':'Reprovado')+'</span>':'')+
+      '</div></div></div><div class="saved-actions">'+
+      '<button title="Carregar para edição" onclick="carregarEstudo(\''+s.id+'\')"><i class="fas fa-folder-open"></i></button>'+
+      '<button title="Gerar relatório" onclick="imprimirSalvo(\''+s.id+'\')"><i class="fas fa-file-pdf"></i></button>'+
+      '<button title="Excluir" class="danger" onclick="excluirEstudo(\''+s.id+'\')"><i class="fas fa-trash"></i></button>'+
+      '</div></div>';
+  }).join('');
+}
+function carregarEstudo(id){
+  const s=salvosCache.find(x=>x.id===id);if(!s)return;
+  try{Object.assign(dataObjs[s.tipo],JSON.parse(s.dados));}catch(e){showToast('Dados do estudo corrompidos',false);return;}
+  loadedIds[s.tipo]=s.id;loadedNomes[s.tipo]=s.nome;
+  switchModule(s.tipo);
+  showToast('Estudo "'+s.nome+'" carregado');
+}
+function excluirEstudo(id){
+  const s=salvosCache.find(x=>x.id===id);if(!s)return;
+  if(!confirm('Excluir permanentemente o estudo "'+s.nome+'"? Esta ação não pode ser desfeita.'))return;
+  db.collection('msa_estudos').doc(id).delete()
+    .then(()=>{if(loadedIds[s.tipo]===id){loadedIds[s.tipo]=null;loadedNomes[s.tipo]=null;atualizarBannerEdicao(s.tipo);}showToast('Estudo excluído');carregarListaSalvos();})
+    .catch(err=>showToast('Erro ao excluir: '+err.message,false));
+}
+function imprimirSalvo(id){
+  const s=salvosCache.find(x=>x.id===id);if(!s)return;
+  try{Object.assign(dataObjs[s.tipo],JSON.parse(s.dados));}catch(e){showToast('Dados do estudo corrompidos',false);return;}
+  loadedIds[s.tipo]=s.id;loadedNomes[s.tipo]=s.nome;
+  printSelected([s.tipo]);
+}
+
+/* ===================== DASHBOARD ===================== */
+function calcDashboard(){
+  Object.values(calcFns).forEach(fn=>{try{fn()}catch(e){console.error(e)}});
+  const order=['estabilidade','tendencia','linearidade','rr','atributos'];
+  const aprovados=order.filter(k=>KPI[k]&&KPI[k].ok).length;
+  const reprovados=order.length-aprovados;
+  const lead=document.getElementById('reportExecutiveLead');
+  const score=document.getElementById('reportScore');
+  if(lead)lead.textContent=aprovados===order.length
+    ? 'Todos os estudos avaliados atendem aos critérios de aceitação definidos para o MSA.'
+    : reprovados+' estudo(s) requer(em) análise e plano de ação antes da liberação do sistema de medição.';
+  if(score)score.textContent=aprovados+'/'+order.length;
+  const strip=document.getElementById('reportStatusStrip');
+  if(strip)strip.innerHTML=order.map(k=>{
+    const d=KPI[k];if(!d)return'';
+    return '<div class="report-status-item '+(d.ok?'ok':'')+'"><span class="report-status-dot"></span><span class="report-status-name">'+esc(d.label)+'</span><span class="report-status-value">'+esc(d.value)+'</span></div>';
+  }).join('');
+  document.getElementById('dashKpis').innerHTML=order.map(k=>{
+    const d=KPI[k];if(!d)return'';
+    return '<div class="kpi-card '+(d.ok?'ok':'fail')+'" onclick="switchModule(\''+d.mod+'\')">'+
+      '<div class="kpi-top"><div class="kpi-icon"><i class="fas '+d.icon+'"></i></div>'+
+      '<span class="badge '+(d.ok?'badge-ok':'badge-fail')+'">'+(d.ok?'Aprovado':'Reprovado')+'</span></div>'+
+      '<div class="kpi-label">'+d.label+'</div><div class="kpi-value">'+d.value+'</div><div class="kpi-sub">'+d.sub+'</div>'+
+      '<i class="fas fa-file-pdf kpi-print" title="Gerar relatório deste estudo" onclick="event.stopPropagation();printSelected([\''+d.mod+'\'])"></i>'+
+      '<i class="fas fa-arrow-right kpi-chevron"></i></div>';
+  }).join('');
+
+  const labels=order.map(k=>KPI[k]?KPI[k].label:k);
+  const metrics=order.map(k=>KPI[k]&&isFinite(KPI[k].metric)?Number(KPI[k].metric.toFixed(1)):0);
+  const colors=order.map(k=>KPI[k]&&KPI[k].ok?'#6CC24A':'#DC3545');
+  mk('chartDashBar',{type:'bar',data:{labels,datasets:[{label:'Indicador (%)',data:metrics,backgroundColor:colors,borderColor:colors,borderWidth:1,borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Indicador consolidado por estudo',font:{size:12,family:'Space Grotesk'},color:'#253746'}},scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#64748b'}},y:{beginAtZero:true,max:100,grid:{color:'rgba(100,116,139,.14)'},ticks:{font:{size:10},color:'#64748b',callback:v=>v+'%'},title:{display:true,text:'Índice (%)',font:{size:10}}}}}}); 
+
+  const okCount=order.filter(k=>KPI[k]&&KPI[k].ok).length;
+  mk('chartDashPie',{type:'doughnut',data:{labels:['Aprovados','Reprovados'],datasets:[{data:[okCount,order.length-okCount],backgroundColor:['#6CC24A','#DC3545'],borderColor:'#fff',borderWidth:3,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{centerLabel:{value:okCount+'/'+order.length,label:'aprovados'},legend:{position:'bottom',labels:{font:{size:11},usePointStyle:true,padding:14}}}}});
+
+  // Conclusão textual (aparece no relatório impresso)
+  let ch='<table class="kappa-table"><thead><tr><th style="text-align:left">Estudo</th><th>Indicador</th><th>Resultado</th><th>Situação</th></tr></thead><tbody>';
+  order.forEach(k=>{const d=KPI[k];if(!d)return;
+    ch+='<tr><td style="text-align:left">'+d.label+'</td><td>'+d.sub+'</td><td>'+d.value+'</td><td><span class="badge '+(d.ok?'badge-ok':'badge-fail')+'">'+(d.ok?'Aprovado':'Reprovado')+'</span></td></tr>';});
+  ch+='</tbody></table>';
+  const reprov=order.filter(k=>KPI[k]&&!KPI[k].ok).map(k=>KPI[k].label);
+  ch+='<div class="verdict-box '+(reprov.length===0?'verdict-ok':'verdict-fail')+'"><i class="fas '+(reprov.length===0?'fa-check-circle':'fa-triangle-exclamation')+'"></i> '+
+    (reprov.length===0?'Todos os estudos avaliados atendem aos critérios de aceitação do Manual MSA (AIAG 4ª Ed.). Sistema de medição liberado para uso.'
+      :'Estudos que não atendem aos critérios: '+reprov.join(', ')+'. É necessário plano de ação corretiva antes da liberação do sistema de medição.')+'</div>';
+  document.getElementById('dashConclusao').innerHTML=ch;
+}
+
+/* Helper de criação de gráfico com tema consistente e fundo branco na exportação */
+function mk(id,cfg){
+  const cv=document.getElementById(id);if(!cv)return null;
+  if(charts[id]){charts[id].destroy();delete charts[id];}
+  const options=cfg.options||(cfg.options={});
+  options.responsive=true;
+  options.maintainAspectRatio=false;
+  options.animation=false;
+  options.devicePixelRatio=2.5;
+  options.layout=Object.assign({padding:{top:6,right:8,bottom:4,left:4}},options.layout||{});
+  options.plugins=Object.assign({},options.plugins||{});
+  if(options.plugins.legend!==false){
+    options.plugins.legend=Object.assign({labels:{usePointStyle:true,boxWidth:10,padding:12,color:'#475569',font:{family:'DM Sans',size:10}}},options.plugins.legend||{});
+  }
+  const plugins=Array.isArray(cfg.plugins)?cfg.plugins.slice():[];
+  plugins.push({id:'whiteBg',beforeDraw:c=>{const x=c.ctx;x.save();x.globalCompositeOperation='destination-over';x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.restore();}});
+  plugins.push({id:'centerLabel',afterDraw:c=>{
+    const opt=c.options.plugins&&c.options.plugins.centerLabel;
+    if(!opt||c.config.type!=='doughnut')return;
+    const meta=c.getDatasetMeta(0),arc=meta&&meta.data&&meta.data[0];if(!arc)return;
+    const x=c.ctx;x.save();x.textAlign='center';x.textBaseline='middle';
+    x.fillStyle='#253746';x.font='700 20px Space Grotesk, sans-serif';x.fillText(opt.value,arc.x,arc.y-5);
+    x.fillStyle='#4E575E';x.font='600 9px DM Sans, sans-serif';x.fillText(opt.label,arc.x,arc.y+13);x.restore();
+  }});
+  cfg.plugins=plugins;
+  charts[id]=new Chart(cv,cfg);
+  return charts[id];
+}
+
+/* ===================== SIMULAÇÃO (TREINAMENTO) ===================== */
+function rnd(min,max){return min+Math.random()*(max-min)}
+function gerarAprovado(tipo){
+  if(tipo==='estabilidade'){
+    const ref=numOr(estData.info.valorRef,40);
+    estData.amostras.forEach(a=>{a.m=a.m.map(()=>Number((ref+rnd(-0.003,0.003)).toFixed(4)))});
+    calcEstabilidade();
+  }else if(tipo==='tendencia'){
+    const ref=numOr(tenData.info.valorRef,0);
+    tenData.medidas=tenData.medidas.map(()=>Number((ref+rnd(-0.0015,0.0015)).toFixed(4)));
+    calcTendencia();
+  }else if(tipo==='linearidade'){
+    const nM=linData.medicoes[0].length;
+    linData.medicoes=linData.refs.map(r=>Array.from({length:nM},()=>Number((r+rnd(-0.01,0.01)).toFixed(3))));
+    calcLinearidade();
+  }else if(tipo==='rr'){
+    const nOp=rrData.dados.length,nRep=rrData.dados[0].length,nP=rrData.dados[0][0].length;
+    const base=Array.from({length:nP},(_,p)=>5+p*0.15);
+    for(let o=0;o<nOp;o++)for(let r=0;r<nRep;r++)for(let p=0;p<nP;p++)
+      rrData.dados[o][r][p]=Number((base[p]+rnd(-0.005,0.005)).toFixed(4));
+    calcRR();
+  }else if(tipo==='atributos'){
+    const nOps=atrData.operadores.length,nP=atrData.dados[0].length,nT=atrData.dados[0][0].length;
+    for(let o=0;o<nOps;o++)for(let p=0;p<nP;p++)atrData.dados[o][p]=atrData.referencia[p].repeat(nT);
+    calcAtributos();
+  }
+  if(currentModule==='dashboard')calcDashboard();
+  showToast('Estudo de exemplo (simulação aprovada) gerado');
+}
+function gerarTodosAprovados(){
+  ['estabilidade','tendencia','linearidade','rr','atributos'].forEach(t=>gerarAprovado(t));
+  calcDashboard();
+  showToast('Todos os estudos foram gerados como simulação aprovada');
+}
+
+/* ===================== RELATÓRIO / IMPRESSÃO ===================== */
+const printableMods=[
+  {key:'dashboard',label:'Resumo executivo (indicadores e conclusão)'},
+  {key:'estabilidade',label:'Estudo de Estabilidade'},
+  {key:'tendencia',label:'Estudo de Tendência (Bias)'},
+  {key:'linearidade',label:'Estudo de Linearidade'},
+  {key:'rr',label:'Estudo R&R Variável'},
+  {key:'atributos',label:'Estudo R&R Atributo'}
+];
+function openPrintModal(){
+  document.getElementById('printChecklist').innerHTML=printableMods.map(m=>{
+    const checked=(m.key===currentModule||currentModule==='dashboard')?'checked':'';
+    return '<label class="chk-line"><input type="checkbox" class="printChk" value="'+m.key+'" '+checked+'>'+m.label+'</label>';
+  }).join('');
+  document.getElementById('optCapa').checked=reportOpts.capa;
+  document.getElementById('optAssin').checked=reportOpts.assin;
+  document.getElementById('optDados').checked=reportOpts.dados;
+  document.getElementById('optOrient').value=reportOpts.orient;
+  document.getElementById('printModal').classList.add('show');
+}
+function closePrintModal(){document.getElementById('printModal').classList.remove('show')}
+function toggleAllPrint(){
+  const boxes=document.querySelectorAll('.printChk');
+  const all=[...boxes].every(b=>b.checked);
+  boxes.forEach(b=>b.checked=!all);
+}
+function confirmPrint(){
+  const selected=[...document.querySelectorAll('.printChk:checked')].map(b=>b.value);
+  if(selected.length===0){showToast('Selecione ao menos uma seção',false);return;}
+  reportOpts.capa=document.getElementById('optCapa').checked;
+  reportOpts.assin=document.getElementById('optAssin').checked;
+  reportOpts.dados=document.getElementById('optDados').checked;
+  reportOpts.orient=document.getElementById('optOrient').value;
+  closePrintModal();
+  printSelected(selected);
+}
+function docId(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  return 'MSA-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes());
+}
+function printSelected(mods){
+  const prev=currentModule;
+  const dataStr=new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const id=docId();
+
+  // Cabeçalho/rodapé/capa
+  const titulo=mods.length>1?'Relatório Consolidado MSA':(moduleTitles[mods[0]]||'Relatório MSA');
+  document.getElementById('rhTitulo').textContent=titulo;
+  document.getElementById('rhData').textContent=dataStr;
+  document.getElementById('rfId').textContent=id;
+  document.getElementById('cvTitulo').textContent=mods.length>1?'Análise do Sistema de Medição (MSA)':titulo;
+  document.getElementById('cvSub').textContent='Estudos conforme Manual MSA — AIAG, 4ª Edição'+(mods.length>1?' · '+mods.length+' seções':'');
+  document.getElementById('cvData').textContent=dataStr;
+  document.getElementById('cvId').textContent=id;
+  document.getElementById('cvEscopo').innerHTML=mods.map(m=>'<li>'+esc(moduleTitles[m]||m)+'</li>').join('');
+
+  // A regra de impressão usa !important; use a mesma prioridade para que
+  // as opções desmarcadas realmente não reservem uma página.
+  const coverEl=document.getElementById('reportCover');
+  const signEl=document.getElementById('signEnd');
+  if(reportOpts.capa)coverEl.style.removeProperty('display');
+  else coverEl.style.setProperty('display','none','important');
+  if(reportOpts.assin)signEl.style.removeProperty('display');
+  else signEl.style.setProperty('display','none','important');
+  document.body.classList.toggle('print-with-cover',reportOpts.capa);
+
+  // Orientação da página e margens próprias para cada formato
+  const pageMargins=reportOpts.orient==='landscape'?'4mm 4mm 4mm 4mm':'5mm 5mm 5mm 5mm';
+  document.getElementById('pageStyle').textContent='@page{size:A4 '+reportOpts.orient+';margin:'+pageMargins+'}';
+  document.body.classList.toggle('print-landscape',reportOpts.orient==='landscape');
+
+  // Ativar módulos e recalcular COM o container visível (gráficos saíam em branco antes)
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active','page-break','first-module'));
+  mods.forEach((m,i)=>{
+    const el=document.getElementById('mod-'+m);if(!el)return;
+    el.classList.add('active');
+     // A capa já possui break-after:page; marcar também o primeiro estudo
+     // evita uma segunda quebra consecutiva e a criação de página vazia.
+     if(i===0)el.classList.add('first-module');
+  });
+  document.querySelectorAll('.data-table-wrap').forEach(w=>w.style.display=reportOpts.dados?'':'none');
+
+  mods.forEach(m=>{ if(m==='dashboard')calcDashboard(); else if(calcFns[m])calcFns[m](); });
+
+  requestAnimationFrame(()=>{
+    prepararGraficosParaImpressao();
+    setTimeout(()=>{
+       const lastPage=document.getElementById('reportLastPage');
+       const sourceHeader=document.querySelector('body > .report-header');
+       const sourceFooter=document.querySelector('body > .report-footer');
+       if(lastPage){
+         lastPage.innerHTML='';
+         if(sourceHeader)lastPage.appendChild(sourceHeader.cloneNode(true));
+         if(sourceFooter)lastPage.appendChild(sourceFooter.cloneNode(true));
+       }
+      window.print();
+      document.querySelectorAll('.data-table-wrap').forEach(w=>w.style.display='');
+      document.querySelectorAll('.module').forEach(m=>m.classList.remove('active','page-break','first-module'));
+       document.body.classList.remove('print-landscape');
+       document.body.classList.remove('print-with-cover');
+       if(lastPage)lastPage.innerHTML='';
+       coverEl.style.removeProperty('display');
+       signEl.style.removeProperty('display');
+      switchModule(prev);
+     },500);
+  });
+}
+function prepararGraficosParaImpressao(){
+  document.querySelectorAll('.chart-container canvas').forEach(cv=>{
+    const inst=charts[cv.id];
+    const cont=cv.parentElement;
+    let img=cont.querySelector('img.chart-print-img[data-for="'+cv.id+'"]');
+    if(!inst){if(img)img.remove();return;}
+    if(!img){img=document.createElement('img');img.className='chart-print-img';img.setAttribute('data-for',cv.id);img.alt='Gráfico '+cv.id;cv.insertAdjacentElement('afterend',img);}
+     try{
+       // Durante o evento beforeprint o canvas pode já estar oculto pelo CSS de impressão.
+       // Nesse caso, não redimensionar evita substituir uma imagem nítida por uma tela 0 × 0.
+       if(getComputedStyle(cv).display!=='none')inst.resize();
+       const png=inst.toBase64Image('image/png',1);
+       if(png&&png!=='data:,')img.src=png;
+     }catch(e){console.warn('Não foi possível preparar o gráfico para impressão',cv.id,e);}
+  });
+}
+window.addEventListener('beforeprint',prepararGraficosParaImpressao);
+
+/* ===================== ESTABILIDADE ===================== */
+function ajustarEstabilidade(){
+  let n=Math.max(2,Math.min(10,parseInt(estData.info.numMed)||5));
+  estData.info.numMed=String(n);
+  let k=Math.max(2,Math.min(60,parseInt(estData.info.numAmostras)||estData.amostras.length));
+  estData.info.numAmostras=String(k);
+  while(estData.amostras.length<k){const last=estData.amostras[estData.amostras.length-1];estData.amostras.push({data:last?last.data:'',hora:last?last.hora:'',m:(last?last.m.slice():Array(n).fill(0))});}
+  if(estData.amostras.length>k)estData.amostras.length=k;
+  estData.amostras.forEach(a=>{
+    while(a.m.length<n)a.m.push(a.m.length?a.m[a.m.length-1]:0);
+    if(a.m.length>n)a.m.length=n;
+  });
+  return n;
+}
+function calcEstabilidade(){
+  const n=ajustarEstabilidade();
+  const c=SPC[n]||SPC[5];
+  renderInfo('estInfo',estData.info,[
+    {k:'partNo',l:'Part Nº'},{k:'caracteristica',l:'Característica'},{k:'especificacao',l:'Especificação'},
+    {k:'responsavel',l:'Responsável'},{k:'equipamento',l:'Equipamento'},{k:'tag',l:'Tag / Nº Patrimônio'},
+    {k:'capacidade',l:'Capacidade / Resolução'},{k:'valorRef',l:'Valor de Referência'},
+    {k:'numMed',l:'Nº Medições por Amostra',t:'number',min:2,max:10},{k:'numAmostras',l:'Nº de Amostras',t:'number',min:2,max:60},
+    {k:'erroAmostral',l:'Erro Amostral'}
+  ],calcEstabilidade);
+
+  const medias=estData.amostras.map(a=>mean(a.m));
+  const amps=estData.amostras.map(a=>range(a.m));
+  const xb=mean(medias),rb=mean(amps);
+  const uclX=xb+c.A2*rb,lclX=xb-c.A2*rb,uclR=c.D4*rb,lclR=c.D3*rb;
+
+  let th='<table class="data-table"><thead><tr><th>Amostra</th><th>Data</th><th>Hora</th>';
+  for(let i=1;i<=n;i++)th+='<th>Med.'+i+'</th>';
+  th+='<th style="background:#EAF3F8">Média</th><th style="background:#EAF3F8">Amplitude</th></tr></thead><tbody>';
+  estData.amostras.forEach((a,idx)=>{
+    const foraX=medias[idx]>uclX||medias[idx]<lclX, foraR=amps[idx]>uclR||amps[idx]<lclR;
+    th+='<tr><td class="row-label">'+(idx+1)+'</td><td>'+esc(a.data)+'</td><td>'+esc(a.hora)+'</td>';
+    a.m.forEach((v,mi)=>{th+='<td contenteditable="true" data-amostra="'+idx+'" data-med="'+mi+'">'+fmt(v)+'</td>'});
+    th+='<td class="'+(foraX?'out-ctrl':'')+'" style="font-weight:600">'+fmt(medias[idx])+'</td>';
+    th+='<td class="'+(foraR?'out-ctrl':'')+'" style="font-weight:600">'+fmt(amps[idx])+'</td></tr>';
+  });
+  th+='</tbody></table>';
+  document.getElementById('estTableWrap').innerHTML=th;
+  bindCells('#estTableWrap',(td)=>{
+    estData.amostras[+td.dataset.amostra].m[+td.dataset.med]=num(td.textContent);
+    calcEstabilidade();
+  });
+
+  const labels=estData.amostras.map((_,i)=>''+(i+1));
+   const carta=(id,type,data,label,uc,lc,cb,titulo)=>mk(id,{type,data:{labels,datasets:[
+       {label,data,borderColor:'#0064B3',backgroundColor:type==='line'?'rgba(0,100,179,.10)':data.map(v=>isFinite(uc)&&(v>uc||v<lc)?'#DC3545':'rgba(0,100,179,.62)'),borderWidth:2,pointRadius:type==='line'?4:0,pointHoverRadius:type==='line'?6:0,pointBackgroundColor:type==='line'?data.map(v=>isFinite(uc)&&(v>uc||v<lc)?'#DC3545':'#0064B3'):undefined,pointBorderColor:type==='line'?'#fff':undefined,pointBorderWidth:type==='line'?1.5:0,barPercentage:.7,categoryPercentage:.72,fill:type==='line',tension:.18},
+       {label:'LSC',data:Array(labels.length).fill(uc),borderColor:'#DC3545',borderWidth:1.5,borderDash:[6,3],pointRadius:0,fill:false,type:'line'},
+       {label:'LIC',data:Array(labels.length).fill(lc),borderColor:'#DC3545',borderWidth:1.5,borderDash:[6,3],pointRadius:0,fill:false,type:'line'},
+       {label:'Linha Média',data:Array(labels.length).fill(cb),borderColor:'#00959D',borderWidth:1,borderDash:[3,3],pointRadius:0,fill:false,type:'line'}
+     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:titulo,font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true,pointStyle:'line'}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}},title:{display:true,text:'Amostra',font:{size:10}}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{size:10}}}}}});
+  carta('chartXbarra','line',medias,'Média da Amostra',uclX,lclX,xb,'Carta X̄ (Médias)');
+  carta('chartR','bar',amps,'Amplitude',uclR,lclR,rb,'Carta R (Amplitudes)');
+
+  const estavelX=medias.every(m=>m>=lclX&&m<=uclX);
+  const estavelR=amps.every(a=>a>=lclR&&a<=uclR);
+  const foraCount=medias.filter(m=>m>uclX||m<lclX).length+amps.filter(a=>a>uclR||a<lclR).length;
+  let rh='';
+  const box=(l,v,cls='')=>{rh+='<div class="result-box '+cls+'"><div class="label">'+l+'</div><div class="value">'+v+'</div></div>'};
+  box('X̄̄ (Média Geral)',fmt(xb),'accent');box('R̄ (Amplitude Média)',fmt(rb),'accent');
+  box('LSC (X̄)',fmt(uclX));box('LIC (X̄)',fmt(lclX));box('LSC (R)',fmt(uclR));box('LIC (R)',fmt(lclR));
+  box('D4 (n='+n+')',fmt(c.D4,3));box('A2 (n='+n+')',fmt(c.A2,3));box('σ estimado (R̄/d2)',fmt(rb/c.D2));
+  box('Pontos fora de controle',String(foraCount),foraCount===0?'success':'danger');
+  document.getElementById('estResults').innerHTML=rh;
+
+  const ok=estavelX&&estavelR;
+  document.getElementById('estVerdict').innerHTML='<div class="verdict-box '+(ok?'verdict-ok':'verdict-fail')+'"><i class="fas '+(ok?'fa-check-circle':'fa-times-circle')+'"></i> O sistema de medição '+(ok?'É ADEQUADO':'NÃO É ADEQUADO')+' quanto à estabilidade'+(!estavelX?' — pontos fora de controle na carta X̄':'')+(!estavelR?' — pontos fora de controle na carta R':'')+'.</div>';
+  KPI.estabilidade={ok,label:'Estabilidade',value:ok?'Estável':'Instável',sub:'Pontos fora: '+foraCount,metric:ok?100:0,icon:'fa-chart-line',mod:'estabilidade'};
+}
+
+/* Edição de células sem perder o valor digitado e sem loop de eventos */
+function bindCells(sel,onCommit){
+  document.querySelectorAll(sel+' td[contenteditable]').forEach(td=>{
+    td.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}});
+    td.addEventListener('blur',function(){onCommit(this)});
+  });
+}
+
+/* ===================== TENDÊNCIA ===================== */
+function calcTendencia(){
+  let nWanted=Math.max(3,Math.min(200,parseInt(tenData.info.numMed)||tenData.medidas.length));
+  while(tenData.medidas.length<nWanted)tenData.medidas.push(tenData.medidas[tenData.medidas.length-1]||0);
+  if(tenData.medidas.length>nWanted)tenData.medidas.length=nWanted;
+  tenData.info.numMed=String(tenData.medidas.length);
+
+  renderInfo('tenInfo',tenData.info,[
+    {k:'partNo',l:'Part Nº'},{k:'caracteristica',l:'Característica'},{k:'responsavel',l:'Responsável'},
+    {k:'equipamento',l:'Equipamento'},{k:'tag',l:'Tag / Nº Patrimônio'},{k:'data',l:'Data do Estudo'},
+    {k:'valorRef',l:'Valor de Referência'},{k:'numMed',l:'Nº Medições',t:'number',min:3,max:200},
+    {k:'erroAmostral',l:'Erro Amostral'},{k:'tolerancia',l:'Tolerância'},{k:'processo',l:'Variação do Processo'}
+  ],calcTendencia);
+
+  const vals=tenData.medidas;
+  const ref=numOr(tenData.info.valorRef,0);
+  const n=vals.length;
+  const m=mean(vals),bias=m-ref,amp=range(vals),sd=stdev(vals);
+  const se=n>1?sd/Math.sqrt(n):0;
+  const tVal=se>0?Math.abs(bias)/se:0;
+  const tCrit=tCritico(0.05,n-1);
+  const proc=numOr(tenData.info.processo,0),tol=numOr(tenData.info.tolerancia,0);
+  const veVP=proc>0?100*Math.abs(bias)/proc:NaN;
+  const veTOL=tol>0?100*Math.abs(bias)/tol:NaN;
+  const ok=tVal<=tCrit;
+  const ic=[bias-tCrit*se,bias+tCrit*se];
+
+  let th='<table class="data-table"><thead><tr><th>Medição</th><th>Valor</th><th>Tendência (valor − referência)</th></tr></thead><tbody>';
+  vals.forEach((v,i)=>{th+='<tr><td class="row-label">'+(i+1)+'</td><td contenteditable="true" data-idx="'+i+'">'+fmt(v)+'</td><td>'+fmt(v-ref)+'</td></tr>'});
+  th+='</tbody></table>';
+  document.getElementById('tenTableWrap').innerHTML=th;
+  bindCells('#tenTableWrap',td=>{tenData.medidas[+td.dataset.idx]=num(td.textContent);calcTendencia()});
+
+  mk('chartTendencia',{type:'line',data:{labels:vals.map((_,i)=>''+(i+1)),datasets:[
+    {label:'Valor Medido',data:vals,borderColor:'#0064B3',backgroundColor:'rgba(0,100,179,.10)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#0064B3',fill:true,tension:.1},
+    {label:'Referência',data:Array(n).fill(ref),borderColor:'#DC3545',borderWidth:2,borderDash:[8,4],pointRadius:0,fill:false},
+    {label:'Média das Medições',data:Array(n).fill(m),borderColor:'#00959D',borderWidth:1.5,borderDash:[4,4],pointRadius:0,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'Dispersão das medições vs. valor de referência',font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:11},usePointStyle:true}}},scales:{x:{title:{display:true,text:'Medição',font:{size:11}},grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.05)'}}}}});
+
+  let rh='';const box=(l,v,cls='')=>{rh+='<div class="result-box '+cls+'"><div class="label">'+l+'</div><div class="value">'+v+'</div></div>'};
+  box('Média',fmt(m),'accent');box('Tendência (Bias)',fmt(bias),'accent');
+  box('Amplitude',fmt(amp));box('Desvio Padrão',fmt(sd));box('Erro Padrão',fmt(se));
+  box('|t| calculado',fmt(tVal,4));box('t crítico (α=0,05)',fmt(tCrit,4));
+  box('IC 95% inferior',fmt(ic[0]));box('IC 95% superior',fmt(ic[1]));
+  box('%VE (Var. Processo)',isFinite(veVP)?fmtPct(veVP):'-');
+  box('%VE (Tolerância)',isFinite(veTOL)?fmtPct(veTOL):'-');
+  document.getElementById('tenResults').innerHTML=rh;
+  document.getElementById('tenVerdict').innerHTML='<div class="verdict-box '+(ok?'verdict-ok':'verdict-fail')+'"><i class="fas '+(ok?'fa-check-circle':'fa-times-circle')+'"></i> O sistema de medição '+(ok?'É ADEQUADO':'NÃO É ADEQUADO')+' quanto à tendência — |t| = '+fmt(tVal,4)+(ok?' ≤ ':' > ')+'t crítico = '+fmt(tCrit,4)+' (gl = '+(n-1)+').</div>';
+  KPI.tendencia={ok,label:'Tendência (Bias)',value:ok?'Aprovado':'Reprovado',sub:isFinite(veTOL)?('%VE Tol.: '+fmtPct(veTOL)):('Bias: '+fmt(bias)),metric:isFinite(veTOL)?veTOL:0,icon:'fa-bullseye',mod:'tendencia'};
+}
+
+/* ===================== LINEARIDADE ===================== */
+function calcLinearidade(){
+  let nP=Math.max(2,Math.min(20,parseInt(linData.info.numPecas)||linData.refs.length));
+  let nM=Math.max(2,Math.min(30,parseInt(linData.info.numMed)||linData.medicoes[0].length));
+  while(linData.refs.length<nP){const last=linData.refs[linData.refs.length-1]||0;linData.refs.push(last+2);linData.medicoes.push(Array(nM).fill(last+2));}
+  if(linData.refs.length>nP){linData.refs.length=nP;linData.medicoes.length=nP;}
+  linData.medicoes.forEach((row,i)=>{while(row.length<nM)row.push(linData.refs[i]);if(row.length>nM)row.length=nM;});
+  linData.info.numPecas=String(nP);linData.info.numMed=String(nM);
+
+  renderInfo('linInfo',linData.info,[
+    {k:'caracteristica',l:'Característica'},{k:'equipamento',l:'Equipamento'},{k:'tag',l:'Tag / Nº Patrimônio'},
+    {k:'operador',l:'Operador'},{k:'numPecas',l:'Nº Peças',t:'number',min:2,max:20},
+    {k:'numMed',l:'Nº Medições/Peça',t:'number',min:2,max:30},{k:'erroAmostral',l:'Erro Amostral'},{k:'tolerancia',l:'Tolerância'}
+  ],calcLinearidade);
+
+  const refs=linData.refs,meds=linData.medicoes,N=nP*nM;
+  const mediasPeca=meds.map(m=>mean(m));
+  const biasPeca=mediasPeca.map((m,i)=>m-refs[i]);
+
+  // Regressão sobre TODAS as medições individuais
+  let sx=0,sy=0;
+  for(let i=0;i<nP;i++)for(let j=0;j<nM;j++){sx+=refs[i];sy+=meds[i][j]-refs[i];}
+  const xMean=sx/N,yMean=sy/N;
+  let ssxy=0,ssxx=0;
+  for(let i=0;i<nP;i++)for(let j=0;j<nM;j++){const xi=refs[i],yi=meds[i][j]-refs[i];ssxy+=(xi-xMean)*(yi-yMean);ssxx+=(xi-xMean)**2;}
+  const b=ssxx>0?ssxy/ssxx:0;
+  const a=yMean-b*xMean;
+  let ssRes=0,ssTot=0;
+  for(let i=0;i<nP;i++)for(let j=0;j<nM;j++){const xi=refs[i],yi=meds[i][j]-refs[i];ssRes+=(yi-(a+b*xi))**2;ssTot+=(yi-yMean)**2;}
+  const s=N>2?Math.sqrt(ssRes/(N-2)):0;
+  const r2=ssTot>0?1-ssRes/ssTot:0;
+  let sumX2=0;for(let i=0;i<nP;i++)for(let j=0;j<nM;j++)sumX2+=refs[i]**2;
+  const seA=(s>0&&ssxx>0)?s*Math.sqrt(sumX2/(N*ssxx)):0;
+  const seB=(s>0&&ssxx>0)?s/Math.sqrt(ssxx):0;
+  const tA=seA>0?Math.abs(a)/seA:0;
+  const tB=seB>0?Math.abs(b)/seB:0;
+  const tCrit=tCritico(0.05,N-2);
+
+  let th='<table class="data-table"><thead><tr><th>Peça</th><th>Referência</th>';
+  for(let j=1;j<=nM;j++)th+='<th>Med.'+j+'</th>';
+  th+='<th style="background:#EAF3F8">Média</th><th style="background:#EAF3F8">Bias</th></tr></thead><tbody>';
+  for(let i=0;i<nP;i++){
+    th+='<tr><td class="row-label">'+(i+1)+'</td><td contenteditable="true" data-ref="'+i+'">'+fmt(refs[i],2)+'</td>';
+    for(let j=0;j<nM;j++)th+='<td contenteditable="true" data-p="'+i+'" data-m="'+j+'">'+fmt(meds[i][j])+'</td>';
+    th+='<td style="font-weight:600">'+fmt(mediasPeca[i])+'</td><td style="font-weight:600">'+fmt(biasPeca[i])+'</td></tr>';
+  }
+  th+='</tbody></table>';
+  document.getElementById('linTableWrap').innerHTML=th;
+  bindCells('#linTableWrap',td=>{
+    if(td.dataset.ref!==undefined)linData.refs[+td.dataset.ref]=num(td.textContent);
+    else linData.medicoes[+td.dataset.p][+td.dataset.m]=num(td.textContent);
+    calcLinearidade();
+  });
+
+  const xs=[Math.min(...refs),Math.max(...refs)];
+  const pts=[],reg=[],icp=[],icn=[];
+  for(let i=0;i<nP;i++){
+    pts.push({x:refs[i],y:biasPeca[i]});
+    reg.push({x:refs[i],y:a+b*refs[i]});
+    const desl=s*Math.sqrt(1/N+(refs[i]-xMean)**2/(ssxx||1))*tCrit;
+    icp.push({x:refs[i],y:a+b*refs[i]+desl});
+    icn.push({x:refs[i],y:a+b*refs[i]-desl});
+  }
+  mk('chartLinearidade',{type:'scatter',data:{datasets:[
+    {label:'Bias Médio por Peça',data:pts,backgroundColor:'#0064B3',pointRadius:6},
+    {label:'Regressão do Bias (y = a + b·x)',data:reg,type:'line',borderColor:'#00959D',borderWidth:2,pointRadius:0,fill:false},
+    {label:'Limite de Confiança 95% (sup.)',data:icp,type:'line',borderColor:'rgba(239,68,68,.5)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false},
+    {label:'Limite de Confiança 95% (inf.)',data:icn,type:'line',borderColor:'rgba(239,68,68,.5)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false},
+    {label:'Bias = 0',data:[{x:xs[0]-1,y:0},{x:xs[1]+1,y:0}],type:'line',borderColor:'#64748b',borderWidth:1.2,borderDash:[2,2],pointRadius:0,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'Linearidade — bias em função do valor de referência',font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{title:{display:true,text:'Valor de Referência',font:{size:11}},grid:{color:'rgba(0,0,0,.05)'}},y:{title:{display:true,text:'Bias',font:{size:11}},grid:{color:'rgba(0,0,0,.05)'}}}}});
+
+  const okA=tA<=tCrit,okB=tB<=tCrit,allOk=okA&&okB;
+  let rh='';const box=(l,v,cls='')=>{rh+='<div class="result-box '+cls+'"><div class="label">'+l+'</div><div class="value">'+v+'</div></div>'};
+  box('a (Intercepto)',fmt(a),'accent');box('b (Inclinação)',fmt(b),'accent');
+  box('S (Erro Padrão)',fmt(s));box('R²',fmtPct(r2*100,1));
+  box('|t| para a',fmt(tA,4));box('|t| para b',fmt(tB,4));box('t crítico (gl='+(N-2)+')',fmt(tCrit,4));
+  box('Linearidade (|b|·Faixa)',fmt(Math.abs(b)*(xs[1]-xs[0])));
+  box('H₀: a = 0',okA?'Não rejeitada':'Rejeitada',okA?'success':'danger');
+  box('H₀: b = 0',okB?'Não rejeitada':'Rejeitada',okB?'success':'danger');
+  document.getElementById('linResults').innerHTML=rh;
+  document.getElementById('linVerdict').innerHTML='<div class="verdict-box '+(allOk?'verdict-ok':'verdict-fail')+'"><i class="fas '+(allOk?'fa-check-circle':'fa-times-circle')+'"></i> '+(allOk?'A tendência é estatisticamente igual a zero e constante ao longo da faixa de operação. Sistema ADEQUADO quanto à linearidade.':'O sistema NÃO É ADEQUADO quanto à linearidade — '+(!okA?'intercepto significativo':'')+(!okA&&!okB?' e ':'')+(!okB?'inclinação significativa':'')+'.')+'</div>';
+  KPI.linearidade={ok:allOk,label:'Linearidade',value:allOk?'Aprovado':'Reprovado',sub:'R²: '+fmtPct(r2*100,1),metric:r2*100,icon:'fa-arrows-left-right',mod:'linearidade'};
+}
+
+/* ===================== R&R VARIÁVEL ===================== */
+function ajustarRR(){
+  let nOp=Math.max(2,Math.min(4,parseInt(rrData.info.numOp)||rrData.dados.length));
+  let nRep=Math.max(2,Math.min(5,parseInt(rrData.info.numRep)||rrData.dados[0].length));
+  let nP=Math.max(2,Math.min(10,parseInt(rrData.info.numPecas)||rrData.dados[0][0].length));
+  while(rrData.operadores.length<nOp)rrData.operadores.push('OPERADOR '+(rrData.operadores.length+1));
+  if(rrData.operadores.length>nOp)rrData.operadores.length=nOp;
+  while(rrData.dados.length<nOp)rrData.dados.push(JSON.parse(JSON.stringify(rrData.dados[0])));
+  if(rrData.dados.length>nOp)rrData.dados.length=nOp;
+  rrData.dados.forEach(op=>{
+    while(op.length<nRep)op.push(op[op.length-1].slice());
+    if(op.length>nRep)op.length=nRep;
+    op.forEach(rep=>{while(rep.length<nP)rep.push(rep[rep.length-1]||0);if(rep.length>nP)rep.length=nP;});
+  });
+  rrData.info.numOp=String(nOp);rrData.info.numRep=String(nRep);rrData.info.numPecas=String(nP);
+  return {nOp,nRep,nP};
+}
+function calcRR(){
+  const {nOp,nRep,nP:nPecas}=ajustarRR();
+  const tol=numOr(rrData.info.tolerancia,0);
+  const c1=K1[nRep]||K1[3], c2=K2[nOp]||K2[3], c3=K3[nPecas]||K3[10];
+
+  renderInfo('rrInfo',rrData.info,[
+    {k:'partNumber',l:'Part Number'},{k:'caracteristicas',l:'Característica'},{k:'especificacoes',l:'Especificação'},
+    {k:'equipamento',l:'Equipamento'},{k:'tag',l:'Tag / Nº Patrimônio'},{k:'responsavel',l:'Responsável'},
+    {k:'data',l:'Data do Estudo'},{k:'tolerancia',l:'Tolerância (amplitude total)'},
+    {k:'numPecas',l:'Nº Peças',t:'number',min:2,max:10},{k:'numOp',l:'Nº Operadores',t:'number',min:2,max:4},
+    {k:'numRep',l:'Nº Repetições',t:'number',min:2,max:5}
+  ],calcRR);
+
+  const opMeans=[],opRanges=[];
+  for(let o=0;o<nOp;o++){
+    opMeans[o]=[];opRanges[o]=[];
+    for(let p=0;p<nPecas;p++){
+      const reps=rrData.dados[o].map(r=>r[p]);
+      opMeans[o][p]=mean(reps);opRanges[o][p]=range(reps);
+    }
+  }
+  const rBarOp=opRanges.map(r=>mean(r));
+  const rBarTotal=mean(rBarOp);
+  const xBarOp=opMeans.map(m=>mean(m));
+  const xBarPeca=[];
+  for(let p=0;p<nPecas;p++){let s=0,c=0;for(let o=0;o<nOp;o++)for(let r=0;r<nRep;r++){s+=rrData.dados[o][r][p];c++}xBarPeca.push(s/c)}
+
+  const ev=rBarTotal*c1;
+  const xDiff=range(xBarOp);
+  const av2=(xDiff*c2)**2-(ev**2/(nPecas*nRep));
+  const av=av2>0?Math.sqrt(av2):0;
+  const rr=Math.sqrt(ev**2+av**2);
+  const rp=range(xBarPeca);
+  const vp=rp*c3;
+  const tv=Math.sqrt(rr**2+vp**2);
+  const ndc=rr>0?Math.floor(1.41*vp/rr):0;
+  const pct=(x)=>tv>0?100*x/tv:0;
+  const pctRR_VT=pct(rr),pctEV=pct(ev),pctAV=pct(av),pctVP=pct(vp);
+  const pctRR_TOL=tol>0?100*rr/tol:NaN;
+  const ucl_R=(SPC[nRep]||SPC[3]).D4*rBarTotal;
+  const A2=(SPC[nRep]||SPC[3]).A2;
+  const xbb=mean(xBarPeca);
+  const uclX=xbb+A2*rBarTotal, lclX=xbb-A2*rBarTotal;
+
+  let th='<table class="data-table"><thead><tr><th>Operador</th><th>Repet.</th>';
+  for(let p=1;p<=nPecas;p++)th+='<th>Pç.'+p+'</th>';
+  th+='<th style="background:#EAF3F8">Média Op.</th></tr></thead><tbody>';
+  for(let o=0;o<nOp;o++){
+    for(let r=0;r<nRep;r++){
+      th+='<tr><td class="row-label">'+(r===0?esc(rrData.operadores[o]):'')+'</td><td>'+(r+1)+'</td>';
+      for(let p=0;p<nPecas;p++)th+='<td contenteditable="true" data-op="'+o+'" data-r="'+r+'" data-p="'+p+'">'+fmt(rrData.dados[o][r][p])+'</td>';
+      if(r===0)th+='<td rowspan="'+nRep+'" style="font-weight:600">'+fmt(xBarOp[o])+'</td>';
+      th+='</tr>';
+    }
+    th+='<tr><td class="row-label" style="font-style:italic">Amplitude</td><td></td>';
+    for(let p=0;p<nPecas;p++)th+='<td class="'+(opRanges[o][p]>ucl_R?'out-ctrl':'')+'" style="background:rgba(245,158,11,.08)">'+fmt(opRanges[o][p])+'</td>';
+    th+='<td style="font-weight:600;background:rgba(245,158,11,.12)">'+fmt(rBarOp[o])+'</td></tr>';
+  }
+  th+='<tr style="font-weight:700;background:#F1F1F1"><td class="row-label">Média por Peça</td><td></td>';
+  for(let p=0;p<nPecas;p++)th+='<td>'+fmt(xBarPeca[p])+'</td>';
+  th+='<td>'+fmt(xbb)+'</td></tr></tbody></table>';
+  document.getElementById('rrTableWrap').innerHTML=th;
+  bindCells('#rrTableWrap',td=>{rrData.dados[+td.dataset.op][+td.dataset.r][+td.dataset.p]=num(td.textContent);calcRR()});
+
+  const labels=Array.from({length:nPecas},(_,i)=>'Pç.'+(i+1));
+  const colors=['#0064B3','#00959D','#04BBEE','#DC3545'];
+  const dsMean=rrData.operadores.map((op,o)=>({label:op,data:opMeans[o],borderColor:colors[o%4],backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.1}));
+  dsMean.push({label:'LSC',data:Array(nPecas).fill(uclX),borderColor:'#DC3545',borderDash:[6,3],borderWidth:1.2,pointRadius:0});
+  dsMean.push({label:'LIC',data:Array(nPecas).fill(lclX),borderColor:'#DC3545',borderDash:[6,3],borderWidth:1.2,pointRadius:0});
+  mk('chartRRMean',{type:'line',data:{labels,datasets:dsMean},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'Carta das Médias por Operador',font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(0,0,0,.05)'},title:{display:true,text:'Valor medido',font:{size:10}}}}}});
+  const dsRange=rrData.operadores.map((op,o)=>({label:op,data:opRanges[o],backgroundColor:colors[o%4]+'AA',borderColor:colors[o%4],borderWidth:1}));
+  mk('chartRRRange',{type:'bar',data:{labels,datasets:dsRange.concat([{label:'LSC (R)',data:Array(nPecas).fill(ucl_R),type:'line',borderColor:'#DC3545',borderDash:[6,3],borderWidth:1.4,pointRadius:0}])},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'Carta das Amplitudes por Operador',font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(0,0,0,.05)'},title:{display:true,text:'Amplitude',font:{size:10}}}}}});
+
+  const clsPct=v=>v<10?'success':(v<=30?'':'danger');
+  const okVT=pctRR_VT<=30, okTol=!isFinite(pctRR_TOL)||pctRR_TOL<=30, okNDC=ndc>=5;
+  let rh='';const box=(l,v,cls='')=>{rh+='<div class="result-box '+cls+'"><div class="label">'+l+'</div><div class="value">'+v+'</div></div>'};
+  box('EV (Repetitividade)',fmt(ev),'accent');box('AV (Reprodutibilidade)',fmt(av),'accent');box('GRR',fmt(rr),'accent');
+  box('PV (Var. das Peças)',fmt(vp));box('TV (Var. Total)',fmt(tv));
+  box('%EV',fmtPct(pctEV));box('%AV',fmtPct(pctAV));box('%PV',fmtPct(pctVP));
+  box('%GRR (Var. Total)',fmtPct(pctRR_VT),clsPct(pctRR_VT));
+  box('%GRR (Tolerância)',isFinite(pctRR_TOL)?fmtPct(pctRR_TOL):'-',isFinite(pctRR_TOL)?clsPct(pctRR_TOL):'');
+  box('NDC',String(ndc),okNDC?'success':'danger');
+  document.getElementById('rrResults').innerHTML=rh;
+
+  const classe=pctRR_VT<10?'ACEITÁVEL':(pctRR_VT<=30?'ACEITÁVEL CONDICIONALMENTE':'INACEITÁVEL');
+  const allOk=okVT&&okTol&&okNDC;
+  document.getElementById('rrVerdict').innerHTML='<div class="verdict-box '+(allOk?'verdict-ok':'verdict-fail')+'"><i class="fas '+(allOk?'fa-check-circle':'fa-times-circle')+'"></i> Sistema '+classe+' — %GRR (VT) = '+fmtPct(pctRR_VT)+(isFinite(pctRR_TOL)?' · %GRR (Tol.) = '+fmtPct(pctRR_TOL):'')+' · NDC = '+ndc+(okNDC?'':' (abaixo do mínimo de 5)')+'.</div>';
+  KPI.rr={ok:allOk,label:'R&R Variável',value:allOk?'Aprovado':'Reprovado',sub:'%GRR (VT): '+fmtPct(pctRR_VT),metric:pctRR_VT,icon:'fa-repeat',mod:'rr'};
+}
+
+/* ===================== R&R ATRIBUTO ===================== */
+function calcAtributos(){
+  // Os nomes são editáveis na ficha. Mantém compatibilidade com estudos antigos
+  // que ainda não possuem os campos avaliador1, avaliador2 e avaliador3.
+  if(!atrData.info)atrData.info={};
+  if(!Array.isArray(atrData.operadores))atrData.operadores=[];
+  const ops=[0,1,2].map(i=>{
+    const key='avaliador'+(i+1);
+    if(atrData.info[key]===undefined)atrData.info[key]=atrData.operadores[i]||'';
+    const nome=String(atrData.info[key]||'').trim();
+    return nome||'Avaliador '+(i+1);
+  });
+  atrData.operadores=ops;
+  const nOps=ops.length;
+  const nPecas=atrData.dados[0].length;
+  const nTrials=atrData.dados[0][0].length;
+  // Garante que a referência tenha exatamente nPecas posições (bug corrigido)
+  if(atrData.referencia.length<nPecas)atrData.referencia=atrData.referencia.padEnd(nPecas,'A');
+  if(atrData.referencia.length>nPecas)atrData.referencia=atrData.referencia.slice(0,nPecas);
+  const resRef=atrData.referencia.split('');
+
+  renderInfo('atrInfo',atrData.info,[
+    {k:'partNumber',l:'Part Number'},{k:'caracteristicas',l:'Característica / Faixa'},{k:'tolerancia',l:'Tolerância'},
+    {k:'equipamento',l:'Equipamento / Dispositivo'},{k:'tag',l:'Tag / Nº Patrimônio'},{k:'responsavel',l:'Responsável'},{k:'data',l:'Data do Estudo'},
+    {k:'avaliador1',l:'Avaliador 1'},{k:'avaliador2',l:'Avaliador 2'},{k:'avaliador3',l:'Avaliador 3'}
+  ],calcAtributos);
+
+  const voto=(o,p)=>{const t=atrData.dados[o][p];return t.split('').filter(c=>c==='A').length*2>=t.length?'A':'R'};
+  const resOps=ops.map((_,o)=>Array.from({length:nPecas},(_,p)=>voto(o,p)));
+
+  function kappa(r1,r2){
+    let nAA=0,nAR=0,nRA=0,nRR=0;
+    for(let i=0;i<nPecas;i++){
+      if(r1[i]==='A'&&r2[i]==='A')nAA++;else if(r1[i]==='A'&&r2[i]==='R')nAR++;
+      else if(r1[i]==='R'&&r2[i]==='A')nRA++;else nRR++;
+    }
+    const n=nAA+nAR+nRA+nRR;if(!n)return 0;
+    const p0=(nAA+nRR)/n, p1=(nAA+nAR)/n, p2=(nAA+nRA)/n;
+    const pe=p1*p2+(1-p1)*(1-p2);
+    return pe===1?1:(p0-pe)/(1-pe);
+  }
+  // Repetibilidade interna: todas as tentativas iguais
+  const repet=ops.map((_,o)=>{let c=0;for(let p=0;p<nPecas;p++){const t=atrData.dados[o][p];if(t.split('').every(x=>x===t[0]))c++}return 100*c/nPecas});
+
+  /* Eficácia / falha / falso alarme (correção: os conceitos estavam invertidos)
+     - Falso alarme: peça BOA (ref = A) rejeitada pelo operador
+     - Falha (escape): peça RUIM (ref = R) aceita pelo operador */
+  const efic=ops.map((_,o)=>{
+    let acertos=0,falhas=0,falsos=0;
+    for(let i=0;i<nPecas;i++){
+      if(resOps[o][i]===resRef[i])acertos++;
+      else if(resRef[i]==='R')falhas++;
+      else falsos++;
+    }
+    return{eficacia:100*acertos/nPecas,falha:100*falhas/nPecas,falsoAlarme:100*falsos/nPecas};
+  });
+
+  let th='<table class="data-table"><thead><tr><th rowspan="2">Peça</th><th rowspan="2">Referência</th>';
+  ops.forEach(op=>{th+='<th colspan="'+nTrials+'">'+esc(op)+'</th>'});
+  th+='<th colspan="'+nOps+'">Decisão final</th></tr><tr>';
+  ops.forEach(()=>{for(let t=1;t<=nTrials;t++)th+='<th>T'+t+'</th>'});
+  ops.forEach(op=>{th+='<th>'+esc(op)+'</th>'});
+  th+='</tr></thead><tbody>';
+  for(let p=0;p<nPecas;p++){
+    th+='<tr><td class="row-label">'+(p+1)+'</td><td><span class="badge '+(resRef[p]==='A'?'badge-ok':'badge-fail')+'">'+resRef[p]+'</span></td>';
+    for(let o=0;o<nOps;o++)for(let t=0;t<nTrials;t++){
+      const v=atrData.dados[o][p][t];
+      th+='<td class="atr-cell" data-op="'+o+'" data-p="'+p+'" data-t="'+t+'" style="cursor:pointer" title="Clique para alternar A/R"><span class="badge '+(v==='A'?'badge-ok':'badge-fail')+'">'+v+'</span></td>';
+    }
+    for(let o=0;o<nOps;o++){
+      const d=resOps[o][p],div=d!==resRef[p];
+      th+='<td class="'+(div?'out-ctrl':'')+'"><span class="badge '+(d==='A'?'badge-ok':'badge-fail')+'">'+d+'</span></td>';
+    }
+    th+='</tr>';
+  }
+  th+='</tbody></table>';
+  document.getElementById('atrTableWrap').innerHTML=th;
+  // Correção: antes havia click + blur ao mesmo tempo, causando duplo alternar
+  document.querySelectorAll('#atrTableWrap td.atr-cell').forEach(td=>{
+    td.addEventListener('click',function(){
+      const o=+this.dataset.op,p=+this.dataset.p,t=+this.dataset.t;
+      const arr=atrData.dados[o][p].split('');
+      arr[t]=arr[t]==='A'?'R':'A';
+      atrData.dados[o][p]=arr.join('');
+      calcAtributos();
+    });
+  });
+
+  function interp(k){
+    if(k>=0.90)return '<span class="badge badge-ok">Excelente</span>';
+    if(k>=0.70)return '<span class="badge" style="background:rgba(245,158,11,.18);color:#92400e">Aceitável</span>';
+    return '<span class="badge badge-fail">Inadequado</span>';
+  }
+  let kh='<table class="kappa-table"><thead><tr><th style="text-align:left">Comparação</th><th>Kappa</th><th>Interpretação</th></tr></thead><tbody>';
+  const kappasRef=[];
+  for(let i=0;i<nOps;i++)for(let j=i+1;j<nOps;j++){
+    const k=kappa(resOps[i],resOps[j]);
+    kh+='<tr><td style="text-align:left">'+esc(ops[i])+' vs '+esc(ops[j])+'</td><td style="font-weight:700">'+fmt(k,3)+'</td><td>'+interp(k)+'</td></tr>';
+  }
+  for(let i=0;i<nOps;i++){
+    const k=kappa(resOps[i],resRef);kappasRef.push(k);
+    kh+='<tr'+(i===0?' style="border-top:2px solid var(--border)"':'')+'><td style="text-align:left"><strong>'+esc(ops[i])+' vs Referência</strong></td><td style="font-weight:700">'+fmt(k,3)+'</td><td>'+interp(k)+'</td></tr>';
+  }
+  kh+='</tbody></table>';
+  document.getElementById('atrKappaWrap').innerHTML=kh;
+
+  let rh='';
+  ops.forEach((op,o)=>{
+    rh+='<div class="result-box '+(efic[o].eficacia>=90?'success':'danger')+'"><div class="label">'+esc(op)+' — Eficácia</div><div class="value">'+fmtPct(efic[o].eficacia,1)+'</div></div>';
+    rh+='<div class="result-box '+(efic[o].falha<=5?'':'danger')+'"><div class="label">'+esc(op)+' — Falha (escape)</div><div class="value">'+fmtPct(efic[o].falha,1)+'</div></div>';
+    rh+='<div class="result-box '+(efic[o].falsoAlarme<=5?'':'danger')+'"><div class="label">'+esc(op)+' — Falso Alarme</div><div class="value">'+fmtPct(efic[o].falsoAlarme,1)+'</div></div>';
+    rh+='<div class="result-box"><div class="label">'+esc(op)+' — Repetibilidade</div><div class="value">'+fmtPct(repet[o],1)+'</div></div>';
+  });
+  document.getElementById('atrResults').innerHTML=rh;
+
+  mk('chartAtributos',{type:'bar',data:{labels:ops,datasets:[
+    {label:'Eficácia (%)',data:efic.map(e=>e.eficacia),backgroundColor:'#0064B3'},
+    {label:'Falha / escape (%)',data:efic.map(e=>e.falha),backgroundColor:'#E1E000'},
+    {label:'Falso alarme (%)',data:efic.map(e=>e.falsoAlarme),backgroundColor:'#DC3545'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{title:{display:true,text:'Desempenho por avaliador vs. padrão de referência',font:{size:12,family:'Space Grotesk'},color:'#253746'},legend:{position:'bottom',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.05)'},max:100,title:{display:true,text:'%',font:{size:10}}}}}});
+
+  const minKappa=Math.min(...kappasRef);
+  const minEfic=Math.min(...efic.map(e=>e.eficacia));
+  const maxFalha=Math.max(...efic.map(e=>e.falha));
+  const maxFalso=Math.max(...efic.map(e=>e.falsoAlarme));
+  const allOk=minKappa>=0.90&&minEfic>=90&&maxFalha<=5&&maxFalso<=5;
+  document.getElementById('atrVerdict').innerHTML='<div class="verdict-box '+(allOk?'verdict-ok':'verdict-fail')+'"><i class="fas '+(allOk?'fa-check-circle':'fa-times-circle')+'"></i> '+
+    (allOk?'SISTEMA DE MEDIÇÃO POR ATRIBUTO ADEQUADO — concordância excelente entre avaliadores e contra o padrão de referência.'
+          :'SISTEMA DE MEDIÇÃO POR ATRIBUTO NÃO ADEQUADO — Kappa mínimo: '+fmt(minKappa,3)+' · Eficácia mínima: '+fmtPct(minEfic,1)+' · Falha máx.: '+fmtPct(maxFalha,1)+' · Falso alarme máx.: '+fmtPct(maxFalso,1))+'</div>';
+  KPI.atributos={ok:allOk,label:'R&R Atributo',value:allOk?'Aprovado':'Reprovado',sub:'Kappa mín.: '+fmt(minKappa,3),metric:minEfic,icon:'fa-check-double',mod:'atributos'};
+}
+
+/* ===================== INICIALIZAÇÃO ===================== */
+loadCFG();
+calcDashboard();
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='p'){e.preventDefault();openPrintModal();}
+  if(e.key==='Escape')document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show'));
+});
+document.querySelectorAll('.modal-overlay').forEach(ov=>{
+  ov.addEventListener('mousedown',e=>{if(e.target===ov)ov.classList.remove('show')});
+});
+</script>
+</body>
+</html>
