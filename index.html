@@ -20,7 +20,7 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
 #appShell{padding:14px;gap:14px}
 .sidebar{width:260px;min-width:260px;background:linear-gradient(165deg,var(--brand-blue),var(--brand-indigo));height:calc(100vh - 28px);display:flex;flex-direction:column;transition:all .3s;border-radius:22px;overflow:hidden;box-shadow:0 20px 40px -12px rgba(0,64,103,.45)}
 .sidebar .logo{padding:24px 24px 18px;display:block}
-.sidebar .brand-logo{display:block;width:184px;height:auto;color:#fff}
+.sidebar .brand-logo{display:block;width:184px;height:61px;color:#fff}
 .sidebar .logo-divider{height:1px;background:rgba(255,255,255,.2);margin:18px 0 14px}
 .sidebar .logo-icon{width:40px;height:40px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700}
 .sidebar .logo-text{color:#fff;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;line-height:1.2}
@@ -115,6 +115,19 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
 .saved-item .saved-actions button.danger:hover{color:var(--danger);border-color:#fecaca;background:rgba(239,68,68,.06)}
 .editing-banner{display:flex;justify-content:space-between;align-items:center;background:rgba(0,100,179,.08);border:1px solid rgba(0,100,179,.25);border-radius:14px;padding:10px 16px;margin-bottom:14px;font-size:12.5px;color:var(--accent-dark)}
 .editing-banner button{background:none;border:none;color:var(--accent-dark);text-decoration:underline;cursor:pointer;font-size:12.5px}
+/* ===== BIBLIOTECA — grupos por instrumento ===== */
+.instr-group{margin-bottom:22px}
+.instr-group:last-child{margin-bottom:0}
+.instr-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,rgba(0,100,179,.08),rgba(4,187,238,.06));border:1px solid var(--border);border-radius:16px;margin-bottom:10px;cursor:pointer;user-select:none}
+.instr-group-header:hover{background:linear-gradient(135deg,rgba(0,100,179,.13),rgba(4,187,238,.1))}
+.instr-group-header .instr-icon{width:34px;height:34px;border-radius:11px;background:rgba(0,100,179,.14);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.instr-group-header .instr-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;color:var(--text)}
+.instr-group-header .instr-tag{font-size:11px;color:var(--text-muted);font-weight:500}
+.instr-group-header .instr-count{margin-left:auto;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px}
+.instr-group-header .instr-chevron{color:var(--text-muted);font-size:12px;transition:transform .2s}
+.instr-group-header.collapsed .instr-chevron{transform:rotate(-90deg)}
+.instr-group-body{display:flex;flex-direction:column;gap:0}
+.instr-group-body.collapsed{display:none}
 /* ===== MODAIS ===== */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,30,61,.55);z-index:9998;align-items:center;justify-content:center}
 .modal-overlay.show{display:flex}
@@ -427,7 +440,7 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="logo">
-    <svg class="brand-logo" viewBox="0 250 150 50" aria-label="Röchling"><use href="#roechling-logo"></use></svg>
+    <svg class="brand-logo" width="184" height="61" viewBox="0 250 150 50" aria-label="Röchling"><path fill="currentColor" d="m57.867128 273.95111c-.634008-1.51466-2.007783-2.64161-3.769463-2.64161-2.219483 0-4.016112 1.726-4.016112 4.22727 0 2.50163 1.796629 4.22781 4.016112 4.22781 1.76168 0 3.135455-1.12767 3.769463-2.64215l4.650303 2.46613c-1.514666 3.06464-4.75588 5.14324-8.419766 5.14324-5.178916 0-9.371051-3.80478-9.371051-9.19503 0-5.39025 4.192135-9.19503 9.371051-9.19503 3.663886 0 6.9051 2.07859 8.419766 5.14342zm13.478907-5.95363c1.092358-1.02155 2.712965-1.65574 4.580039-1.65574 4.579676 0 7.15175 3.20572 7.15175 7.96214v10.04038h-5.320171v-9.1244c0-2.36092-.950921-4.05179-2.994018-4.05179-1.374139 0-2.677833.6695-3.4176 1.62078v11.55541h-5.319442v-25.71765h5.319442zm-60.90082 1.26838c1.655558 0 2.85331-.95147 2.85331-2.39551 0-1.51503-1.197752-2.39605-2.85331-2.39605H6.851593v4.79156zm.668959-9.9348c4.720929 0 7.750808 3.38211 7.750808 7.53929 0 3.24104-1.726002 5.31963-4.896771 6.44675l8.84262 11.02716H16.081936L7.7677465 274.0221H6.851593v10.32216H1.250187v-25.0132zm21.141065 20.43352c2.219667 0 3.910719-1.72618 3.910719-4.22781 0-2.50127-1.691052-4.22727-3.910719-4.22727-2.219482 0-3.910353 1.726-3.910353 4.22727 0 2.50163 1.690871 4.22781 3.910353 4.22781zm-9.265291-4.22781c0-5.17874 4.192135-9.19503 9.265291-9.19503 5.072976 0 9.265657 4.01629 9.265657 9.19503 0 5.17873-4.192681 9.19503-9.265657 9.19503-5.072792 0-9.265291-4.01629-9.265291-9.19503zm92.040022-7.53929c1.09218-1.02155 2.71315-1.65574 4.58023-1.65574 4.57985 0 7.15102 3.20572 7.15102 7.96214v10.04038h-5.31927v-9.1244c0-2.36092-.95128-4.05179-2.99492-4.05179-1.37341 0-2.67692.6695-3.41706 1.62078v11.55541h-5.31962v-17.6148h5.31962zm-26.98548 16.34678v-25.71765h5.319812v25.71765zm10.921037 0v-17.6148h5.319623v17.6148zm-.53644-23.83729c0-1.73329 1.433475-3.13363 3.133633-3.13363 1.76641 0 3.16658 1.40034 3.16658 3.13363 0 1.73329-1.40017 3.13345-3.16658 3.13345-1.700158 0-3.133633-1.40016-3.133633-3.13345zm-56.993199.85827c0 1.73365-1.399987 3.13345-3.166763 3.13345-1.700155 0-3.133635-1.3998-3.133635-3.13345 0-1.73346 1.43348-3.13382 3.133635-3.13382 1.766776 0 3.166763 1.40036 3.166763 3.13382zm-12.061262 0c0 1.73365-1.399987 3.13345-3.166764 3.13345-1.699972 0-3.133452-1.39999-3.133452-3.13345 0-1.73346 1.43348-3.13382 3.133452-3.13382 1.766777 0 3.166764 1.40035 3.166764 3.13382zm6.030449-7.3163c0 1.73364-1.399806 3.13363-3.166582 3.13363-1.699971 0-3.133634-1.39999-3.133634-3.13363 0-1.73347 1.433663-3.13382 3.133634-3.13382 1.766776 0 3.166582 1.40035 3.166582 3.13382zm108.024565 23.3904v-4.61535c-.73904-.95129-1.69105-1.65592-3.34624-1.65592-2.36074 0-4.15737 1.62078-4.15737 3.98116 0 2.36074 1.79663 3.98134 4.15737 3.98134 1.65519 0 2.6072-.705 3.34624-1.69123zm0-9.61788v-1.092h5.32017v17.21652c0 6.4118-5.00235 8.13889-9.37141 8.13889-2.67711 0-5.63635-.59906-7.71531-2.25516l2.78323-3.98098c1.51502 1.16226 3.27634 1.58511 4.86199 1.58511 1.97229 0 4.12133-1.05668 4.12133-3.41724v-1.57491c-.91579.88138-2.39514 1.51539-4.22726 1.51539-5.03712 0-8.80712-3.87559-8.77218-8.80785.035-4.93227 3.73506-8.80749 8.77218-8.80749 1.83212 0 3.31147.63419 4.22726 1.47972z"/></svg>
     <div class="logo-divider"></div>
     <div class="logo-text">MSA Dashboard</div>
     <div class="logo-sub">Automotive Brasil · Manual AIAG 4ª Ed.</div>
@@ -458,6 +471,7 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
     <div class="topbar-actions">
       <span id="fbStatus" style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);padding:8px 14px;border-radius:12px" title="Status da conexão com o banco de dados"><i class="fas fa-circle-notch fa-spin" style="font-size:8px"></i> Conectando...</span>
       <button class="btn btn-outline btn-sm" onclick="recalcCurrent()"><i class="fas fa-calculator"></i> Recalcular</button>
+      <button class="btn btn-outline btn-sm" id="btnBackup" onclick="exportarBackup()" title="Baixar backup de todos os estudos salvos em um arquivo .json" style="border-color:var(--success);color:#3a7d1f"><i class="fas fa-cloud-arrow-down"></i> Exportar Backup</button>
       <button class="btn btn-primary btn-sm" onclick="openPrintModal()"><i class="fas fa-file-pdf"></i> Gerar Relatório</button>
       <button class="btn btn-outline btn-sm" onclick="openSettings()" style="width:38px;height:38px;padding:0;justify-content:center;border-radius:12px" title="Configurações do relatório"><i class="fas fa-gear"></i></button>
       <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);padding:6px 14px 6px 6px;border-radius:14px">
@@ -677,9 +691,12 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
       <div class="card">
         <div class="card-header-row">
           <div class="card-title"><i class="fas fa-folder-open"></i>Biblioteca de Estudos Salvos</div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="salvosFiltroInstr" onchange="renderSalvos()" style="width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text)">
+              <option value="">Todos os instrumentos</option>
+            </select>
             <select id="salvosFiltro" onchange="renderSalvos()" style="width:auto;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text)">
-              <option value="">Todos os tipos</option>
+              <option value="">Todos os tipos de estudo</option>
               <option value="estabilidade">Estabilidade</option>
               <option value="tendencia">Tendência</option>
               <option value="linearidade">Linearidade</option>
@@ -920,62 +937,62 @@ let reportOpts={capa:true,assin:true,dados:true,orient:'portrait'};
 
 /* ===================== DADOS ===================== */
 const estData={
-  info:{partNo:'N 75001',caracteristica:'Dimensão Externa',especificacao:'40,33 -0,1 mm',responsavel:'Fábio Sousa',equipamento:'Paquímetro Digital',tag:'04.02.00343',capacidade:'0-200 mm / 0,01 mm',valorRef:'40,3314',numMed:'5',numAmostras:'25',erroAmostral:'5%'},
+  info:{partNo:'GLOBAL S GREEN',caracteristica:'Dimensão Externa',especificacao:'150,00 ±0,10 mm',responsavel:'Metrologia (simulado)',equipamento:'Paquímetro Digital 300 mm',tag:'PA-022',capacidade:'0-300 mm / 0,02 mm',valorRef:'150,00',numMed:'5',numAmostras:'25',erroAmostral:'5%'},
   amostras:[
-    {data:'08/11/21',hora:'8:00',m:[40.25,40.25,40.24,40.25,40.25]},
-    {data:'08/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'08/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.26,40.25]},
-    {data:'09/11/21',hora:'8:00',m:[40.25,40.26,40.25,40.26,40.25]},
-    {data:'09/11/21',hora:'11:00',m:[40.25,40.26,40.25,40.25,40.25]},
-    {data:'09/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'10/11/21',hora:'8:00',m:[40.25,40.25,40.26,40.25,40.25]},
-    {data:'10/11/21',hora:'11:00',m:[40.25,40.26,40.25,40.26,40.25]},
-    {data:'10/11/21',hora:'14:00',m:[40.25,40.25,40.26,40.25,40.25]},
-    {data:'11/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'11/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.26,40.25]},
-    {data:'11/11/21',hora:'14:00',m:[40.25,40.24,40.25,40.25,40.25]},
-    {data:'12/11/21',hora:'8:00',m:[40.25,40.25,40.24,40.25,40.25]},
-    {data:'12/11/21',hora:'11:00',m:[40.25,40.25,40.26,40.25,40.25]},
-    {data:'12/11/21',hora:'14:00',m:[40.26,40.25,40.26,40.25,40.25]},
-    {data:'16/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'16/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'16/11/21',hora:'14:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'17/11/21',hora:'8:00',m:[40.25,40.24,40.25,40.26,40.25]},
-    {data:'17/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'17/11/21',hora:'14:00',m:[40.25,40.26,40.26,40.25,40.25]},
-    {data:'18/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.26,40.25]},
-    {data:'18/11/21',hora:'11:00',m:[40.25,40.25,40.25,40.25,40.25]},
-    {data:'18/11/21',hora:'14:00',m:[40.26,40.25,40.25,40.25,40.25]},
-    {data:'19/11/21',hora:'8:00',m:[40.25,40.25,40.25,40.26,40.25]}
+    {data:'03/08/26',hora:'8:00',m:[149.98,150.00,150.04,149.98,149.96]},
+    {data:'03/08/26',hora:'11:00',m:[150.00,150.00,150.02,150.00,150.04]},
+    {data:'03/08/26',hora:'14:00',m:[150.02,150.06,150.02,150.00,150.04]},
+    {data:'04/08/26',hora:'8:00',m:[150.02,149.98,150.02,149.98,150.02]},
+    {data:'04/08/26',hora:'11:00',m:[149.98,150.00,149.98,150.00,150.04]},
+    {data:'04/08/26',hora:'14:00',m:[150.02,149.98,149.98,150.02,149.98]},
+    {data:'05/08/26',hora:'8:00',m:[149.98,150.02,149.98,150.02,150.02]},
+    {data:'05/08/26',hora:'11:00',m:[150.00,149.98,150.00,150.04,150.00]},
+    {data:'05/08/26',hora:'14:00',m:[150.02,150.00,150.00,150.00,150.00]},
+    {data:'06/08/26',hora:'8:00',m:[150.00,150.02,150.02,150.00,149.98]},
+    {data:'06/08/26',hora:'11:00',m:[149.98,149.98,149.96,150.00,149.98]},
+    {data:'06/08/26',hora:'14:00',m:[150.04,149.98,149.96,150.00,150.00]},
+    {data:'07/08/26',hora:'8:00',m:[150.02,150.00,150.04,149.98,150.00]},
+    {data:'07/08/26',hora:'11:00',m:[150.00,149.98,149.96,150.02,149.96]},
+    {data:'07/08/26',hora:'14:00',m:[150.00,150.02,150.00,149.96,150.02]},
+    {data:'10/08/26',hora:'8:00',m:[149.98,150.00,150.00,150.04,149.98]},
+    {data:'10/08/26',hora:'11:00',m:[150.00,150.00,149.96,149.98,150.00]},
+    {data:'10/08/26',hora:'14:00',m:[150.00,150.00,150.04,150.04,150.02]},
+    {data:'11/08/26',hora:'8:00',m:[150.00,150.02,150.04,150.04,150.02]},
+    {data:'11/08/26',hora:'11:00',m:[149.98,150.02,150.02,150.00,150.00]},
+    {data:'11/08/26',hora:'14:00',m:[149.98,149.96,149.98,150.00,150.00]},
+    {data:'12/08/26',hora:'8:00',m:[149.98,150.00,150.04,149.98,150.00]},
+    {data:'12/08/26',hora:'11:00',m:[149.98,150.04,150.00,150.04,150.02]},
+    {data:'12/08/26',hora:'14:00',m:[149.98,150.02,150.00,150.02,150.00]},
+    {data:'13/08/26',hora:'8:00',m:[150.02,150.02,149.98,150.02,149.98]}
   ]
 };
 const tenData={
-  info:{partNo:'N 75001',caracteristica:'DIM',responsavel:'Welington Freitas',data:'',equipamento:'Relógio Comparador',tag:'RC-016',valorRef:'6,000',numMed:'15',erroAmostral:'5%',tolerancia:'0,02',processo:'0,4'},
-  medidas:[6.01,6.02,5.98,6.01,6.02,5.99,5.97,5.96,5.94,6.03,6.02,6.01,5.99,5.98,6.02]
+  info:{partNo:'GLOBAL S GREEN',caracteristica:'Dimensão Externa',responsavel:'Metrologia (simulado)',data:'03/08/26',equipamento:'Paquímetro Digital 300 mm',tag:'PA-022',valorRef:'150,00',numMed:'15',erroAmostral:'5%',tolerancia:'0,20',processo:'0,03'},
+  medidas:[150.00,150.02,150.00,150.00,150.00,150.04,150.04,150.00,150.04,150.02,150.00,150.00,150.02,150.02,150.02]
 };
 const linData={
-  info:{peca:'5 peças',caracteristica:'Dimensão',equipamento:'Relógio Comparador',tag:'RC-016',operador:'Welington Freitas',numPecas:'5',numMed:'12',erroAmostral:'5%',tolerancia:'1,0'},
-  refs:[2,4,6,8,10],
+  info:{peca:'5 blocos padrão',caracteristica:'Dimensional (blocos padrão)',equipamento:'Paquímetro Digital 300 mm',tag:'PA-022',operador:'Metrologia (simulado)',numPecas:'5',numMed:'12',erroAmostral:'5%',tolerancia:'0,20'},
+  refs:[50,100,150,200,250],
   medicoes:[
-    [2.70,2.50,2.40,2.50,2.70,2.30,2.50,2.50,2.40,2.40,2.60,2.40],
-    [5.10,3.90,4.20,5.00,3.80,3.90,3.90,3.90,3.90,4.00,4.10,3.80],
-    [5.80,5.70,5.90,5.90,6.00,6.10,6.00,6.10,6.40,6.30,6.00,6.10],
-    [7.60,7.70,7.80,7.70,7.80,7.80,7.80,7.70,7.80,7.50,7.60,7.70],
-    [9.10,9.30,9.50,9.30,9.40,9.50,9.50,9.50,9.60,9.20,9.30,9.40]
+    [50.10,50.04,50.02,50.00,50.02,50.00,50.00,49.96,50.02,50.00,50.08,50.02],
+    [100.04,100.02,100.00,100.02,100.00,100.00,100.02,99.96,100.06,100.04,100.02,100.06],
+    [149.98,149.96,150.02,150.00,150.02,150.00,150.00,149.98,150.02,150.04,150.02,150.06],
+    [200.02,200.02,200.02,200.02,200.00,199.98,199.98,199.96,200.00,200.02,200.02,200.04],
+    [250.00,249.96,250.00,250.00,249.96,249.98,249.98,250.06,250.04,249.98,250.00,250.00]
   ]
 };
 const rrData={
-  info:{partNumber:'COLETOR 1.6',caracteristicas:'Comprimento',especificacoes:'DIM 5,80 ± 0,10',data:'05/06/2025',equipamento:'Paquímetro',tag:'PA-027',responsavel:'Welington Freitas',numPecas:'10',numOp:'3',numRep:'3',tolerancia:'0,2'},
-  operadores:['EDSON','ROSE','LUIZ'],
+  info:{partNumber:'GLOBAL S GREEN',caracteristicas:'Dimensão Externa',especificacoes:'150,00 ±0,10 mm',data:'01/09/2026',equipamento:'Paquímetro Digital 300 mm',tag:'PA-022',responsavel:'Metrologia (simulado)',numPecas:'10',numOp:'3',numRep:'3',tolerancia:'0,20'},
+  operadores:['Operador 1','Operador 2','Operador 3'],
   dados:[
-    [[5.68,5.74,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76],[5.69,5.75,5.74,5.76,5.75,5.78,5.77,5.79,5.79,5.76],[5.68,5.74,5.75,5.74,5.76,5.77,5.78,5.79,5.80,5.76]],
-    [[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.74,5.75,5.74,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.76]],
-    [[5.68,5.74,5.75,5.76,5.76,5.77,5.78,5.79,5.80,5.76],[5.68,5.75,5.74,5.75,5.76,5.77,5.78,5.79,5.80,5.75],[5.68,5.74,5.75,5.76,5.76,5.77,5.78,5.79,5.80,5.76]]
+    [[149.92,149.90,149.94,149.98,149.96,149.96,150.00,150.06,150.10,150.10],[149.92,149.96,149.92,149.94,149.96,150.00,150.02,150.06,150.04,150.10],[149.90,149.92,149.96,149.98,149.96,150.02,150.04,150.06,150.10,150.08]],
+    [[149.90,149.92,149.94,149.96,149.98,150.00,150.02,150.04,150.06,150.06],[149.92,149.92,149.92,149.94,149.96,150.04,150.04,150.04,150.06,150.08],[149.90,149.94,149.92,149.96,149.98,150.00,150.00,150.04,150.02,150.12]],
+    [[149.90,149.92,150.00,149.96,149.94,150.04,150.06,150.08,150.08,150.12],[149.88,149.88,149.94,150.00,150.00,150.00,150.04,150.08,150.08,150.10],[149.92,149.92,149.94,149.94,149.98,150.00,150.04,150.06,150.06,150.10]]
   ]
 };
-/* 50 peças · referência com 50 posições (corrigido: antes havia 64 caracteres) */
+/* 50 peças · referência com 50 posições */
 const atrData={
-  info:{partNumber:'SURG TANK',caracteristicas:'14,30 a 14,70',tolerancia:'0,4',data:'31/10/2025',equipamento:'PNP',tag:'PNP-003',responsavel:'Welington Freitas',avaliador1:'',avaliador2:'',avaliador3:''},
+  info:{partNumber:'GLOBAL S GREEN',caracteristicas:'Dimensão Externa - Passa/Não Passa (150,00 ±0,10 mm)',tolerancia:'0,20',data:'01/09/2026',equipamento:'Paquímetro Digital 300 mm (Gabarito Funcional)',tag:'PA-022',responsavel:'Metrologia (simulado)',avaliador1:'',avaliador2:'',avaliador3:''},
   operadores:['Avaliador 1','Avaliador 2','Avaliador 3'],
   dados:[[],[],[]],
   referencia:''
@@ -1095,31 +1112,98 @@ function confirmSave(){
   }
 }
 let salvosCache=[];
+let salvosGrupoColapsado={};
+function extrairInstrumento(s){
+  // tenta obter equipamento/tag a partir dos dados salvos do estudo (todos os 5 tipos guardam info.equipamento/info.tag)
+  try{
+    const d=JSON.parse(s.dados);
+    const equip=(d&&d.info&&d.info.equipamento)?String(d.info.equipamento).trim():'';
+    const tag=(d&&d.info&&d.info.tag)?String(d.info.tag).trim():'';
+    return {equip:equip||'Instrumento não informado',tag:tag};
+  }catch(e){return {equip:'Instrumento não informado',tag:''};}
+}
+function instrIcon(nome){
+  const n=(nome||'').toLowerCase();
+  if(n.includes('cmm')||n.includes('coordenadas'))return 'fa-cube';
+  if(n.includes('paquímetro')||n.includes('paquimetro'))return 'fa-ruler-horizontal';
+  if(n.includes('micrômetro')||n.includes('micrometro'))return 'fa-compress';
+  if(n.includes('relógio')||n.includes('relogio')||n.includes('comparador'))return 'fa-gauge-high';
+  if(n.includes('projetor'))return 'fa-video';
+  if(n.includes('pnp')||n.includes('gabarito'))return 'fa-check-double';
+  if(n.includes('balança')||n.includes('balanca'))return 'fa-weight-scale';
+  return 'fa-toolbox';
+}
 function carregarListaSalvos(){
   const box=document.getElementById('salvosLista');
   if(!db){box.innerHTML='<p style="color:var(--danger);font-size:13px">Sem conexão com o banco de dados. Os estudos permanecem disponíveis apenas nesta sessão.</p>';return;}
   box.innerHTML='<p style="color:var(--text-muted);font-size:13px">Carregando...</p>';
   db.collection('msa_estudos').orderBy('atualizadoEm','desc').get()
-    .then(snap=>{salvosCache=[];snap.forEach(doc=>salvosCache.push(Object.assign({id:doc.id},doc.data())));renderSalvos();})
+    .then(snap=>{
+      salvosCache=[];
+      snap.forEach(doc=>{
+        const s=Object.assign({id:doc.id},doc.data());
+        const instr=extrairInstrumento(s);
+        s.instrEquip=instr.equip;s.instrTag=instr.tag;
+        s.instrKey=instr.equip+(instr.tag?' · '+instr.tag:'');
+        salvosCache.push(s);
+      });
+      popularFiltroInstrumento();
+      renderSalvos();
+    })
     .catch(err=>{box.innerHTML='<p style="color:var(--danger);font-size:13px">Erro ao carregar: '+esc(err.message)+'</p>';});
 }
+function popularFiltroInstrumento(){
+  const sel=document.getElementById('salvosFiltroInstr');
+  const atual=sel.value;
+  const chaves=[...new Set(salvosCache.map(s=>s.instrKey))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  sel.innerHTML='<option value="">Todos os instrumentos</option>'+chaves.map(k=>'<option value="'+esc(k)+'">'+esc(k)+'</option>').join('');
+  if(chaves.includes(atual))sel.value=atual;
+}
 const tipoIcons={estabilidade:'fa-chart-line',tendencia:'fa-bullseye',linearidade:'fa-arrows-left-right',rr:'fa-repeat',atributos:'fa-check-double'};
+function toggleInstrGroup(key){
+  salvosGrupoColapsado[key]=!salvosGrupoColapsado[key];
+  renderSalvos();
+}
 function renderSalvos(){
-  const filtro=document.getElementById('salvosFiltro').value;
-  const lista=salvosCache.filter(s=>!filtro||s.tipo===filtro);
+  const filtroTipo=document.getElementById('salvosFiltro').value;
+  const filtroInstr=document.getElementById('salvosFiltroInstr')?document.getElementById('salvosFiltroInstr').value:'';
+  const lista=salvosCache.filter(s=>(!filtroTipo||s.tipo===filtroTipo)&&(!filtroInstr||s.instrKey===filtroInstr));
   const box=document.getElementById('salvosLista');
   if(lista.length===0){box.innerHTML='<p style="color:var(--text-muted);font-size:13px">Nenhum estudo salvo. Use o botão "Salvar Estudo" dentro de cada módulo.</p>';return;}
-  box.innerHTML=lista.map(s=>{
-    const data=s.atualizadoEm&&s.atualizadoEm.toDate?s.atualizadoEm.toDate().toLocaleString('pt-BR'):'-';
-    const ok=s.resultado?s.resultado.ok:null;
-    return '<div class="saved-item"><div class="saved-main"><div class="saved-type-icon"><i class="fas '+(tipoIcons[s.tipo]||'fa-file')+'"></i></div>'+
-      '<div><div class="saved-name">'+esc(s.nome)+'</div><div class="saved-meta">'+esc(moduleTitles[s.tipo]||s.tipo)+' · '+data+
-      (ok!==null&&ok!==undefined?' · <span style="color:'+(ok?'var(--success)':'var(--danger)')+';font-weight:600">'+(ok?'Aprovado':'Reprovado')+'</span>':'')+
-      '</div></div></div><div class="saved-actions">'+
-      '<button title="Carregar para edição" onclick="carregarEstudo(\''+s.id+'\')"><i class="fas fa-folder-open"></i></button>'+
-      '<button title="Gerar relatório" onclick="imprimirSalvo(\''+s.id+'\')"><i class="fas fa-file-pdf"></i></button>'+
-      '<button title="Excluir" class="danger" onclick="excluirEstudo(\''+s.id+'\')"><i class="fas fa-trash"></i></button>'+
-      '</div></div>';
+
+  // agrupa por instrumento (equipamento + tag)
+  const grupos={};
+  lista.forEach(s=>{
+    const key=s.instrKey||'Instrumento não informado';
+    if(!grupos[key])grupos[key]={equip:s.instrEquip,tag:s.instrTag,itens:[]};
+    grupos[key].itens.push(s);
+  });
+  const chaves=Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+  box.innerHTML=chaves.map(key=>{
+    const g=grupos[key];
+    const colapsado=!!salvosGrupoColapsado[key];
+    const itensHtml=g.itens.map(s=>{
+      const data=s.atualizadoEm&&s.atualizadoEm.toDate?s.atualizadoEm.toDate().toLocaleString('pt-BR'):'-';
+      const ok=s.resultado?s.resultado.ok:null;
+      return '<div class="saved-item"><div class="saved-main"><div class="saved-type-icon"><i class="fas '+(tipoIcons[s.tipo]||'fa-file')+'"></i></div>'+
+        '<div><div class="saved-name">'+esc(s.nome)+'</div><div class="saved-meta">'+esc(moduleTitles[s.tipo]||s.tipo)+' · '+data+
+        (ok!==null&&ok!==undefined?' · <span style="color:'+(ok?'var(--success)':'var(--danger)')+';font-weight:600">'+(ok?'Aprovado':'Reprovado')+'</span>':'')+
+        '</div></div></div><div class="saved-actions">'+
+        '<button title="Carregar para edição" onclick="carregarEstudo(\''+s.id+'\')"><i class="fas fa-folder-open"></i></button>'+
+        '<button title="Gerar relatório" onclick="imprimirSalvo(\''+s.id+'\')"><i class="fas fa-file-pdf"></i></button>'+
+        '<button title="Excluir" class="danger" onclick="excluirEstudo(\''+s.id+'\')"><i class="fas fa-trash"></i></button>'+
+        '</div></div>';
+    }).join('');
+    return '<div class="instr-group">'+
+      '<div class="instr-group-header'+(colapsado?' collapsed':'')+'" onclick="toggleInstrGroup(\''+esc(key).replace(/'/g,"\\'")+'\')">'+
+        '<div class="instr-icon"><i class="fas '+instrIcon(g.equip)+'"></i></div>'+
+        '<div><div class="instr-name">'+esc(g.equip)+'</div>'+(g.tag?'<div class="instr-tag">Tag / Código: '+esc(g.tag)+'</div>':'')+'</div>'+
+        '<div class="instr-count">'+g.itens.length+' estudo'+(g.itens.length>1?'s':'')+'</div>'+
+        '<i class="fas fa-chevron-down instr-chevron"></i>'+
+      '</div>'+
+      '<div class="instr-group-body'+(colapsado?' collapsed':'')+'">'+itensHtml+'</div>'+
+    '</div>';
   }).join('');
 }
 function carregarEstudo(id){
@@ -1141,6 +1225,74 @@ function imprimirSalvo(id){
   try{Object.assign(dataObjs[s.tipo],JSON.parse(s.dados));}catch(e){showToast('Dados do estudo corrompidos',false);return;}
   loadedIds[s.tipo]=s.id;loadedNomes[s.tipo]=s.nome;
   printSelected([s.tipo]);
+}
+
+/* ===================== BACKUP / EXPORTAÇÃO ===================== */
+function tsParaISO(v){
+  try{ if(v&&typeof v.toDate==='function') return v.toDate().toISOString(); }catch(e){}
+  return null;
+}
+function exportarBackup(){
+  const btn=document.getElementById('btnBackup');
+  const rotuloOriginal=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Exportando...';
+
+  const finalizar=(estudosSalvos, avisoDb)=>{
+    const backup={
+      tipo:'msa-dashboard-backup',
+      versao:1,
+      geradoEm:new Date().toISOString(),
+      configuracoes:JSON.parse(JSON.stringify(CFG)),
+      estudosSalvos:estudosSalvos.map(s=>({
+        id:s.id,
+        tipo:s.tipo,
+        nome:s.nome,
+        dados:JSON.parse(s.dados),
+        resultado:s.resultado||null,
+        criadoEm:tsParaISO(s.criadoEm),
+        atualizadoEm:tsParaISO(s.atualizadoEm)
+      })),
+      sessaoAtual:{
+        estabilidade:dataObjs.estabilidade,
+        tendencia:dataObjs.tendencia,
+        linearidade:dataObjs.linearidade,
+        rr:dataObjs.rr,
+        atributos:dataObjs.atributos
+      }
+    };
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const agora=new Date();
+    const carimbo=agora.getFullYear()+String(agora.getMonth()+1).padStart(2,'0')+String(agora.getDate()).padStart(2,'0')+'-'+String(agora.getHours()).padStart(2,'0')+String(agora.getMinutes()).padStart(2,'0');
+    a.href=url;
+    a.download='msa_backup_'+carimbo+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    btn.disabled=false;
+    btn.innerHTML=rotuloOriginal;
+    showToast(avisoDb?'Backup exportado (sem os estudos salvos no banco — sem conexão)':'Backup exportado com '+estudosSalvos.length+' estudo(s) salvo(s)', !avisoDb);
+  };
+
+  if(!db){
+    // sem conexão: exporta ao menos a sessão atual (dados em edição) e configurações
+    finalizar([], true);
+    return;
+  }
+  db.collection('msa_estudos').get()
+    .then(snap=>{
+      const estudos=[];
+      snap.forEach(doc=>estudos.push(Object.assign({id:doc.id},doc.data())));
+      finalizar(estudos, false);
+    })
+    .catch(err=>{
+      btn.disabled=false;
+      btn.innerHTML=rotuloOriginal;
+      showToast('Erro ao exportar backup: '+err.message, false);
+    });
 }
 
 /* ===================== DASHBOARD ===================== */
