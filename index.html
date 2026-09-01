@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#F1F1F1;--card:#fff;--sidebar:#034067;--sidebar-hover:rgba(4,187,238,.16);--accent:#0064B3;--accent-light:#04BBEE;--accent-dark:#034067;--text:#253746;--text-muted:#4E575E;--border:#DCE7EE;--success:#6CC24A;--danger:#DC3545;--warning:#E1E000;--info:#04BBEE;--brand-blue:#0064B3;--brand-indigo:#034067;--brand-cyan:#04BBEE;--brand-green:#6CC24A}
+:root{--bg:#F1F1F1;--card:#fff;--sidebar:#004F8D;--sidebar-hover:rgba(61,143,208,.16);--accent:#0064B3;--accent-light:#3D8FD0;--accent-dark:#004F8D;--text:#253746;--text-muted:#4E575E;--border:#DCE7EE;--success:#6CC24A;--danger:#DC3545;--warning:#E1E000;--info:#3D8FD0;--brand-blue:#0064B3;--brand-indigo:#004F8D;--brand-cyan:#3D8FD0;--brand-green:#6CC24A}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'DM Sans',sans-serif;background:var(--bg) radial-gradient(1200px 600px at 100% -10%,rgba(0,100,179,.12),transparent 60%);color:var(--text);overflow:hidden;height:100vh}
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -98,7 +98,7 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
 .kpi-card:hover .kpi-print{opacity:1}
 .kpi-card .kpi-print:hover{color:var(--accent);background:rgba(0,100,179,.1)}
 .dash-charts-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
-.gen-btn{background:linear-gradient(135deg,#0064B3,#04BBEE);color:#fff}
+.gen-btn{background:linear-gradient(135deg,#0064B3,#3D8FD0);color:#fff}
 .gen-btn:hover{filter:brightness(1.08)}
 .gen-note{font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:flex-start;gap:6px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:10px 12px}
 .gen-note i{color:var(--warning);margin-top:1px}
@@ -118,8 +118,8 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif}
 /* ===== BIBLIOTECA — grupos por instrumento ===== */
 .instr-group{margin-bottom:22px}
 .instr-group:last-child{margin-bottom:0}
-.instr-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,rgba(0,100,179,.08),rgba(4,187,238,.06));border:1px solid var(--border);border-radius:16px;margin-bottom:10px;cursor:pointer;user-select:none}
-.instr-group-header:hover{background:linear-gradient(135deg,rgba(0,100,179,.13),rgba(4,187,238,.1))}
+.instr-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,rgba(0,100,179,.08),rgba(61,143,208,.06));border:1px solid var(--border);border-radius:16px;margin-bottom:10px;cursor:pointer;user-select:none}
+.instr-group-header:hover{background:linear-gradient(135deg,rgba(0,100,179,.13),rgba(61,143,208,.1))}
 .instr-group-header .instr-icon{width:34px;height:34px;border-radius:11px;background:rgba(0,100,179,.14);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .instr-group-header .instr-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;color:var(--text)}
 .instr-group-header .instr-tag{font-size:11px;color:var(--text-muted);font-weight:500}
@@ -1830,7 +1830,7 @@ function calcRR(){
   bindCells('#rrTableWrap',td=>{rrData.dados[+td.dataset.op][+td.dataset.r][+td.dataset.p]=num(td.textContent);calcRR()});
 
   const labels=Array.from({length:nPecas},(_,i)=>'Pç.'+(i+1));
-  const colors=['#0064B3','#00959D','#04BBEE','#DC3545'];
+  const colors=['#0064B3','#00959D','#3D8FD0','#DC3545'];
   const dsMean=rrData.operadores.map((op,o)=>({label:op,data:opMeans[o],borderColor:colors[o%4],backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.1}));
   dsMean.push({label:'LSC',data:Array(nPecas).fill(uclX),borderColor:'#DC3545',borderDash:[6,3],borderWidth:1.2,pointRadius:0});
   dsMean.push({label:'LIC',data:Array(nPecas).fill(lclX),borderColor:'#DC3545',borderDash:[6,3],borderWidth:1.2,pointRadius:0});
