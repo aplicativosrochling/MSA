@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -142,7 +143,6 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
-    <button class="nav" data-v="instrumentos"><i class="fas fa-screwdriver-wrench"></i>Instrumentos<span class="cnt" id="cntI">0</span></button>
     <div class="nav-s">Novo estudo</div>
     <button class="nav" data-new="est"><i class="fas fa-wave-square"></i>Estabilidade</button>
     <button class="nav" data-new="bias"><i class="fas fa-bullseye"></i>Tendência (Bias)</button>
@@ -153,7 +153,7 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
     <button class="nav" data-v="procedimento"><i class="fas fa-file-lines"></i>Procedimento<span class="cnt" id="cntP">0</span></button>
     <div class="nav-s">Sistema</div>
     <button class="nav" data-v="config"><i class="fas fa-gear"></i>Configurações</button>
-    <div class="side-foot"><span class="dot" id="syncDot"></span><span id="syncTxt">Dados locais</span></div>
+    <div class="side-foot" style="cursor:pointer" title="Clique para reconectar ao Firebase" onclick="retryCloud()"><span class="dot" id="syncDot"></span><span id="syncTxt">Dados locais</span></div>
   </aside>
   <main class="main" id="main"></main>
 </div>
@@ -206,22 +206,37 @@ function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){
 function persist(){localStorage.setItem(KEY,JSON.stringify(S));try{bc&&bc.postMessage('upd')}catch(e){}}
 let db=null,bc=null;try{bc=new BroadcastChannel('msa_pro');bc.onmessage=()=>{load();refresh()}}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===KEY){load();refresh()}});
-function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set(JSON.parse(JSON.stringify(doc))).catch(()=>setSync(false))}
+function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set(JSON.parse(JSON.stringify(doc))).then(()=>setSync(true)).catch(e=>setSync(false,e&&e.code||'erro'))}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
-function setSync(on){$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Nuvem conectada · tempo real':'Dados locais (offline)'}
+function setSync(on,err){$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Dados locais (offline)')}
+let authTried=false,progDone=false;
+function ensureProg(){if(progDone)return;progDone=true;if(progMissing().length)genProg()}
+function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');initCloud()}
 function initCloud(){
-  if(!S.cfg.cloud||typeof firebase==='undefined'){setSync(false);return}
-  try{if(!firebase.apps.length)firebase.initializeApp(FB);db=firebase.firestore();
-    const sub=(col,key)=>db.collection(col).onSnapshot(snap=>{
-      const remote=snap.docs.map(d=>d.data());const ids=new Set(remote.map(r=>r.id));
-      // envia itens locais ainda não existentes na nuvem (primeira sincronização)
-      if(!sub[col]){S[key].filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x));sub[col]=1;
-        const loc=new Map(S[key].map(x=>[x.id,x]));remote.forEach(r=>{const l=loc.get(r.id);if(!l||(r.atualizadoEm||'')>=(l.atualizadoEm||''))loc.set(r.id,r)});S[key]=[...loc.values()];}
-      else S[key]=remote;
-      localStorage.setItem(KEY,JSON.stringify(S));setSync(true);refresh();
-    },()=>{db=null;setSync(false)});
-    sub('msapro_estudos','studies');sub('msapro_instrumentos','instruments');
-  }catch(e){db=null;setSync(false)}
+  if(!S.cfg.cloud){setSync(false);ensureProg();return}
+  if(typeof firebase==='undefined'){setSync(false,'biblioteca Firebase bloqueada');ensureProg();return}
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(FB);
+    if(!db){db=firebase.firestore();try{db.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}}
+    startSubs();
+  }catch(e){db=null;setSync(false,e.code||'erro');ensureProg()}
+}
+function startSubs(){
+  const col='msapro_estudos';let first=true;
+  db.collection(col).onSnapshot(snap=>{
+    const remote=snap.docs.map(d=>d.data());const ids=new Set(remote.map(r=>r.id));
+    if(first){first=false;
+      // envia estudos locais ainda não existentes na nuvem (primeira sincronização)
+      S.studies.filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x));
+      const loc=new Map(S.studies.map(x=>[x.id,x]));remote.forEach(r=>{const l=loc.get(r.id);if(!l||(r.atualizadoEm||'')>=(l.atualizadoEm||''))loc.set(r.id,r)});S.studies=[...loc.values()];
+      S.studies.forEach(x=>{if(!x.resultado)x.resultado=calc(x)});
+      ensureProg(); // garante os 28 estudos do procedimento e envia ao Firebase
+    }else S.studies=remote;
+    localStorage.setItem(KEY,JSON.stringify(S));if(!snap.metadata.fromCache)setSync(true);refresh();
+  },err=>{
+    if(err&&err.code==='permission-denied'&&!authTried&&firebase.auth){authTried=true;
+      firebase.auth().signInAnonymously().then(startSubs).catch(()=>{setSync(false,'permission-denied — ajuste as regras do Firestore');ensureProg()});return}
+    setSync(false,err&&err.code||'erro');ensureProg();refresh()});
 }
 function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s);const i=S.studies.findIndex(x=>x.id===s.id);if(i>=0)S.studies[i]=s;else S.studies.push(s);persist();cloudSet('msapro_estudos',s)}
 function delStudy(id){S.studies=S.studies.filter(x=>x.id!==id);persist();cloudDel('msapro_estudos',id)}
@@ -317,10 +332,10 @@ const charts={};function kill(id){if(charts[id]){charts[id].destroy();delete cha
 function killAll(){Object.keys(charts).forEach(kill)}
 function go(view,opts={}){if(V.view==='editor'&&V.dirty&&!opts.force){confirmBox('Há alterações não salvas. Deseja sair sem salvar?',()=>{V.dirty=false;go(view,opts)});return}
   V.view=view;if(opts.f)V.f=Object.assign({q:'',tipo:'',status:'',instr:'',periodo:'',area:''},opts.f);if(view!=='editor')V.edit=null;render();window.scrollTo(0,0)}
-function refresh(){$('#cntE').textContent=S.studies.length;$('#cntI').textContent=S.instruments.length;if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='instrumentos')rInstr();else if(V.view==='procedimento')rProc()}
+function refresh(){$('#cntE').textContent=S.studies.length;if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc()}
 function render(){killAll();$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view||(V.view==='editor'&&n.dataset.new===V.edit?.tipo)));
-  $('#cntE').textContent=S.studies.length;$('#cntI').textContent=S.instruments.length;$('#cntP').textContent=PROG.reduce((a,p)=>a+p.est.length,0)-progMissing().length+'/'+PROG.reduce((a,p)=>a+p.est.length,0);
-  ({dashboard:rDash,estudos:rList,instrumentos:rInstr,editor:rEditor,config:rCfg,procedimento:rProc})[V.view]()}
+  $('#cntE').textContent=S.studies.length;$('#cntP').textContent=PROG.reduce((a,p)=>a+p.est.length,0)-progMissing().length+'/'+PROG.reduce((a,p)=>a+p.est.length,0);
+  ({dashboard:rDash,estudos:rList,editor:rEditor,config:rCfg,procedimento:rProc})[V.view]()}
 $$('.nav').forEach(n=>n.onclick=()=>n.dataset.new?openNew(n.dataset.new):go(n.dataset.v));
 
 
@@ -353,10 +368,10 @@ function genProg(){
   const miss=progMissing();if(!miss.length){toast('Todos os estudos do programa já existem','fa-circle-info');return 0}
   miss.forEach(([p,t])=>{const s=newStudy(t);
     while(S.studies.some(x=>x.codigo===s.codigo)){const m=s.codigo.match(/^(.*-)(\d+)$/);s.codigo=m[1]+String(+m[2]+1).padStart(3,'0')}
-    Object.assign(s,{progId:progId(p,t),instrumentoTxt:p.eq,padrao:p.pad,freq:p.freq,unidade:p.un,
+    Object.assign(s,{id:'prog_'+p.k+'_'+t,progId:progId(p,t),instrumentoTxt:p.eq,padrao:p.pad,freq:p.freq,unidade:p.un,
       obs:`Gerado do procedimento ${PROC_ID} (item 2.4). Equipamento: ${p.eq}. Padrão de referência: ${p.pad}. Frequência: ${/^\d+$/.test(p.freq)?p.freq+' meses':p.freq}. Atualizar identificação (instrumento, peça, característica, LIE/LSE, responsável, data).`});
     saveStudy(normalize(s))});
-  toast(`${miss.length} estudo(s) criados a partir do procedimento`);return miss.length}
+  toast(`${miss.length} estudo(s) do procedimento criados e enviados ao Firebase`);return miss.length}
 function askGenProg(){const n=progMissing().length;if(!n){toast('Todos os estudos do programa já existem','fa-circle-info');return}
   confirmBox(`Criar <b>${n}</b> estudo(s) em branco com base na tabela do procedimento <b>${PROC_ID}</b>?<br><small>Estudos já gerados não são duplicados. Depois é só abrir cada um e atualizar os campos de identificação.</small>`,()=>{genProg();if(V.view==='procedimento')rProc();else refresh()})}
 function procPrint(){openWin('Procedimento '+PROC_ID,`<style>${PROC_CSS}</style><div class="proc">${PROC_HTML}</div>`)}
@@ -381,9 +396,7 @@ const areas=()=>[...new Set([...S.studies.map(s=>s.area),...S.instruments.map(i=
 function rDash(){
   const L=dashSet(),cnt=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length,tot=L.length;
   const ap=cnt('Aprovado'),co=cnt('Condicional'),re=cnt('Reprovado'),inc=cnt('Incompleto');const done=tot-inc;const conf=done?ap/done*100:0;
-  const cal=S.instruments.filter(i=>{const d=daysTo(i.proxCal);return d!==null&&d<=S.cfg.diasAviso});const venc=cal.filter(i=>daysTo(i.proxCal)<0).length;
   const grr=L.filter(s=>s.tipo==='rr'&&ok(s.resultado?.kv));const grrM=mean(grr.map(s=>s.resultado.kv));
-  const semMSA=S.instruments.filter(i=>!S.studies.some(s=>s.instrumentoId===i.id)).length;
   const pv=V.dash.periodo;
   $('#main').innerHTML=`<div class="fade">
   <div class="top"><div><h1>Dashboard MSA</h1><div class="sub">${esc(S.cfg.empresa)} · <span class="live">Atualização em tempo real</span></div></div><div class="sp"></div>
@@ -399,8 +412,6 @@ function rDash(){
    ${kpi('Reprovados',re,pct(done?re/done*100:0),'fa-circle-xmark','bad',done?re/done*100:0,{status:'Reprovado'})}
    ${kpi('Índice de conformidade',pct(conf),'aprovados / concluídos','fa-gauge-high',conf>=80?'ok':conf>=60?'warn':'bad',conf,null,"go('estudos',{f:{status:'Aprovado'}})")}
    ${kpi('%GRR médio',ok(grrM)?pct(grrM):'—',`${grr.length} estudos R&R`,'fa-users',!ok(grrM)?'brand':grrM<=S.cfg.grrOk?'ok':grrM<=S.cfg.grrCond?'warn':'bad',ok(grrM)?Math.min(100,grrM/40*100):0,{tipo:'rr'})}
-   ${kpi('Calibração',cal.length,`${venc} vencida(s) · ${cal.length-venc} a vencer`,'fa-calendar-xmark',venc?'bad':cal.length?'warn':'ok',S.instruments.length?cal.length/S.instruments.length*100:0,null,"go('instrumentos')")}
-   ${kpi('Sem estudo MSA',semMSA,`de ${S.instruments.length} instrumentos`,'fa-screwdriver-wrench',semMSA?'warn':'ok',S.instruments.length?semMSA/S.instruments.length*100:0,null,"go('instrumentos')")}
   </div>
   <div class="grid g2" style="margin-bottom:16px">
    <div class="card"><h3><i class="fas fa-chart-pie c-brand"></i>Resultado dos estudos<span class="hint">clique para filtrar</span></h3><div class="chart"><canvas id="chSt"></canvas></div></div>
@@ -412,7 +423,7 @@ function rDash(){
   </div>
   <div class="grid g3">
    <div class="card"><h3><i class="fas fa-clock-rotate-left c-brand"></i>Estudos recentes<a class="hint" style="cursor:pointer;color:var(--brand)" onclick="go('estudos')">ver todos →</a></h3>${recent(L)}</div>
-   <div class="card"><h3><i class="fas fa-bell c-bad"></i>Pontos de atenção</h3>${attention(L,cal)}</div>
+   <div class="card"><h3><i class="fas fa-bell c-bad"></i>Pontos de atenção</h3>${attention(L)}</div>
   </div></div>`;
   $('#dPer').value=pv;$('#dPer').onchange=e=>{V.dash.periodo=e.target.value;killAll();rDash()};$('#dArea').onchange=e=>{V.dash.area=e.target.value;killAll();rDash()};
   dashCharts(L);
@@ -421,9 +432,8 @@ function kpi(lb,v,s,ic,c,bar,f,click){const on=click||(f?`go('estudos',{f:${JSON
   return`<div class="card kpi" onclick="${on}"><div class="lb"><i class="fas ${ic} bg-${c} c-${c}"></i>${lb}</div><div class="v">${v}</div><div class="s">${s}</div><div class="bar"><span style="width:${Math.max(0,Math.min(100,bar))}%;background:var(--${c==='brand'?'brand':c})"></span></div></div>`}
 function recent(L){const r=[...L].sort((a,b)=>(b.atualizadoEm||'').localeCompare(a.atualizadoEm||'')).slice(0,7);if(!r.length)return'<div class="empty"><i class="fas fa-inbox"></i>Sem estudos no período</div>';
   return r.map(s=>`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-brand c-brand"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · ${fdate(s.data)}</small></div><small style="color:var(--muted)">${esc(s.resultado?.chave||'')}</small>${badge(s)}</div>`).join('')}
-function attention(L,cal){const items=[];
+function attention(L){const items=[];
   L.filter(s=>s.resultado?.status==='Reprovado').slice(0,5).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-bad c-bad"><i class="fas fa-circle-xmark"></i></div><div class="tx"><b>${esc(s.codigo)} reprovado</b><small>${esc(s.resultado.chave)} · ${esc(instrName(s))}</small></div></div>`));
-  cal.sort((a,b)=>daysTo(a.proxCal)-daysTo(b.proxCal)).slice(0,5).forEach(i=>{const d=daysTo(i.proxCal);items.push(`<div class="list-i" onclick="editInstr('${i.id}')"><div class="ico ${d<0?'bg-bad c-bad':'bg-warn c-warn'}"><i class="fas fa-calendar-xmark"></i></div><div class="tx"><b>${esc(i.codigo)} — ${esc(i.descricao)}</b><small>Calibração ${d<0?'vencida há '+(-d)+' dia(s)':'vence em '+d+' dia(s)'}</small></div></div>`)});
   L.filter(s=>s.resultado?.status==='Incompleto').slice(0,3).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-inc"><i class="fas fa-hourglass-half"></i></div><div class="tx"><b>${esc(s.codigo)} incompleto</b><small>${esc(s.resultado.msg)}</small></div></div>`));
   return items.join('')||'<div class="empty"><i class="fas fa-circle-check" style="color:var(--ok);opacity:.6"></i>Tudo em ordem</div>'}
 function dashCharts(L){Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color='#5B6773';
@@ -448,7 +458,7 @@ const badge=s=>{const st=s.resultado?.status||'Incompleto';const ic={Aprovado:'f
 
 /* ---------------- LISTA DE ESTUDOS ---------------- */
 function filtered(){const f=V.f,q=(f.q||'').toLowerCase(),p=+f.periodo;
-  let L=S.studies.filter(s=>(!f.tipo||s.tipo===f.tipo)&&(!f.status||(s.resultado?.status||'Incompleto')===f.status)&&(!f.instr||s.instrumentoId===f.instr)&&(!f.area||s.area===f.area)&&(!p||daysTo(s.data)>=-p)&&(!f.mes||(s.data||'').startsWith(f.mes))
+  let L=S.studies.filter(s=>(!f.tipo||s.tipo===f.tipo)&&(!f.status||(s.resultado?.status||'Incompleto')===f.status)&&(!f.area||s.area===f.area)&&(!p||daysTo(s.data)>=-p)&&(!f.mes||(s.data||'').startsWith(f.mes))
     &&(!q||[s.codigo,s.nome,s.peca,s.caracteristica,s.responsavel,s.area,instrName(s),TYPES[s.tipo].n].join(' ').toLowerCase().includes(q)));
   const k=V.sort.k,d=V.sort.d;const val=s=>k==='instr'?instrName(s):k==='status'?STATUS.indexOf(s.resultado?.status||'Incompleto'):k==='kv'?(s.resultado?.kv??-1):k==='tipo'?TYPES[s.tipo].n:(s[k]||'');
   return L.sort((a,b)=>{const x=val(a),y=val(b);return(x>y?1:x<y?-1:0)*d})}
@@ -466,8 +476,8 @@ function rList(){const L=filtered(),f=V.f;
   }
   const sel=(id,opts,val,ph)=>`<select class="f" style="width:auto" onchange="V.f.${id}=this.value;rList()"><option value="">${ph}</option>${opts.map(([v,l])=>`<option value="${esc(v)}" ${v===val?'selected':''}>${esc(l)}</option>`).join('')}</select>`;
   $('#chips').innerHTML=`<span class="chip ${!f.status?'on':''}" onclick="V.f.status='';rList()">Todos (${S.studies.length})</span>`+STATUS.map(st=>`<span class="chip ${f.status===st?'on':''}" onclick="V.f.status='${st}';rList()"><span class="dot" style="background:${SCOL[st]}"></span>${st} (${S.studies.filter(s=>(s.resultado?.status||'Incompleto')===st).length})</span>`).join('')+
-   `<span style="flex:1"></span>${sel('tipo',Object.entries(TYPES).map(([k,v])=>[k,v.n]),f.tipo,'Todos os tipos')}${sel('instr',S.instruments.map(i=>[i.id,i.codigo+' — '+i.descricao]),f.instr,'Todos os instrumentos')}${sel('area',areas().map(a=>[a,a]),f.area,'Todas as áreas')}${sel('periodo',[['30','30 dias'],['90','90 dias'],['365','12 meses']],f.periodo,'Todo período')}
-   ${f.mes?`<span class="chip on" onclick="V.f.mes='';rList()">Mês ${f.mes} ✕</span>`:''}${(f.tipo||f.status||f.instr||f.area||f.periodo||f.q||f.mes)?`<button class="btn sm" onclick="V.f={q:'',tipo:'',status:'',instr:'',periodo:'',area:''};$('#q').value='';rList()"><i class="fas fa-filter-circle-xmark"></i>Limpar</button>`:''}`;
+   `<span style="flex:1"></span>${sel('tipo',Object.entries(TYPES).map(([k,v])=>[k,v.n]),f.tipo,'Todos os tipos')}${sel('area',areas().map(a=>[a,a]),f.area,'Todas as áreas')}${sel('periodo',[['30','30 dias'],['90','90 dias'],['365','12 meses']],f.periodo,'Todo período')}
+   ${f.mes?`<span class="chip on" onclick="V.f.mes='';rList()">Mês ${f.mes} ✕</span>`:''}${(f.tipo||f.status||f.area||f.periodo||f.q||f.mes)?`<button class="btn sm" onclick="V.f={q:'',tipo:'',status:'',instr:'',periodo:'',area:''};$('#q').value='';rList()"><i class="fas fa-filter-circle-xmark"></i>Limpar</button>`:''}`;
   V.sel=new Set([...V.sel].filter(id=>S.studies.some(s=>s.id===id)));
   $('#bulk').innerHTML=V.sel.size?`<b>${V.sel.size} selecionado(s)</b><button class="btn sm" onclick="printStudies([...V.sel])"><i class="fas fa-print"></i>Imprimir</button><button class="btn sm" onclick="exportCSV([...V.sel])"><i class="fas fa-file-csv"></i>CSV</button><button class="btn sm dan" onclick="bulkDel()"><i class="fas fa-trash"></i>Excluir</button><button class="btn sm" onclick="V.sel.clear();rList()">Limpar seleção</button>`:`<span style="color:var(--muted);font-size:12.5px">${L.length} estudo(s) encontrado(s)</span>`;
   const th=(k,l)=>`<th onclick="V.sort={k:'${k}',d:V.sort.k==='${k}'?-V.sort.d:1};rList()">${l}${V.sort.k===k?(V.sort.d>0?' ▲':' ▼'):''}</th>`;
@@ -495,14 +505,13 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-circle-info c-brand"></i>Identificação</h3><div class="form" id="info"></div></div>
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-table c-brand"></i>Dados de medição<span class="hint">Cálculo automático enquanto você digita · use Tab/Enter para navegar · cole do Excel</span></h3><div class="row" id="params" style="margin-bottom:12px"></div><div class="tw" id="grid" style="padding:0"></div></div>
    <div class="grid g3"><div class="card"><h3><i class="fas fa-chart-area c-brand"></i>Gráficos</h3><div id="chs"></div></div><div class="card"><h3><i class="fas fa-calculator c-brand"></i>Resultado</h3><div id="res"></div></div></div></div>`;
-  const opts=S.instruments.map(i=>`<option value="${i.id}" ${s.instrumentoId===i.id?'selected':''}>${esc(i.codigo)} — ${esc(i.descricao)}</option>`).join('');
   const inp=(k,l,t='text',ex='')=>`<div><label class="l">${l}</label><input class="f" data-f="${k}" type="${t}" value="${esc(s[k])}" ${ex}></div>`;
   $('#info').innerHTML=inp('codigo','Código')+inp('nome','Peça / Descrição')+inp('caracteristica','Característica')+
-   `<div><label class="l">Instrumento <a style="color:var(--brand);cursor:pointer;text-transform:none" onclick="editInstr()">+ cadastrar</a></label><select class="f" data-f="instrumentoId"><option value="">— selecione —</option>${opts}</select></div>`+
+   inp('instrumentoTxt','Instrumento')+
    inp('unidade','Unidade')+inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+inp('responsavel','Responsável')+inp('padrao','Padrão de referência')+inp('freq','Frequência (meses / evento)')+
    `<div><label class="l">Área / Setor</label><input class="f" data-f="area" list="dlArea" value="${esc(s.area)}"><datalist id="dlArea">${areas().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>`+inp('data','Data','date')+
    `<div style="grid-column:1/-1"><label class="l">Observações / Ações</label><textarea class="f" data-f="obs" rows="2">${esc(s.obs)}</textarea></div>`;
-  $$('#info [data-f]').forEach(e=>e.oninput=()=>{s[e.dataset.f]=e.value;if(e.dataset.f==='instrumentoId'){const i=instrOf(s);if(i){if(!s.area)s.area=i.area||'';if(!s.unidade||s.unidade==='mm')s.unidade=i.unidade||s.unidade}}markDirty();if(['lie','lse'].includes(e.dataset.f))recalc()});
+  $$('#info [data-f]').forEach(e=>e.oninput=()=>{s[e.dataset.f]=e.value;markDirty();if(['lie','lse'].includes(e.dataset.f))recalc()});
   rParams();rGrid();recalc();
 }
 function markDirty(){V.dirty=true;const d=$('#dirty');if(d)d.innerHTML='· <b class="c-warn">alterações não salvas</b>'}
@@ -596,29 +605,12 @@ function simulate(s,q='good'){normalize(s);const d=s.dados,nom=10,T=0.2,f={good:
   if(s.tipo==='atr'){const err={good:.02,mid:.07,bad:.16}[q];d.ref=d.ref.map(()=>Math.random()<.7?'1':'0');d.v=d.v.map(o=>o.map(row=>row.map((_,p)=>Math.random()<err?String(1-+d.ref[p]):d.ref[p])))}
   return s}
 function seed(){const inst=[['PAQ-001','Paquímetro digital 150mm','Paquímetro','Mitutoyo',0.01,'Usinagem',40],['MIC-002','Micrômetro externo 0-25mm','Micrômetro','Mitutoyo',0.001,'Usinagem',12],['REL-003','Relógio comparador','Relógio','Starrett',0.001,'Montagem',-5],['CMM-004','Máquina de medição 3D','CMM','Zeiss',0.0001,'Metrologia',160],['CAL-005','Calibrador tampão P/NP Ø10','Calibrador','Digimess','', 'Inspeção',25]].map(a=>({id:uid(),codigo:a[0],descricao:a[1],tipo:a[2],fabricante:a[3],resolucao:String(a[4]),area:a[5],unidade:'mm',serie:'SN'+Math.floor(Math.random()*1e5),ultCal:new Date(Date.now()-(365-a[6])*864e5).toISOString().slice(0,10),proxCal:new Date(Date.now()+a[6]*864e5).toISOString().slice(0,10),status:'Ativo'}));
-  inst.forEach(saveInstr);const names=['Ana Souza','Carlos Lima','Juliana Reis','Marcos Silva'],feats=[['Eixo 4520','Diâmetro Ø10'],['Bucha 1180','Diâmetro interno'],['Flange F-22','Espessura'],['Pino P-07','Comprimento'],['Carcaça C-3','Altura']];
+  const names=['Ana Souza','Carlos Lima','Juliana Reis','Marcos Silva'],feats=[['Eixo 4520','Diâmetro Ø10'],['Bucha 1180','Diâmetro interno'],['Flange F-22','Espessura'],['Pino P-07','Comprimento'],['Carcaça C-3','Altura']];
   const plan=['rr','rr','rr','rr','rr','bias','bias','lin','lin','est','est','atr','atr','rr','bias','est'];
-  plan.forEach((t,i)=>{const s=newStudy(t);const ins=t==='atr'?inst[4]:inst[i%4];const ft=feats[i%feats.length];Object.assign(s,{nome:ft[0],caracteristica:ft[1],instrumentoId:ins.id,area:ins.area,lie:'9.90',lse:'10.10',responsavel:names[i%4],data:new Date(Date.now()-Math.floor(Math.random()*330)*864e5).toISOString().slice(0,10)});
+  plan.forEach((t,i)=>{const s=newStudy(t);const ins=t==='atr'?inst[4]:inst[i%4];const ft=feats[i%feats.length];Object.assign(s,{nome:ft[0],caracteristica:ft[1],instrumentoTxt:ins.codigo+' — '+ins.descricao,area:ins.area,lie:'9.90',lse:'10.10',responsavel:names[i%4],data:new Date(Date.now()-Math.floor(Math.random()*330)*864e5).toISOString().slice(0,10)});
     simulate(s,i%5===3?'bad':i%4===2?'mid':'good');if(i===15)s.dados.v=s.dados.v.map((x,j)=>j>8?'':x);saveStudy(s)});
   toast('Dados de exemplo carregados');render()}
 
-/* ---------------- INSTRUMENTOS ---------------- */
-function rInstr(){const q=(V.iq||'').toLowerCase();const L=S.instruments.filter(i=>!q||[i.codigo,i.descricao,i.tipo,i.fabricante,i.area,i.serie].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.codigo.localeCompare(b.codigo));
-  const calB=i=>{const d=daysTo(i.proxCal);if(d===null)return'<span class="badge b-Incompleto">Sem data</span>';return d<0?`<span class="badge b-Reprovado">Vencida (${-d}d)</span>`:d<=S.cfg.diasAviso?`<span class="badge b-Condicional">Vence em ${d}d</span>`:`<span class="badge b-Aprovado">Em dia</span>`};
-  const msa=i=>{const ss=S.studies.filter(s=>s.instrumentoId===i.id);if(!ss.length)return'<span style="color:var(--muted)">Sem estudo</span>';const c=STATUS.map(st=>[st,ss.filter(s=>(s.resultado?.status||'Incompleto')===st).length]).filter(x=>x[1]);return c.map(([st,n])=>`<span class="badge b-${st}" title="${st}">${n}</span>`).join(' ')};
-  if(!$('#iq')){$('#main').innerHTML=`<div class="fade"><div class="top"><div><h1>Instrumentos</h1><div class="sub">Cadastro de instrumentos, calibração e histórico de estudos</div></div><div class="sp"></div><div class="search"><i class="fas fa-magnifying-glass" style="color:var(--muted)"></i><input id="iq" placeholder="Buscar instrumento..." value="${esc(V.iq||'')}"></div><button class="btn pri" onclick="editInstr()"><i class="fas fa-plus"></i>Novo instrumento</button></div><div class="card"><div class="tw" id="ilst"></div></div></div>`;$('#iq').oninput=e=>{V.iq=e.target.value;rInstr()}}
-  $('#ilst').innerHTML=L.length?`<table class="t"><thead><tr><th>Código</th><th>Descrição</th><th>Tipo</th><th>Fabricante / Série</th><th>Resolução</th><th>Área</th><th>Próx. calibração</th><th>Calibração</th><th>Estudos MSA</th><th>Ações</th></tr></thead><tbody>${L.map(i=>`<tr class="cl" onclick="editInstr('${i.id}')"><td><b>${esc(i.codigo)}</b></td><td>${esc(i.descricao)}</td><td>${esc(i.tipo)}</td><td>${esc(i.fabricante)}<div style="color:var(--muted);font-size:12px">${esc(i.serie)}</div></td><td>${esc(i.resolucao)} ${esc(i.unidade||'')}</td><td>${esc(i.area)}</td><td>${fdate(i.proxCal)}</td><td>${calB(i)}</td><td onclick="event.stopPropagation();go('estudos',{f:{instr:'${i.id}'}})" style="cursor:pointer">${msa(i)}</td>
-   <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Novo estudo para este instrumento" onclick="newFor('${i.id}')"><i class="fas fa-plus"></i></button> <button class="btn ic sm" onclick="editInstr('${i.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm dan" onclick="askDelI('${i.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><i class="fas fa-screwdriver-wrench"></i>Nenhum instrumento cadastrado<br><br><button class="btn pri" onclick="editInstr()"><i class="fas fa-plus"></i>Cadastrar</button></div>`}
-function newFor(id){modal(`<div class="mh"><h3>Novo estudo para ${esc(S.instruments.find(i=>i.id===id).codigo)}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb"><div class="types">${Object.entries(TYPES).map(([k,v])=>`<div class="type" onclick="closeModal();openNew('${k}');V.edit.instrumentoId='${id}';const i=instrOf(V.edit);V.edit.area=i.area||'';V.edit.unidade=i.unidade||'mm';rEditor()"><i class="fas ${v.ic}"></i><b>${v.n}</b></div>`).join('')}</div></div>`)}
-function editInstr(id){const i=id?{...S.instruments.find(x=>x.id===id)}:{id:uid(),codigo:'',descricao:'',tipo:'',fabricante:'',serie:'',resolucao:'',unidade:'mm',area:'',ultCal:'',proxCal:'',status:'Ativo',obs:''};
-  const f=(k,l,t='text')=>`<div><label class="l">${l}</label><input class="f" id="i_${k}" type="${t}" value="${esc(i[k]||'')}"></div>`;
-  modal(`<div class="mh"><h3>${id?'Editar':'Novo'} instrumento</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb"><div class="form">${f('codigo','Código *')}${f('descricao','Descrição *')}${f('tipo','Tipo')}${f('fabricante','Fabricante')}${f('serie','Nº de série')}${f('resolucao','Resolução')}${f('unidade','Unidade')}${f('area','Área / Setor')}${f('ultCal','Última calibração','date')}${f('proxCal','Próxima calibração','date')}
-   <div><label class="l">Situação</label><select class="f" id="i_status">${['Ativo','Em calibração','Inativo'].map(x=>`<option ${i.status===x?'selected':''}>${x}</option>`).join('')}</select></div><div style="grid-column:1/-1"><label class="l">Observações</label><textarea class="f" id="i_obs" rows="2">${esc(i.obs||'')}</textarea></div></div></div>
-   <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="iSave"><i class="fas fa-floppy-disk"></i>Salvar</button></div>`);
-  $('#iSave').onclick=()=>{['codigo','descricao','tipo','fabricante','serie','resolucao','unidade','area','ultCal','proxCal','status','obs'].forEach(k=>i[k]=$('#i_'+k).value.trim());
-    if(!i.codigo||!i.descricao){toast('Preencha código e descrição','fa-triangle-exclamation');return}if(S.instruments.some(x=>x.codigo===i.codigo&&x.id!==i.id)){toast('Código já cadastrado','fa-triangle-exclamation');return}
-    saveInstr(i);closeModal();toast('Instrumento salvo');if(V.view==='editor'){if(!V.edit.instrumentoId)V.edit.instrumentoId=i.id;rEditor()}else render()}}
-function askDelI(id){const i=S.instruments.find(x=>x.id===id),n=S.studies.filter(s=>s.instrumentoId===id).length;confirmBox(`Excluir o instrumento <b>${esc(i.codigo)}</b>?${n?`<br><small>${n} estudo(s) vinculados manterão o histórico com o nome do instrumento.</small>`:''}`,()=>{S.studies.filter(s=>s.instrumentoId===id).forEach(s=>{s.instrumentoTxt=`${i.codigo} — ${i.descricao}`;s.instrumentoId='';saveStudy(s)});delInstr(id);toast('Instrumento excluído','fa-trash');render()})}
 
 /* ---------------- CONFIGURAÇÕES ---------------- */
 function rCfg(){const c=S.cfg;const f=(k,l,t='number',st='any')=>`<div><label class="l">${l}</label><input class="f" data-c="${k}" type="${t}" step="${st}" value="${esc(c[k])}"></div>`;
@@ -627,7 +619,7 @@ function rCfg(){const c=S.cfg;const f=(k,l,t='number',st='any')=>`<div><label cl
   <div class="card"><h3><i class="fas fa-users c-brand"></i>R&amp;R Variável</h3><div class="form">${f('grrOk','%GRR aceitável até')}${f('grrCond','%GRR condicional até')}${f('ndcMin','ndc mínimo')}<div><label class="l">Base do %GRR</label><select class="f" data-c="base"><option value="tv" ${c.base==='tv'?'selected':''}>Variação total (VT)</option><option value="tol" ${c.base==='tol'?'selected':''}>Tolerância</option></select></div><div><label class="l">Multiplicador σ (tolerância)</label><select class="f" data-c="k"><option value="6" ${c.k==6?'selected':''}>6σ (99,73%)</option><option value="5.15" ${c.k==5.15?'selected':''}>5,15σ (99%)</option></select></div></div></div>
   <div class="card"><h3><i class="fas fa-check-double c-brand"></i>R&amp;R Atributo</h3><div class="form">${f('effOk','Eficácia aceitável ≥ %')}${f('effCond','Eficácia condicional ≥ %')}${f('missOk','Taxa de perda ≤ %')}${f('faOk','Falso alarme ≤ %')}${f('kappaOk','Kappa mínimo')}</div></div>
   <div class="card"><h3><i class="fas fa-bullseye c-brand"></i>Tendência</h3><div class="form">${f('biasMax','%Tendência máx. sobre tolerância')}</div></div>
-  <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os dados são sempre guardados também neste navegador e funcionam sem internet.</p></div>
+  <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
   <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
   <div style="margin-top:16px;text-align:right"><button class="btn pri" onclick="saveCfg()"><i class="fas fa-floppy-disk"></i>Salvar configurações</button></div></div>`;$('#imp2').onchange=importJSON}
 function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'?+e.value:e.value});
