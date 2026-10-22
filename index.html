@@ -229,16 +229,14 @@ function resize(m,r,c,f=''){m=m||[];return Array.from({length:r},(_,i)=>Array.fr
 /* ---------------- dados / persistência ---------------- */
 let S={studies:[],instruments:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,decimais:4,cloud:true,diasAviso:30}};
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}
-  catch(e){try{const slim=JSON.parse(JSON.stringify(S));slim.studies.forEach(s=>{if(s.resultado)delete s.resultado.ser});localStorage.setItem(KEY,JSON.stringify(slim));console.warn('MSA Pro: cota do localStorage cheia — salvo sem dados de gráficos (recomputados ao abrir)')}
-  catch(e2){console.warn('MSA Pro: não foi possível salvar localmente (cota excedida)',e2);toast('Armazenamento local cheio — alterações podem não ser salvas no navegador','fa-triangle-exclamation')}}
-  try{bc&&bc.postMessage('upd')}catch(e){}}
-let db=null,bc=null;try{bc=new BroadcastChannel('msa_pro');bc.onmessage=()=>{load();refresh()}}catch(e){}
-window.addEventListener('storage',e=>{if(e.key===KEY){load();refresh()}});
-function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>setSync(true)).catch(e=>setSync(false,e&&e.code||'erro'))}
+/* Dados vivem SOMENTE no Firebase. O localStorage é lido uma única vez (migração) e depois apagado. */
+function cloudCfg(){return db?db.collection('msapro_config').doc('cfg').set({id:'cfg',json:JSON.stringify(S.cfg)}).then(()=>true).catch(()=>false):Promise.resolve(false)}
+function persist(){clearTimeout(persist.t);persist.t=setTimeout(cloudCfg,500)}
+let db=null;
+function cloudSet(col,doc){if(!db)return Promise.resolve(false);return db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>{setSync(true);return true}).catch(e=>{setSync(false,e&&e.code||'erro');return false})}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
 let cloudOk=false,unsub=null,syncTimer=null;
-function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Dados locais (offline)')}
+function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Sem Firebase — alterações NÃO ficam salvas')}
 let authTried=false,progDone=false;
 function ensureProg(){if(progDone)return;progDone=true;migrateProg()} /* não cria mais estudos sozinho ao abrir; use Procedimento > Criar estudos */
 function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x))}
@@ -256,19 +254,40 @@ function startSubs(){
   if(unsub){try{unsub()}catch(e){}}
   clearTimeout(syncTimer);syncTimer=setTimeout(()=>{if(!cloudOk)setSync(false,'servidor não respondeu — verifique internet/firewall (firestore.googleapis.com)')},12000);
   unsub=db.collection(col).onSnapshot({includeMetadataChanges:true},snap=>{
+    if(first&&snap.metadata.fromCache)return;
     const remote=snap.docs.map(d=>{const x=d.data();try{return x.json?JSON.parse(x.json):x}catch(e){return x}});const ids=new Set(remote.map(r=>r.id));
     if(first){first=false;
-      // envia estudos locais ainda não existentes na nuvem (primeira sincronização)
-      S.studies.filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x));
-      const loc=new Map(S.studies.map(x=>[x.id,x]));remote.forEach(r=>{const l=loc.get(r.id);if(!l||(r.atualizadoEm||'')>=(l.atualizadoEm||''))loc.set(r.id,r)});S.studies=[...loc.values()];
+      const lo=S.studies.filter(x=>!ids.has(x.id));
+      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet(col,x))));else{if(lo.length)rescue('studies',lo);mig(Promise.resolve(true));S.studies=remote}
       S.studies.forEach(x=>{if(!x.resultado||x.tipo==='atr')x.resultado=calc(x)});
-      ensureProg(); // garante os 28 estudos do procedimento e envia ao Firebase
+      ensureProg();
     }else S.studies=remote;
-    persist();if(!snap.metadata.fromCache){clearTimeout(syncTimer);setSync(true)}refresh();
+    if(!snap.metadata.fromCache){clearTimeout(syncTimer);setSync(true)}refresh();
   },err=>{
     if(err&&err.code==='permission-denied'&&!authTried&&firebase.auth){authTried=true;
       firebase.auth().signInAnonymously().then(startSubs).catch(()=>{setSync(false,'permission-denied — ajuste as regras do Firestore');ensureProg()});return}
     setSync(false,err&&err.code||'erro');ensureProg();refresh()});
+  subsExtra();
+}
+let un2=[],mg={n:3,ok:true},resc={};
+const mig=p=>p.then(r=>{if(![].concat(r).every(Boolean))mg.ok=false;if(--mg.n===0&&mg.ok){try{localStorage.removeItem(KEY)}catch(e){}}});
+function rescue(k,items){resc[k]=items;clearTimeout(rescue.t);rescue.t=setTimeout(()=>{try{const b=new Blob([JSON.stringify(resc,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='msa_copia_local_antes_de_migrar.json';a.click()}catch(e){}toast('Havia dados só neste navegador — baixei uma cópia de segurança','fa-triangle-exclamation')},1200)}
+function subsExtra(){
+  un2.forEach(u=>{try{u()}catch(e){}});un2=[];mg={n:3,ok:true};
+  const pj=d=>{const x=d.data();try{return x.json?JSON.parse(x.json):x}catch(e){return x}};
+  let f2=true,f3=true;
+  un2.push(db.collection('msapro_instrumentos').onSnapshot({includeMetadataChanges:true},snap=>{
+    if(f2&&snap.metadata.fromCache)return;
+    const rem=snap.docs.map(pj),ids=new Set(rem.map(r=>r.id));
+    if(f2){f2=false;const lo=S.instruments.filter(x=>!ids.has(x.id));
+      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet('msapro_instrumentos',x))));else{if(lo.length)rescue('instruments',lo);mig(Promise.resolve(true));S.instruments=rem}
+    }else S.instruments=rem;
+    refresh()},()=>{mig(Promise.resolve(false))}));
+  un2.push(db.collection('msapro_config').doc('cfg').onSnapshot({includeMetadataChanges:true},d=>{
+    if(f3&&d.metadata.fromCache)return;
+    if(d.exists){try{Object.assign(S.cfg,JSON.parse(d.data().json),{cloud:true})}catch(e){}if(f3)mig(Promise.resolve(true));refresh()}
+    else if(f3)mig(cloudCfg());
+    f3=false},()=>{mig(Promise.resolve(false))}));
 }
 function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s);const i=S.studies.findIndex(x=>x.id===s.id);if(i>=0)S.studies[i]=s;else S.studies.push(s);persist();cloudSet('msapro_estudos',s)}
 function delStudy(id){S.studies=S.studies.filter(x=>x.id!==id);persist();cloudDel('msapro_estudos',id)}
