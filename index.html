@@ -809,6 +809,28 @@ h3{font-size:13px;margin:14px 0 4px;color:#005A9E;break-after:avoid;page-break-a
 .pg.land.fill2 .rch2 .cb img{flex:1 1 auto;min-height:0;height:100%}
 @media screen{.pg.land.fill2{height:210mm}}
 @media print{.pg.land.fill2{height:189.4mm}}
+/* ---- R&R variável: página de gráficos preenchendo a área útil (sem espaço em branco) ---- */
+.pg.land.fill3{display:flex;flex-direction:column}
+.pg.land.fill3 .hd,.pg.land.fill3 .info{flex:0 0 auto}
+.pg.land.fill3 .rch2{flex:62 1 0;min-height:0;grid-template-rows:minmax(0,1fr)}
+.pg.land.fill3 .cb{display:flex;flex-direction:column;min-height:0;margin-bottom:8px}
+.pg.land.fill3 .rch2 .cb{height:100%}
+.pg.land.fill3 .cb.wide{flex:58 1 0;margin-bottom:0}
+.pg.land.fill3 .cb img{flex:1 1 auto;min-height:0;height:100%}
+@media screen{.pg.land.fill3{height:210mm}}
+@media print{.pg.land.fill3{height:189.4mm}}
+/* ---- R&R variável: página de cálculos/resultado preenchendo a área útil ---- */
+.pg.land.fill4{display:flex;flex-direction:column}
+.pg.land.fill4>*{flex:0 0 auto}
+.pg.land.fill4>.rrc{flex:1 1 auto;min-height:0;align-items:stretch}
+.pg.land.fill4 .rrc>div{display:flex;flex-direction:column;min-height:0}
+.pg.land.fill4 .rrc>div>table{flex:1 1 auto;margin:0 0 6px}
+.pg.land.fill4 .rrc>div>.kn{flex:0 0 auto}
+.pg.land.fill4 .cal td{font-size:11.5px}.pg.land.fill4 .cal th{font-size:11px}.pg.land.fill4 .cal th.sm{font-size:9.5px}
+.pg.land.fill4 .cal.k td{font-size:11px}
+.pg.land.fill4 .res{margin-top:8px}.pg.land.fill4 .res th{padding:8px;font-size:13px}.pg.land.fill4 .res td{padding:11px 8px;font-size:13px}
+@media screen{.pg.land.fill4{height:210mm}}
+@media print{.pg.land.fill4{height:189.4mm}}
 h3 small{font:400 10px 'Segoe UI',Arial;color:#605E5C}
 .rr{table-layout:fixed;margin-top:4px}.rr td{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}.rr th.opn0{width:30px}.rr thead tr:first-child th:nth-child(2){width:62px}.rr thead tr:first-child th:last-child{width:92px}.rr .mc{text-align:right}
 .rrc{display:grid;grid-template-columns:1.5fr .85fr 1.15fr;gap:10px;align-items:start}.rrc table{margin:0 0 6px}
@@ -920,7 +942,7 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
     plugins:[{id:'opn',afterDraw(ch){const a=ch.chartArea,w=(a.right-a.left)/d.ops,x=ch.ctx;x.save();x.strokeStyle='#C9D6E2';x.setLineDash([3,3]);for(let i=1;i<d.ops;i++){const xx=a.left+w*i;x.beginPath();x.moveTo(xx,a.top);x.lineTo(xx,a.bottom);x.stroke()}x.fillStyle='#252423';x.font="bold 13px 'Segoe UI',Arial";x.textAlign='center';d.opNames.forEach((n,i)=>x.fillText(n,a.left+w*(i+.5),ch.height-3));x.restore()}}]};
   const ft2=v=>fxd(+v,dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#005A9E';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
-  return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,330)}${cb('Gráfico de amplitudes — superpostas',B,760,330)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,340).replace('class="cb"','class="cb wide"')}`}
+  return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
 const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
 function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
@@ -933,8 +955,8 @@ function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.t
   const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
   const vr=[['%VE','Repetibilidade (equipamento)',m['%EV'],X.EVt],['%VO','Reprodutibilidade (operador)',m['%AV'],X.AVt],['%R&amp;R','Repetib. + Reprodutib.',m['%GRR (VT)'],X.GRRt],['%VP','Variação da peça',m['%PV'],X.PVt]];
   return`<div class="pg land fill">${hd('')}${info}${ban}<h3>Dados de medição <small>(${un||'valores'} · ${dp} ${dp===1?'casa decimal':'casas decimais'})</small></h3><div class="fillT">${dataTable(s)}</div></div>
-  <div class="pg land">${hd(' — gráficos')}${info}${rrCharts(s,R)}</div>
-  <div class="pg land">${hd(' — cálculos e resultado')}<div class="rrc"><div><table class="cal"><thead><tr><th colspan="3">Cálculos</th></tr></thead><tbody>
+  <div class="pg land fill3">${hd(' — gráficos')}${info}${rrCharts(s,R)}</div>
+  <div class="pg land fill4">${hd(' — cálculos e resultado')}<div class="rrc"><div><table class="cal"><thead><tr><th colspan="3">Cálculos</th></tr></thead><tbody>
   ${cr('R̿','(R̄<sub>a</sub> + R̄<sub>b</sub> + R̄<sub>c</sub>) / nº operadores',f(m['R̄̄']))}${cr('X̄<sub>DIFF</sub>','máx(X̄) − mín(X̄)',f(m['X diff']))}${cr('LSC<sub>R</sub>','R̿ × D<sub>4</sub>',f(m['LSC R']))}
   ${cr('VE','R̿ × K<sub>1</sub> — repetibilidade',f(m.EV))}${cr('VO','√[(X̄<sub>DIFF</sub> × K<sub>2</sub>)² − VE²/(n·r)] — reprodutibilidade',f(m.AV))}${cr('R&amp;R','√(VE² + VO²)',f(m.GRR))}
   ${cr('R<sub>p</sub>','máx(X̄ peça) − mín(X̄ peça)',f(m.Rp))}${cr('VP','R<sub>p</sub> × K<sub>3</sub> — variação da peça',f(m.PV))}${cr('VT','√(R&amp;R² + VP²) — variação total',f(m.TV))}${cr('ndc','1,41 × VP / R&amp;R',ok(m.ndc)?m.ndc:'∞')}</tbody></table></div>
