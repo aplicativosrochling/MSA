@@ -185,15 +185,21 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=v=>{if(v===''||v==null)return NaN;const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:NaN};
 const ok=v=>typeof v==='number'&&isFinite(v);
-const fmt=(v,d=4)=>ok(v)?(+v.toFixed(d)).toLocaleString('pt-BR',{maximumFractionDigits:d}):'—';
-const pct=(v,d=1)=>ok(v)?v.toFixed(d).replace('.',',')+'%':'—';
+const decimalPlaces=(s=null)=>{const raw=s&&s.decimais!==undefined&&s.decimais!==null&&s.decimais!==''?Number(s.decimais):Number(S.cfg.decimais);return Number.isFinite(raw)?Math.max(0,Math.min(8,Math.round(raw))):4};
+const fxd=(v,d)=>ok(v)?(+v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const fsig=(v,dp)=>{if(!ok(v))return'—';const a=Math.abs(v);let d=dp;if(a>0&&a<1)d=Math.max(dp,Math.min(8,3-Math.floor(Math.log10(a))));return fxd(v,d)};
+const fmt=(v,d=decimalPlaces())=>ok(v)?(+v.toFixed(d)).toLocaleString('pt-BR',{maximumFractionDigits:d}):'—';
+const pct=(v,d=decimalPlaces())=>ok(v)?v.toFixed(d).replace('.',',')+'%':'—';
 const mean=a=>{a=a.filter(ok);return a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN};
 const sd=a=>{a=a.filter(ok);if(a.length<2)return NaN;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
 const rng=a=>{a=a.filter(ok);return a.length?Math.max(...a)-Math.min(...a):NaN};
 const today=()=>new Date().toISOString().slice(0,10);
 const fdate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'—';
 const daysTo=d=>d?Math.round((new Date(d+'T12:00:00')-new Date(today()+'T12:00:00'))/864e5):null;
-function tcrit(df){if(!(df>0))return NaN;const z=1.959964;return z+(z**3+z)/(4*df)+(5*z**5+16*z**3+3*z)/(96*df**2)+(3*z**7+19*z**5+17*z**3-15*z)/(384*df**3)+(79*z**9+776*z**7+1482*z**5-1920*z**3-945*z)/(92160*df**4)}
+function logGamma(z){const p=[676.5203681218851,-1259.1392167224028,771.3234287776531,-176.6150291621406,12.507343278686905,-.13857109526572012,9.984369578019572e-6,1.5056327351493116e-7];if(z<.5)return Math.log(Math.PI)-Math.log(Math.sin(Math.PI*z))-logGamma(1-z);z-=1;let x=.9999999999998099;for(let i=0;i<p.length;i++)x+=p[i]/(z+i+1);const t=z+7.5;return .9189385332046727+(z+.5)*Math.log(t)-t+Math.log(x)}
+function betaCF(a,b,x){const qab=a+b,qap=a+1,qam=a-1,fp=1e-300,eps=3e-14;let c=1,d=1-qab*x/qap;if(Math.abs(d)<fp)d=fp;d=1/d;let h=d;for(let m=1;m<=200;m++){const m2=2*m;let aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<fp)d=fp;c=1+aa/c;if(Math.abs(c)<fp)c=fp;d=1/d;h*=d*c;aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<fp)d=fp;c=1+aa/c;if(Math.abs(c)<fp)c=fp;d=1/d;const delta=d*c;h*=delta;if(Math.abs(delta-1)<eps)break}return h}
+function regBeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;const bt=Math.exp(logGamma(a+b)-logGamma(a)-logGamma(b)+a*Math.log(x)+b*Math.log1p(-x));return x<(a+1)/(a+b+2)?bt*betaCF(a,b,x)/a:1-bt*betaCF(b,a,1-x)/b}
+function tcrit(df,alpha=.05){if(!(df>0)||!(alpha>0&&alpha<1))return NaN;let lo=0,hi=1;while(regBeta(df/(df+hi*hi),df/2,.5)>alpha&&hi<1e8)hi*=2;for(let i=0;i<80;i++){const mid=(lo+hi)/2,p=regBeta(df/(df+mid*mid),df/2,.5);if(p>alpha)lo=mid;else hi=mid}return(lo+hi)/2}
 function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
 const r4=v=>Math.round(v*10000)/10000;
 function toast(msg,icon='fa-circle-check'){const t=$('#toast');t.innerHTML=`<i class="fas ${icon}"></i>${esc(msg)}`;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2600)}
@@ -201,17 +207,18 @@ function mtx(r,c,f=''){return Array.from({length:r},()=>Array.from({length:c},()
 function resize(m,r,c,f=''){m=m||[];return Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>(m[i]&&m[i][j]!==undefined)?m[i][j]:f))}
 
 /* ---------------- dados / persistência ---------------- */
-let S={studies:[],instruments:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,cloud:true,diasAviso:30}};
+let S={studies:[],instruments:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,decimais:4,cloud:true,diasAviso:30}};
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(S));try{bc&&bc.postMessage('upd')}catch(e){}}
 let db=null,bc=null;try{bc=new BroadcastChannel('msa_pro');bc.onmessage=()=>{load();refresh()}}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===KEY){load();refresh()}});
-function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set(JSON.parse(JSON.stringify(doc))).then(()=>setSync(true)).catch(e=>setSync(false,e&&e.code||'erro'))}
+function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>setSync(true)).catch(e=>setSync(false,e&&e.code||'erro'))}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
-function setSync(on,err){$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Dados locais (offline)')}
+let cloudOk=false,unsub=null,syncTimer=null;
+function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Dados locais (offline)')}
 let authTried=false,progDone=false;
 function ensureProg(){if(progDone)return;progDone=true;if(progMissing().length)genProg()}
-function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');initCloud()}
+function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x))}
 function initCloud(){
   if(!S.cfg.cloud){setSync(false);ensureProg();return}
   if(typeof firebase==='undefined'){setSync(false,'biblioteca Firebase bloqueada');ensureProg();return}
@@ -223,8 +230,10 @@ function initCloud(){
 }
 function startSubs(){
   const col='msapro_estudos';let first=true;
-  db.collection(col).onSnapshot(snap=>{
-    const remote=snap.docs.map(d=>d.data());const ids=new Set(remote.map(r=>r.id));
+  if(unsub){try{unsub()}catch(e){}}
+  clearTimeout(syncTimer);syncTimer=setTimeout(()=>{if(!cloudOk)setSync(false,'servidor não respondeu — verifique internet/firewall (firestore.googleapis.com)')},12000);
+  unsub=db.collection(col).onSnapshot({includeMetadataChanges:true},snap=>{
+    const remote=snap.docs.map(d=>{const x=d.data();try{return x.json?JSON.parse(x.json):x}catch(e){return x}});const ids=new Set(remote.map(r=>r.id));
     if(first){first=false;
       // envia estudos locais ainda não existentes na nuvem (primeira sincronização)
       S.studies.filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x));
@@ -232,7 +241,7 @@ function startSubs(){
       S.studies.forEach(x=>{if(!x.resultado)x.resultado=calc(x)});
       ensureProg(); // garante os 28 estudos do procedimento e envia ao Firebase
     }else S.studies=remote;
-    localStorage.setItem(KEY,JSON.stringify(S));if(!snap.metadata.fromCache)setSync(true);refresh();
+    localStorage.setItem(KEY,JSON.stringify(S));if(!snap.metadata.fromCache){clearTimeout(syncTimer);setSync(true)}refresh();
   },err=>{
     if(err&&err.code==='permission-denied'&&!authTried&&firebase.auth){authTried=true;
       firebase.auth().signInAnonymously().then(startSubs).catch(()=>{setSync(false,'permission-denied — ajuste as regras do Firestore');ensureProg()});return}
@@ -248,13 +257,13 @@ const instrName=s=>{const i=instrOf(s);return i?`${i.codigo} — ${i.descricao}`
 /* ---------------- modelos de estudo ---------------- */
 function nextCode(t){const pre={est:'EST',bias:'TEN',lin:'LIN',rr:'GRR',atr:'ATR'}[t];const n=S.studies.filter(s=>s.tipo===t).length+1;return `${pre}-${new Date().getFullYear()}-${String(n).padStart(3,'0')}`}
 function newStudy(t){
-  const base={id:uid(),tipo:t,codigo:nextCode(t),nome:'',instrumentoId:'',instrumentoTxt:'',peca:'',caracteristica:'',unidade:'mm',lie:'',lse:'',responsavel:'',area:'',data:today(),obs:'',criadoEm:new Date().toISOString()};
+  const base={id:uid(),tipo:t,codigo:nextCode(t),nome:'',instrumentoId:'',instrumentoTxt:'',peca:'',caracteristica:'',unidade:'mm',lie:'',lse:'',responsavel:'',area:'',data:today(),obs:'',decimais:decimalPlaces(),criadoEm:new Date().toISOString()};
   const D={est:{n:5,g:20,ref:'',m:mtx(20,5)},bias:{ref:'',n:15,v:Array(15).fill('')},lin:{g:5,m:10,refs:Array(5).fill(''),v:mtx(5,10)},
     rr:{ops:3,parts:10,trials:3,opNames:['A','B','C'],v:[mtx(3,10),mtx(3,10),mtx(3,10)]},
     atr:{ops:3,parts:30,trials:3,opNames:['A','B','C'],ref:Array(30).fill(''),v:[mtx(3,30),mtx(3,30),mtx(3,30)]}};
   base.dados=D[t];return base;
 }
-function normalize(s){const d=s.dados;
+function normalize(s){const d=s.dados;s.decimais=decimalPlaces(s);
   if(s.tipo==='est'){d.n=Math.min(10,Math.max(2,+d.n||5));d.g=Math.max(2,+d.g||20);d.m=resize(d.m,d.g,d.n)}
   if(s.tipo==='bias'){d.n=Math.max(2,+d.n||15);d.v=Array.from({length:d.n},(_,i)=>d.v?.[i]??'')}
   if(s.tipo==='lin'){d.g=Math.max(2,+d.g||5);d.m=Math.max(2,+d.m||10);d.refs=Array.from({length:d.g},(_,i)=>d.refs?.[i]??'');d.v=resize(d.v,d.g,d.m)}
@@ -269,51 +278,61 @@ const K1={2:.8862,3:.5908},K2={2:.7071,3:.5231},K3={2:.7071,3:.5231,4:.4467,5:.4
 const tol=s=>{const a=num(s.lie),b=num(s.lse);return ok(a)&&ok(b)&&b>a?b-a:NaN};
 function calc(s){normalize(s);try{return({est:cEst,bias:cBias,lin:cLin,rr:cRR,atr:cAtr})[s.tipo](s)}catch(e){console.error(e);return{status:'Incompleto',m:{},msg:'Erro no cálculo'}}}
 function cEst(s){const d=s.dados,n=d.n;const rows=d.m.map(r=>r.map(num));const full=rows.filter(r=>r.every(ok));
-  if(full.length<2)return{status:'Incompleto',m:{},msg:'Preencha ao menos 2 subgrupos completos',chave:'—'};
+  if(full.length!==d.g)return{status:'Incompleto',m:{'Subgrupos completos':full.length,'Subgrupos esperados':d.g},msg:`Preencha todos os subgrupos (${full.length}/${d.g} completos)`,chave:'—'};
   const xb=full.map(mean),rr=full.map(rng);const X=mean(xb),R=mean(rr);
+  if(!(R>0))return{status:'Incompleto',m:{'X̄̄':X,'R̄':R,'Subgrupos':full.length},msg:'Sem variação dentro dos subgrupos; verifique resolução e método antes de concluir estabilidade.',chave:'—'};
   const ucl=X+A2[n]*R,lcl=X-A2[n]*R,uclR=D4[n]*R,lclR=D3[n]*R;const sig=R/d2[n];
   const outX=xb.map((x,i)=>x>ucl||x<lcl?i:-1).filter(i=>i>=0),outR=rr.map((x,i)=>x>uclR||x<lclR?i:-1).filter(i=>i>=0);
   // regra de 7 pontos do mesmo lado
   let run=0,side=0,trend=false;xb.forEach(x=>{const sd2=x>X?1:x<X?-1:0;if(sd2&&sd2===side)run++;else{run=1;side=sd2}if(run>=7)trend=true});
   const T=tol(s),pv=ok(T)?S.cfg.k*sig/T*100:NaN;
-  const out=outX.length+outR.length;const status=out>0?'Reprovado':trend?'Condicional':'Aprovado';
+  const out=outX.length+outR.length,short=full.length<20;const status=out>0?'Reprovado':trend||short?'Condicional':'Aprovado';
   return{status,m:{'X̄̄':X,'R̄':R,'LSC X̄':ucl,'LIC X̄':lcl,'LSC R':uclR,'LIC R':lclR,'σ (R̄/d2)':sig,'%Var/Tol':pv,'Pontos fora':out,'Subgrupos':full.length},
-    chave:out?`${out} ponto(s) fora`:'Sob controle',kv:out,msg:out?'Processo de medição fora de controle estatístico':trend?'Sequência de 7+ pontos do mesmo lado da média (investigar)':'Sistema de medição estável',
+    chave:out?`${out} ponto(s) fora`:short?'Estudo preliminar':'Sob controle',kv:out,msg:out?'Processo de medição fora de controle estatístico':trend?'Sequência de 7+ pontos do mesmo lado da média (investigar)':short?`Estudo preliminar: ${full.length} subgrupos; recomenda-se pelo menos 20 para avaliar estabilidade`:'Sistema de medição estável',
     ser:{xb,rr,X,R,ucl,lcl,uclR,lclR,outX,outR}}}
 function cBias(s){const d=s.dados,ref=num(d.ref);const v=d.v.map(num).filter(ok);
   if(!ok(ref)||v.length<2)return{status:'Incompleto',m:{},msg:'Informe valor de referência e ao menos 2 leituras',chave:'—'};
-  const n=v.length,m=mean(v),s1=sd(v),b=m-ref,se=s1/Math.sqrt(n),t=se>0?Math.abs(b)/se:(b===0?0:Infinity),tc=tcrit(n-1);
+  const n=v.length,m=mean(v),s1=sd(v),b=m-ref;if(!(s1>Number.EPSILON*Math.max(Math.abs(m),Math.abs(ref),1)*64))return{status:'Incompleto',m:{'Média':m,'Referência':ref,'Tendência':b,'Desvio padrão':s1,'n':n},msg:'Sem variação mensurável entre as leituras; não é possível estimar a repetibilidade nem testar a tendência.',chave:'—'};
+  const se=s1/Math.sqrt(n),t=Math.abs(b)/se,tc=tcrit(n-1);
   const lo=b-tc*se,hi=b+tc*se,T=tol(s),pb=ok(T)?Math.abs(b)/T*100:NaN;const sig=t<=tc;
   const status=sig&&(!ok(pb)||pb<=S.cfg.biasMax)?'Aprovado':(!sig&&ok(pb)&&pb<=S.cfg.biasMax)?'Condicional':'Reprovado';
   return{status,m:{'Média':m,'Referência':ref,'Tendência':b,'Desvio padrão':s1,'t calculado':t,'t crítico (95%)':tc,'IC inferior':lo,'IC superior':hi,'%Tendência/Tol':pb,'n':n},
-    chave:'Bias '+fmt(b)+(ok(pb)?` (${pct(pb)})`:''),kv:pb,msg:sig?'Tendência estatisticamente igual a zero (0 dentro do IC 95%)':'Tendência significativa — zero fora do IC 95%',ser:{v,ref,m}}}
+    chave:'Bias '+fmt(b,decimalPlaces(s))+(ok(pb)?` (${pct(pb,decimalPlaces(s))})`:''),kv:pb,msg:sig?'Tendência estatisticamente igual a zero (0 dentro do IC 95%)':'Tendência significativa — zero fora do IC 95%',ser:{v,ref,m}}}
 function cLin(s){const d=s.dados;const pts=[];d.refs.forEach((r,i)=>{const R=num(r);if(!ok(R))return;d.v[i].forEach(x=>{x=num(x);if(ok(x))pts.push([R,x-R])})});
-  const refsOk=new Set(pts.map(p=>p[0]));if(pts.length<3||refsOk.size<2)return{status:'Incompleto',m:{},msg:'Informe ao menos 2 referências com leituras',chave:'—'};
+  const refsOk=new Set(pts.map(p=>p[0])),repByRef=new Map();pts.forEach(([x])=>repByRef.set(x,(repByRef.get(x)||0)+1));
+  if(refsOk.size<5||[...repByRef.values()].some(n=>n<2))return{status:'Incompleto',m:{'Referências válidas':refsOk.size,'Pontos':pts.length},msg:'Use pelo menos 5 valores de referência distintos e 2 leituras válidas por referência.',chave:'—'};
   const N=pts.length,xm=mean(pts.map(p=>p[0])),ym=mean(pts.map(p=>p[1]));let Sxx=0,Sxy=0,Syy=0;pts.forEach(([x,y])=>{Sxx+=(x-xm)**2;Sxy+=(x-xm)*(y-ym);Syy+=(y-ym)**2});
+  if(!(N>2&&Sxx>0))return{status:'Incompleto',m:{'Referências válidas':refsOk.size,'Pontos':N},msg:'Dados insuficientes para estimar a regressão de linearidade.',chave:'—'};
   const a=Sxy/Sxx,b=ym-a*xm,ss=pts.reduce((t,[x,y])=>t+(y-(a*x+b))**2,0),sres=Math.sqrt(ss/(N-2)),r2=Syy>0?Sxy*Sxy/(Sxx*Syy):1;
-  const ta=sres>0?Math.abs(a)/(sres/Math.sqrt(Sxx)):0,tb=sres>0?Math.abs(b)/(sres*Math.sqrt(1/N+xm*xm/Sxx)):0,tc=tcrit(N-2);
+  const biasScale=Math.max(1,...pts.map(p=>Math.abs(p[1])));if(!(sres>Number.EPSILON*biasScale*64))return{status:'Incompleto',m:{'Inclinação (a)':a,'Intercepto (b)':b,'R²':r2,'Pontos':N},msg:'Variação residual zero ou abaixo da precisão numérica; não é possível testar a significância da regressão.',chave:'—'};
+  const ta=Math.abs(a)/(sres/Math.sqrt(Sxx)),tb=Math.abs(b)/(sres*Math.sqrt(1/N+xm*xm/Sxx)),tc=tcrit(N-2);
   const T=tol(s);const biasMeans=d.refs.map((r,i)=>{const R=num(r);return ok(R)?[R,mean(d.v[i].map(num).filter(ok).map(x=>x-R))]:null}).filter(x=>x&&ok(x[1]));
   const maxB=Math.max(...biasMeans.map(x=>Math.abs(x[1]))),pb=ok(T)?maxB/T*100:NaN;
   const lin=ta<=tc,bz=tb<=tc;const status=lin&&bz?'Aprovado':lin||bz?'Condicional':'Reprovado';
   return{status,m:{'Inclinação (a)':a,'Intercepto (b)':b,'R²':r2,'t (a)':ta,'t (b)':tb,'t crítico':tc,'%Linearidade':Math.abs(a)*100,'Maior |bias|':maxB,'%Bias máx/Tol':pb,'Pontos':N},
-    chave:'|a| '+fmt(Math.abs(a),5),kv:Math.abs(a)*100,msg:(lin?'Inclinação não significativa':'Inclinação significativa (não linear)')+' · '+(bz?'intercepto ≈ 0':'intercepto ≠ 0'),ser:{pts,a,b,biasMeans,sres,xm,Sxx,N,tc}}}
+    chave:'|a| '+fmt(Math.abs(a),decimalPlaces(s)),kv:Math.abs(a)*100,msg:(lin?'Inclinação não significativa':'Inclinação significativa (não linear)')+' · '+(bz?'intercepto ≈ 0':'intercepto ≠ 0'),ser:{pts,a,b,biasMeans,sres,xm,Sxx,N,tc}}}
 function cRR(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const v=d.v.map(o=>o.map(r=>r.map(num)));
   const complete=v.every(o=>o.every(r=>r.every(ok)));if(!complete){const filled=v.flat(2).filter(ok).length;return{status:'Incompleto',m:{'Preenchido':filled/(O*P*T)*100},msg:`Preencha todas as ${O*P*T} medições (${filled} feitas)`,chave:'—'}}
   const pm=[],pr=[];for(let o=0;o<O;o++){pm[o]=[];pr[o]=[];for(let p=0;p<P;p++){const c=v[o].map(r=>r[p]);pm[o][p]=mean(c);pr[o][p]=rng(c)}}
   const Rop=pr.map(mean),Xop=pm.map(mean),Rbb=mean(Rop),Xdiff=Math.max(...Xop)-Math.min(...Xop);
   const partM=Array.from({length:P},(_,p)=>mean(pm.map(o=>o[p]))),Rp=rng(partM);
+  if(!(Rbb>0))return{status:'Incompleto',m:{'R̄̄':Rbb,'Peças':P},msg:'Não foi observada variação entre repetições; verifique resolução e método de medição.',chave:'—'};
+  if(!(Rp>0))return{status:'Incompleto',m:{'R̄̄':Rbb,'Rp':Rp,'Peças':P},msg:'As peças não apresentam variação mensurável; não é possível estimar a discriminação do sistema.',chave:'—'};
   const uclR=D4[T]*Rbb;const outR=[];pr.forEach((o,oi)=>o.forEach((r,p)=>{if(r>uclR)outR.push([oi,p])}));
   const EV=Rbb*K1[T],avs=(Xdiff*K2[O])**2-EV*EV/(P*T),AV=avs>0?Math.sqrt(avs):0,GRR=Math.sqrt(EV*EV+AV*AV),PV=Rp*K3[P],TV=Math.sqrt(GRR*GRR+PV*PV);
   const tl=tol(s),k=S.cfg.k;const p=x=>TV>0?x/TV*100:NaN,pt=x=>ok(tl)?k*x/tl*100:NaN;const ndc=GRR>0?Math.floor(1.41*PV/GRR):Infinity;
-  const ref=S.cfg.base==='tol'&&ok(tl)?pt(GRR):p(GRR);
-  let status=ref<=S.cfg.grrOk?'Aprovado':ref<=S.cfg.grrCond?'Condicional':'Reprovado';if(status==='Aprovado'&&ndc<S.cfg.ndcMin)status='Condicional';
+  if(S.cfg.base==='tol'&&!ok(tl))return{status:'Incompleto',m:{EV,AV,GRR,PV,TV},msg:'A base está configurada como tolerância; informe LIE e LSE válidos para classificar o %GRR.',chave:'—'};
+  const ref=S.cfg.base==='tol'?pt(GRR):p(GRR);
+  let status=ref<=S.cfg.grrOk?'Aprovado':ref<=S.cfg.grrCond?'Condicional':'Reprovado';if(status==='Aprovado'&&ndc<S.cfg.ndcMin)status='Condicional';if(outR.length)status='Reprovado';
   return{status,m:{'EV':EV,'AV':AV,'GRR':GRR,'PV':PV,'TV':TV,'%EV':p(EV),'%AV':p(AV),'%GRR (VT)':p(GRR),'%PV':p(PV),'%GRR (Tol)':pt(GRR),'ndc':ndc,'R̄̄':Rbb,'X diff':Xdiff,'Rp':Rp,'LSC R':uclR},
-    chave:'%GRR '+pct(ref),kv:ref,msg:`%GRR ${pct(ref)} (${S.cfg.base==='tol'&&ok(tl)?'tolerância':'variação total'}) · ndc = ${ndc}`+(outR.length?` · ${outR.length} amplitude(s) acima do LSC`:''),
+    chave:'%GRR '+pct(ref,decimalPlaces(s)),kv:ref,msg:`%GRR ${pct(ref,decimalPlaces(s))} (${S.cfg.base==='tol'&&ok(tl)?'tolerância':'variação total'}) · ndc = ${ndc}`+(outR.length?` · ${outR.length} amplitude(s) acima do LSC`:''),
     ser:{Xop,Rop,partM,pm,outR,uclR,EVp:p(EV),AVp:p(AV),GRRp:p(GRR),PVp:p(PV),EVt:pt(EV),AVt:pt(AV),GRRt:pt(GRR),PVt:pt(PV)}}}
 function kappa(a,b){const n=a.length;if(!n)return NaN;let ag=0,a1=0,b1=0;for(let i=0;i<n;i++){if(a[i]===b[i])ag++;if(a[i]===1)a1++;if(b[i]===1)b1++}const po=ag/n,pe=(a1/n)*(b1/n)+(1-a1/n)*(1-b1/n);return pe===1?(po===1?1:0):(po-pe)/(1-pe)}
 function cAtr(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const ref=d.ref.map(x=>x===''?null:+x);const v=d.v.map(o=>o.map(r=>r.map(x=>x===''?null:+x)));
   const filled=v.flat(2).filter(x=>x!==null).length+ref.filter(x=>x!==null).length,need=O*P*T+P;
   if(filled<need)return{status:'Incompleto',m:{'Preenchido':filled/need*100},msg:`Preencha todas as avaliações e a referência (${filled}/${need})`,chave:'—'};
+  if(ref.some(x=>x!==0&&x!==1)||v.flat(2).some(x=>x!==0&&x!==1))return{status:'Incompleto',m:{},msg:'Use somente 1 (OK) ou 0 (NOK) em todas as referências e avaliações.',chave:'—'};
+  if(new Set(ref).size<2)return{status:'Incompleto',m:{'Peças':P},msg:'Inclua referências OK e NOK; uma única classe não permite avaliar discriminação e Kappa adequadamente.',chave:'—'};
   const per=[];let gMiss=0,gNok=0,gFa=0,gOk=0,allAgree=0;
   for(let o=0;o<O;o++){let eff=0,miss=0,fa=0,nok=0,okc=0;const A=[],B=[];
     for(let p=0;p<P;p++){const calls=v[o].map(r=>r[p]);if(calls.every(c=>c===ref[p]))eff++;calls.forEach(c=>{A.push(c);B.push(ref[p]);if(ref[p]===0){nok++;if(c===1)miss++}else{okc++;if(c===0)fa++}})}
@@ -322,9 +341,9 @@ function cAtr(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const ref=d.ref.ma
   const c=S.cfg,minK=Math.min(...per.map(x=>x.k)),minE=Math.min(...per.map(x=>x.eff)),maxM=Math.max(...per.map(x=>x.miss)),maxF=Math.max(...per.map(x=>x.fa));
   const status=(minE>=c.effOk&&maxM<=c.missOk&&maxF<=c.faOk&&minK>=c.kappaOk)?'Aprovado':(minE>=c.effCond&&maxM<=c.missOk*2.5&&maxF<=c.faOk*2&&minK>=0.4)?'Condicional':'Reprovado';
   return{status,m:{'Eficácia sistema':allAgree/P*100,'Eficácia mín.':minE,'Kappa mín.':minK,'Taxa de perda máx.':maxM,'Falso alarme máx.':maxF,'Perda global':gNok?gMiss/gNok*100:0,'Falso alarme global':gOk?gFa/gOk*100:0,'Peças':P},
-    chave:'Kappa '+fmt(minK,2),kv:minK,msg:`Eficácia do sistema ${pct(allAgree/P*100)} · Kappa mínimo ${fmt(minK,2)}`,ser:{per}}}
+    chave:'Kappa '+fmt(minK,decimalPlaces(s)),kv:minK,msg:`Eficácia do sistema ${pct(allAgree/P*100,decimalPlaces(s))} · Kappa mínimo ${fmt(minK,decimalPlaces(s))}`,ser:{per}}}
 const isPct=k=>k.startsWith('%')||['Eficácia sistema','Eficácia mín.','Taxa de perda máx.','Falso alarme máx.','Perda global','Falso alarme global','Preenchido'].includes(k);
-const fmtM=(k,v)=>isPct(k)?pct(v):(['Pontos fora','Subgrupos','n','Pontos','Peças','ndc'].includes(k)?(ok(v)?v:'∞'):fmt(v,k.startsWith('t')||k==='R²'?3:5));
+const fmtM=(k,v,s=null)=>isPct(k)?pct(v,decimalPlaces(s)):(['Pontos fora','Subgrupos','n','Pontos','Peças','ndc'].includes(k)?(ok(v)?v:'∞'):fmt(v,decimalPlaces(s)));
 
 /* ---------------- estado de navegação ---------------- */
 let V={view:'dashboard',f:{q:'',tipo:'',status:'',instr:'',periodo:'',area:''},sort:{k:'data',d:-1},sel:new Set(),edit:null,dirty:false,dash:{periodo:'365',area:''}};
@@ -394,12 +413,12 @@ function rProc(){const tab=V.ptab||'doc';
 function dashSet(){const p=+V.dash.periodo,a=V.dash.area;return S.studies.filter(s=>(!p||daysTo(s.data)>=-p)&&(!a||s.area===a))}
 const areas=()=>[...new Set([...S.studies.map(s=>s.area),...S.instruments.map(i=>i.area)].filter(Boolean))].sort();
 function rDash(){
-  const L=dashSet(),cnt=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length,tot=L.length;
+  const L=dashSet(),simCount=L.filter(s=>s.simulado).length,cnt=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length,tot=L.length;
   const ap=cnt('Aprovado'),co=cnt('Condicional'),re=cnt('Reprovado'),inc=cnt('Incompleto');const done=tot-inc;const conf=done?ap/done*100:0;
   const grr=L.filter(s=>s.tipo==='rr'&&ok(s.resultado?.kv));const grrM=mean(grr.map(s=>s.resultado.kv));
   const pv=V.dash.periodo;
   $('#main').innerHTML=`<div class="fade">
-  <div class="top"><div><h1>Dashboard MSA</h1><div class="sub">${esc(S.cfg.empresa)} · <span class="live">Atualização em tempo real</span></div></div><div class="sp"></div>
+   <div class="top"><div><h1>Dashboard MSA</h1><div class="sub">${esc(S.cfg.empresa)} · <span class="live">Atualização em tempo real</span>${simCount?` · ${simCount} estudo(s) sintético(s) incluído(s) nos indicadores`:''}</div></div><div class="sp"></div>
    <select class="f" style="width:auto" id="dPer"><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="365">Últimos 12 meses</option><option value="0">Todo o período</option></select>
    <select class="f" style="width:auto" id="dArea"><option value="">Todas as áreas</option>${areas().map(a=>`<option ${a===V.dash.area?'selected':''}>${esc(a)}</option>`).join('')}</select>
    <button class="btn" onclick="openPrint()"><i class="fas fa-print"></i>Imprimir</button>
@@ -431,7 +450,7 @@ function rDash(){
 function kpi(lb,v,s,ic,c,bar,f,click){const on=click||(f?`go('estudos',{f:${JSON.stringify(Object.assign({},f,{periodo:V.dash.periodo,area:V.dash.area})).replace(/"/g,"'")}})`:'');
   return`<div class="card kpi" onclick="${on}"><div class="lb"><i class="fas ${ic} bg-${c} c-${c}"></i>${lb}</div><div class="v">${v}</div><div class="s">${s}</div><div class="bar"><span style="width:${Math.max(0,Math.min(100,bar))}%;background:var(--${c==='brand'?'brand':c})"></span></div></div>`}
 function recent(L){const r=[...L].sort((a,b)=>(b.atualizadoEm||'').localeCompare(a.atualizadoEm||'')).slice(0,7);if(!r.length)return'<div class="empty"><i class="fas fa-inbox"></i>Sem estudos no período</div>';
-  return r.map(s=>`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-brand c-brand"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · ${fdate(s.data)}</small></div><small style="color:var(--muted)">${esc(s.resultado?.chave||'')}</small>${badge(s)}</div>`).join('')}
+   return r.map(s=>`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-brand c-brand"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · ${fdate(s.data)}${s.simulado?' · SIMULAÇÃO':''}</small></div><small style="color:var(--muted)">${esc(s.resultado?.chave||'')}</small>${badge(s)}</div>`).join('')}
 function attention(L){const items=[];
   L.filter(s=>s.resultado?.status==='Reprovado').slice(0,5).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-bad c-bad"><i class="fas fa-circle-xmark"></i></div><div class="tx"><b>${esc(s.codigo)} reprovado</b><small>${esc(s.resultado.chave)} · ${esc(instrName(s))}</small></div></div>`));
   L.filter(s=>s.resultado?.status==='Incompleto').slice(0,3).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-inc"><i class="fas fa-hourglass-half"></i></div><div class="tx"><b>${esc(s.codigo)} incompleto</b><small>${esc(s.resultado.msg)}</small></div></div>`));
@@ -483,7 +502,7 @@ function rList(){const L=filtered(),f=V.f;
   const th=(k,l)=>`<th onclick="V.sort={k:'${k}',d:V.sort.k==='${k}'?-V.sort.d:1};rList()">${l}${V.sort.k===k?(V.sort.d>0?' ▲':' ▼'):''}</th>`;
   $('#lst').innerHTML=L.length?`<table class="t"><thead><tr><th style="width:34px"><input type="checkbox" ${L.length&&L.every(s=>V.sel.has(s.id))?'checked':''} onclick="event.stopPropagation();${L.map(s=>`'${s.id}'`).length?`[${L.map(s=>`'${s.id}'`).join(',')}].forEach(i=>this.checked?V.sel.add(i):V.sel.delete(i));rList()`:''}"></th>${th('codigo','Código')}${th('tipo','Tipo')}${th('nome','Peça / Característica')}${th('instr','Instrumento')}${th('data','Data')}${th('responsavel','Responsável')}${th('kv','Resultado')}${th('status','Status')}<th style="cursor:default">Ações</th></tr></thead><tbody>
    ${L.map(s=>`<tr class="cl" onclick="openStudy('${s.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${V.sel.has(s.id)?'checked':''} onchange="this.checked?V.sel.add('${s.id}'):V.sel.delete('${s.id}');rList()"></td>
-   <td><b>${esc(s.codigo)}</b></td><td><span class="tag"><i class="fas ${TYPES[s.tipo].ic}"></i> ${TYPES[s.tipo].n}</span></td><td>${esc(s.nome||s.peca||'—')}<div style="color:var(--muted);font-size:12px">${esc(s.caracteristica)}</div></td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel||'—')}</td><td>${esc(s.resultado?.chave||'—')}</td><td>${badge(s)}</td>
+    <td><b>${esc(s.codigo)}</b>${s.simulado?'<small class="tag" style="margin-left:6px;color:#9A6A00;background:#FFF6DB">SIMULAÇÃO</small>':''}</td><td><span class="tag"><i class="fas ${TYPES[s.tipo].ic}"></i> ${TYPES[s.tipo].n}</span></td><td>${esc(s.nome||s.peca||'—')}<div style="color:var(--muted);font-size:12px">${esc(s.caracteristica)}</div></td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel||'—')}</td><td>${esc(s.resultado?.chave||'—')}</td><td>${badge(s)}</td>
    <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Editar" onclick="openStudy('${s.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm" title="Imprimir" onclick="printStudies(['${s.id}'])"><i class="fas fa-print"></i></button> <button class="btn ic sm" title="Duplicar" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i></button> <button class="btn ic sm dan" title="Excluir" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty"><i class="fas fa-folder-open"></i>Nenhum estudo encontrado.<br><br><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Criar estudo</button></div>`;
 }
@@ -510,15 +529,16 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    inp('instrumentoTxt','Instrumento')+
    inp('unidade','Unidade')+inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+inp('responsavel','Responsável')+inp('padrao','Padrão de referência')+inp('freq','Frequência (meses / evento)')+
    `<div><label class="l">Área / Setor</label><input class="f" data-f="area" list="dlArea" value="${esc(s.area)}"><datalist id="dlArea">${areas().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>`+inp('data','Data','date')+
+   `<div><label class="l">Casas decimais deste estudo</label><select class="f" data-f="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${decimalPlaces(s)===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select><small class="legend">Aplica-se aos resultados, relatórios e dados simulados. Medições já digitadas não são arredondadas.</small></div>`+
    `<div style="grid-column:1/-1"><label class="l">Observações / Ações</label><textarea class="f" data-f="obs" rows="2">${esc(s.obs)}</textarea></div>`;
-  $$('#info [data-f]').forEach(e=>e.oninput=()=>{s[e.dataset.f]=e.value;markDirty();if(['lie','lse'].includes(e.dataset.f))recalc()});
+  $$('#info [data-f]').forEach(e=>{const update=()=>{s[e.dataset.f]=e.dataset.f==='decimais'?+e.value:e.value;markDirty();if(['lie','lse','decimais'].includes(e.dataset.f))recalc()};if(e.tagName==='SELECT')e.onchange=update;else e.oninput=update});
   rParams();rGrid();recalc();
 }
-function markDirty(){V.dirty=true;const d=$('#dirty');if(d)d.innerHTML='· <b class="c-warn">alterações não salvas</b>'}
+ function markDirty(){V.dirty=true;const d=$('#dirty');if(d)d.innerHTML='· <b class="c-warn">alterações não salvas</b>'}
 function rParams(){const s=V.edit,d=s.dados;const ni=(k,l,mn,mx)=>`<label class="row" style="gap:6px"><span class="l" style="margin:0">${l}</span><input class="f" style="width:74px" type="number" min="${mn}" max="${mx}" value="${d[k]}" onchange="V.edit.dados.${k}=Math.min(${mx},Math.max(${mn},+this.value||${mn}));normalize(V.edit);markDirty();rParams();rGrid();recalc()"></label>`;
   let h='';if(s.tipo==='est')h=ni('n','Tamanho do subgrupo',2,10)+ni('g','Nº subgrupos',2,60)+`<label class="row" style="gap:6px"><span class="l" style="margin:0">Valor de referência</span><input class="f" style="width:110px" value="${esc(d.ref)}" oninput="V.edit.dados.ref=this.value;markDirty()"></label>`;
   if(s.tipo==='bias')h=`<label class="row" style="gap:6px"><span class="l" style="margin:0">Valor de referência</span><input class="f" style="width:120px" inputmode="decimal" value="${esc(d.ref)}" oninput="V.edit.dados.ref=this.value;markDirty();recalc()"></label>`+ni('n','Nº leituras',2,100);
-  if(s.tipo==='lin')h=ni('g','Nº peças de referência',2,10)+ni('m','Leituras por peça',2,20);
+  if(s.tipo==='lin')h=ni('g','Nº peças de referência',5,10)+ni('m','Leituras por peça',2,20);
   if(s.tipo==='rr')h=ni('ops','Operadores',2,3)+ni('parts','Peças',2,10)+ni('trials','Ciclos',2,3);
   if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5)+`<span class="legend">Clique nas células para alternar: <b class="c-ok">1 = OK</b> · <b class="c-bad">0 = NOK</b> · vazio</span>`;
   $('#params').innerHTML=h}
@@ -555,34 +575,33 @@ function pasteGrid(e){const txt=(e.clipboardData||window.clipboardData).getData(
 let rt;function recalcSoon(){clearTimeout(rt);rt=setTimeout(recalc,180)}
 function recalc(){const s=V.edit,R=calc(s);s.resultado=R;const d=s.dados;
   // valores calculados na grade
-  if(s.tipo==='est')d.m.forEach((r,i)=>{const a=r.map(num);const full=a.every(ok);const cx=$('#cx'+i),cr=$('#cr'+i);if(!cx)return;cx.textContent=full?fmt(mean(a)):'';cr.textContent=full?fmt(rng(a)):'';const fi=R.ser?d.m.slice(0,i).filter(rr=>rr.map(num).every(ok)).length:-1;cx.classList.toggle('out',!!(full&&R.ser&&R.ser.outX.includes(fi)));cr.classList.toggle('out',!!(full&&R.ser&&R.ser.outR.includes(fi)))});
-  if(s.tipo==='bias'){const ref=num(d.ref);d.v.forEach((v,i)=>{const e=$('#bb'+i);if(e)e.textContent=ok(num(v))&&ok(ref)?fmt(num(v)-ref):''})}
-  if(s.tipo==='lin')d.v.forEach((r,i)=>{const R0=num(d.refs[i]);const e=$('#lb'+i);if(e)e.textContent=ok(R0)?fmt(mean(r.map(num).filter(ok).map(x=>x-R0))):''});
-  if(s.tipo==='rr'){const uclR=R.ser?.uclR;d.v.forEach((o,oi)=>{o.forEach((r,t)=>{const e=$(`#rm${oi}_${t}`);if(e)e.textContent=fmt(mean(r.map(num)))});const rs=[];for(let p=0;p<d.parts;p++){const c=o.map(r=>num(r[p]));const e=$(`#rr${oi}_${p}`);const v=c.every(ok)?rng(c):NaN;rs.push(v);if(e){e.textContent=ok(v)?fmt(v):'';e.classList.toggle('out',ok(uclR)&&v>uclR)}}const e=$('#rb'+oi);if(e)e.textContent=fmt(mean(rs))});
-    for(let p=0;p<d.parts;p++){const e=$('#pm'+p);if(e)e.textContent=fmt(mean(d.v.flatMap(o=>o.map(r=>num(r[p])))))}$('#pmT').textContent=fmt(mean(d.v.flat(2).map(num)))}
+  if(s.tipo==='est')d.m.forEach((r,i)=>{const a=r.map(num);const full=a.every(ok);const cx=$('#cx'+i),cr=$('#cr'+i);if(!cx)return;cx.textContent=full?fmt(mean(a),decimalPlaces(s)):'';cr.textContent=full?fmt(rng(a),decimalPlaces(s)):'';const fi=R.ser?d.m.slice(0,i).filter(rr=>rr.map(num).every(ok)).length:-1;cx.classList.toggle('out',!!(full&&R.ser&&R.ser.outX.includes(fi)));cr.classList.toggle('out',!!(full&&R.ser&&R.ser.outR.includes(fi)))});
+  if(s.tipo==='bias'){const ref=num(d.ref);d.v.forEach((v,i)=>{const e=$('#bb'+i);if(e)e.textContent=ok(num(v))&&ok(ref)?fmt(num(v)-ref,decimalPlaces(s)):''})}
+  if(s.tipo==='lin')d.v.forEach((r,i)=>{const R0=num(d.refs[i]);const e=$('#lb'+i);if(e)e.textContent=ok(R0)?fmt(mean(r.map(num).filter(ok).map(x=>x-R0)),decimalPlaces(s)):''});
+  if(s.tipo==='rr'){const uclR=R.ser?.uclR;d.v.forEach((o,oi)=>{o.forEach((r,t)=>{const e=$(`#rm${oi}_${t}`);if(e)e.textContent=fmt(mean(r.map(num)),decimalPlaces(s))});const rs=[];for(let p=0;p<d.parts;p++){const c=o.map(r=>num(r[p]));const e=$(`#rr${oi}_${p}`);const v=c.every(ok)?rng(c):NaN;rs.push(v);if(e){e.textContent=ok(v)?fmt(v,decimalPlaces(s)):'';e.classList.toggle('out',ok(uclR)&&v>uclR)}}const e=$('#rb'+oi);if(e)e.textContent=fmt(mean(rs),decimalPlaces(s))});
+    for(let p=0;p<d.parts;p++){const e=$('#pm'+p);if(e)e.textContent=fmt(mean(d.v.flatMap(o=>o.map(r=>num(r[p])))),decimalPlaces(s))}$('#pmT').textContent=fmt(mean(d.v.flat(2).map(num)),decimalPlaces(s))}
   if(s.tipo==='atr')d.ref.forEach((rv,p)=>{const e=$('#ag'+p);if(!e)return;const calls=d.v.flatMap(o=>o.map(r=>r[p]));if(rv===''||calls.some(c=>c===''))e.textContent='';else{const a=calls.every(c=>String(c)===String(rv));e.innerHTML=a?'<span class="c-ok">✔</span>':'<span class="c-bad">✘</span>'}});
   // painel de resultado
   const vc={Aprovado:['bg-ok c-ok','fa-circle-check'],Condicional:['bg-warn c-warn','fa-triangle-exclamation'],Reprovado:['bg-bad c-bad','fa-circle-xmark'],Incompleto:['bg-inc','fa-hourglass-half']}[R.status];
-  let extra='';if(s.tipo==='atr'&&R.ser)extra=`<table class="t" style="margin-top:12px;font-size:12.5px"><thead><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>F. alarme</th><th>Kappa</th></tr></thead><tbody>${R.ser.per.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td class="${p.eff>=S.cfg.effOk?'c-ok':p.eff>=S.cfg.effCond?'c-warn':'c-bad'}">${pct(p.eff)}</td><td class="${p.miss<=S.cfg.missOk?'c-ok':'c-bad'}">${pct(p.miss)}</td><td class="${p.fa<=S.cfg.faOk?'c-ok':'c-bad'}">${pct(p.fa)}</td><td class="${p.k>=S.cfg.kappaOk?'c-ok':p.k>=.4?'c-warn':'c-bad'}">${fmt(p.k,3)}</td></tr>`).join('')}</tbody></table>`;
-  $('#res').innerHTML=`<div class="verdict ${vc[0]}"><i class="fas ${vc[1]}"></i><div><b>${R.status}</b><small>${esc(R.msg||'')}</small></div></div><div class="res">${Object.entries(R.m||{}).map(([k,v])=>`<div class="m"><div class="k">${k}</div><div class="x">${fmtM(k,v)}</div></div>`).join('')}</div>${extra}<div class="legend" style="margin-top:12px">${criteria(s.tipo)}</div>`;
+   let extra='';if(s.tipo==='atr'&&R.ser)extra=`<table class="t" style="margin-top:12px;font-size:12.5px"><thead><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>F. alarme</th><th>Kappa</th></tr></thead><tbody>${R.ser.per.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td class="${p.eff>=S.cfg.effOk?'c-ok':p.eff>=S.cfg.effCond?'c-warn':'c-bad'}">${pct(p.eff,decimalPlaces(s))}</td><td class="${p.miss<=S.cfg.missOk?'c-ok':'c-bad'}">${pct(p.miss,decimalPlaces(s))}</td><td class="${p.fa<=S.cfg.faOk?'c-ok':'c-bad'}">${pct(p.fa,decimalPlaces(s))}</td><td class="${p.k>=S.cfg.kappaOk?'c-ok':p.k>=.4?'c-warn':'c-bad'}">${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</tbody></table>`;
+   $('#res').innerHTML=`<div class="verdict ${vc[0]}"><i class="fas ${vc[1]}"></i><div><b>${R.status}</b><small>${esc(R.msg||'')}</small></div></div>${s.simulado?'<div class="legend" style="margin:-4px 0 12px;color:var(--warn);font-weight:700"><i class="fas fa-flask"></i> DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</div>':''}<div class="res">${Object.entries(R.m||{}).map(([k,v])=>`<div class="m"><div class="k">${k}</div><div class="x">${fmtM(k,v,s)}</div>`).join('')}</div>${extra}<div class="legend" style="margin-top:12px">${criteria(s.tipo)}</div>`;
   drawCharts(s,R,'#chs');
 }
-function criteria(t){const c=S.cfg;return{est:'Critério: nenhum ponto fora dos limites de controle X̄ e R (sequência de 7 pontos de um lado = condicional).',bias:`Critério: t calculado ≤ t crítico (zero no IC 95%) e %Tendência ≤ ${c.biasMax}% da tolerância.`,lin:'Critério: inclinação (a) e intercepto (b) não significativos ao nível de 95% (|t| ≤ t crítico).',
-  rr:`Critério: %GRR ≤ ${c.grrOk}% aceitável · ${c.grrOk}–${c.grrCond}% condicional · > ${c.grrCond}% reprovado · ndc ≥ ${c.ndcMin}. Base: ${c.base==='tol'?'tolerância':'variação total'} (${c.k}σ).`,atr:`Critério: eficácia ≥ ${c.effOk}%, perda ≤ ${c.missOk}%, falso alarme ≤ ${c.faOk}%, Kappa ≥ ${c.kappaOk}.`}[t]}
-function chartCfgs(s,R){const X=R.ser;if(!X)return[];const lc=(d,c,extra={})=>Object.assign({data:d,borderColor:c,pointRadius:0,borderWidth:1.5,borderDash:[6,4],fill:false},extra);const base={maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}};
-  if(s.tipo==='est'){const lb=X.xb.map((_,i)=>i+1);return[
-    {t:'Carta X̄',c:{type:'line',data:{labels:lb,datasets:[{label:'X̄',data:X.xb,borderColor:'#0064B3',pointBackgroundColor:X.xb.map((_,i)=>X.outX.includes(i)?'#D23B3B':'#0064B3'),pointRadius:4,tension:0},lc(lb.map(()=>X.ucl),'#D23B3B',{label:'LSC'}),lc(lb.map(()=>X.X),'#2E9E4F',{label:'Média',borderDash:[]}),lc(lb.map(()=>X.lcl),'#D23B3B',{label:'LIC'})]},options:base}},
-    {t:'Carta R',c:{type:'line',data:{labels:lb,datasets:[{label:'R',data:X.rr,borderColor:'#C98A00',pointBackgroundColor:X.rr.map((_,i)=>X.outR.includes(i)?'#D23B3B':'#C98A00'),pointRadius:4},lc(lb.map(()=>X.uclR),'#D23B3B',{label:'LSC'}),lc(lb.map(()=>X.R),'#2E9E4F',{label:'R̄',borderDash:[]}),lc(lb.map(()=>X.lclR),'#D23B3B',{label:'LIC'})]},options:base}}]}
+function criteria(t){const c=S.cfg;return{est:'Critério: todos os subgrupos completos; 20 ou mais recomendados para avaliar estabilidade; nenhum ponto fora dos limites X̄/R e regra de 7 pontos.',bias:`Critério: teste t bilateral a 5%; com tolerância informada, %Tendência também deve respeitar o limite de ${c.biasMax}%.`,lin:'Critério: pelo menos 5 referências distintas e 2 leituras por referência; testes t da inclinação e do intercepto a 5%.',rr:`Critério local: %GRR ≤ ${c.grrOk}% aceitável · ${c.grrOk}–${c.grrCond}% condicional · > ${c.grrCond}% reprovado · ndc ≥ ${c.ndcMin}. Base: ${c.base==='tol'?'tolerância':'variação total'} (${c.k}σ); amplitude fora do LSC invalida o estudo.`,atr:`Critérios configuráveis: eficácia ≥ ${c.effOk}%, perda ≤ ${c.missOk}%, falso alarme ≤ ${c.faOk}%, Kappa ≥ ${c.kappaOk}; usar referências OK e NOK.`}[t]}
+function chartCfgs(s,R){const X=R.ser;if(!X)return[];const dp=decimalPlaces(s),ft=v=>fmt(+v,dp),pt=v=>`${ft(v)}%`;const lc=(d,c,extra={})=>Object.assign({data:d,borderColor:c,pointRadius:0,borderWidth:1.5,borderDash:[6,4],fill:false},extra);const base={maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>{const v=c.parsed?.y??c.parsed?.x,l=c.dataset.label||'';return ok(v)?`${l?l+': ':''}${l.includes('%')?pt(v):l==='Frequência'?v:ft(v)}`:l}}}}};
+   if(s.tipo==='est'){const lb=X.xb.map((_,i)=>i+1),options={...base,scales:{y:{ticks:{callback:ft}}}};return[
+     {t:'Carta X̄',c:{type:'line',data:{labels:lb,datasets:[{label:'X̄',data:X.xb,borderColor:'#0064B3',pointBackgroundColor:X.xb.map((_,i)=>X.outX.includes(i)?'#D23B3B':'#0064B3'),pointRadius:4,tension:0},lc(lb.map(()=>X.ucl),'#D23B3B',{label:'LSC'}),lc(lb.map(()=>X.X),'#2E9E4F',{label:'Média',borderDash:[]}),lc(lb.map(()=>X.lcl),'#D23B3B',{label:'LIC'})]},options}},
+     {t:'Carta R',c:{type:'line',data:{labels:lb,datasets:[{label:'R',data:X.rr,borderColor:'#C98A00',pointBackgroundColor:X.rr.map((_,i)=>X.outR.includes(i)?'#D23B3B':'#C98A00'),pointRadius:4},lc(lb.map(()=>X.uclR),'#D23B3B',{label:'LSC'}),lc(lb.map(()=>X.R),'#2E9E4F',{label:'R̄',borderDash:[]}),lc(lb.map(()=>X.lclR),'#D23B3B',{label:'LIC'})]},options}}]}
   if(s.tipo==='bias'){const v=X.v,mn=Math.min(...v,X.ref),mx=Math.max(...v,X.ref),bins=Math.max(5,Math.min(12,Math.ceil(Math.sqrt(v.length))+2)),w=(mx-mn)/bins||1;const cnt=Array(bins).fill(0);v.forEach(x=>cnt[Math.min(bins-1,Math.floor((x-mn)/w))]++);
-    return[{t:'Histograma das leituras',c:{type:'bar',data:{labels:cnt.map((_,i)=>fmt(mn+w*(i+.5),4)),datasets:[{label:'Frequência',data:cnt,backgroundColor:'rgba(0,100,179,.7)',borderRadius:4}]},options:{...base,plugins:{legend:{display:false}},scales:{y:{ticks:{precision:0}}}}}},
-      {t:'Leituras vs referência',c:{type:'line',data:{labels:v.map((_,i)=>i+1),datasets:[{label:'Leitura',data:v,borderColor:'#0064B3',pointRadius:3},lc(v.map(()=>X.ref),'#2E9E4F',{label:'Referência',borderDash:[]}),lc(v.map(()=>X.m),'#D23B3B',{label:'Média'})]},options:base}}]}
+     return[{t:'Histograma das leituras',c:{type:'bar',data:{labels:cnt.map((_,i)=>fmt(mn+w*(i+.5),dp)),datasets:[{label:'Frequência',data:cnt,backgroundColor:'rgba(0,100,179,.7)',borderRadius:4}]},options:{...base,plugins:{legend:{display:false}},scales:{y:{ticks:{precision:0}}}}}},
+       {t:'Leituras vs referência',c:{type:'line',data:{labels:v.map((_,i)=>i+1),datasets:[{label:'Leitura',data:v,borderColor:'#0064B3',pointRadius:3},lc(v.map(()=>X.ref),'#2E9E4F',{label:'Referência',borderDash:[]}),lc(v.map(()=>X.m),'#D23B3B',{label:'Média'})]},options:{...base,scales:{y:{ticks:{callback:ft}}}}}}]}
   if(s.tipo==='lin'){const xs=X.pts.map(p=>p[0]),mn=Math.min(...xs),mx=Math.max(...xs);const band=[];for(let i=0;i<=20;i++){const x=mn+(mx-mn)*i/20;const se=X.sres*Math.sqrt(1/X.N+(x-X.xm)**2/X.Sxx);band.push({x,y:X.a*x+X.b,lo:X.a*x+X.b-X.tc*se,hi:X.a*x+X.b+X.tc*se})}
-    return[{t:'Gráfico de linearidade (bias × referência)',c:{type:'scatter',data:{datasets:[{label:'Bias individual',data:X.pts.map(p=>({x:p[0],y:p[1]})),backgroundColor:'rgba(0,100,179,.45)',pointRadius:3},{label:'Bias médio',data:X.biasMeans.map(p=>({x:p[0],y:p[1]})),backgroundColor:'#D23B3B',pointRadius:6,pointStyle:'rectRot'},{type:'line',label:'Regressão',data:band.map(b=>({x:b.x,y:b.y})),borderColor:'#0064B3',pointRadius:0,borderWidth:2},{type:'line',label:'IC 95%',data:band.map(b=>({x:b.x,y:b.hi})),borderColor:'#9AA6B2',borderDash:[5,4],pointRadius:0,borderWidth:1},{type:'line',label:'',data:band.map(b=>({x:b.x,y:b.lo})),borderColor:'#9AA6B2',borderDash:[5,4],pointRadius:0,borderWidth:1},{type:'line',label:'Bias = 0',data:[{x:mn,y:0},{x:mx,y:0}],borderColor:'#2E9E4F',pointRadius:0,borderWidth:1.5}]},options:{...base,plugins:{legend:{position:'bottom',labels:{boxWidth:12,filter:i=>i.text}}}}}}]}
+     return[{t:'Gráfico de linearidade (bias × referência)',c:{type:'scatter',data:{datasets:[{label:'Bias individual',data:X.pts.map(p=>({x:p[0],y:p[1]})),backgroundColor:'rgba(0,100,179,.45)',pointRadius:3},{label:'Bias médio',data:X.biasMeans.map(p=>({x:p[0],y:p[1]})),backgroundColor:'#D23B3B',pointRadius:6,pointStyle:'rectRot'},{type:'line',label:'Regressão',data:band.map(b=>({x:b.x,y:b.y})),borderColor:'#0064B3',pointRadius:0,borderWidth:2},{type:'line',label:'IC 95%',data:band.map(b=>({x:b.x,y:b.hi})),borderColor:'#9AA6B2',borderDash:[5,4],pointRadius:0,borderWidth:1},{type:'line',label:'',data:band.map(b=>({x:b.x,y:b.lo})),borderColor:'#9AA6B2',borderDash:[5,4],pointRadius:0,borderWidth:1},{type:'line',label:'Bias = 0',data:[{x:mn,y:0},{x:mx,y:0}],borderColor:'#2E9E4F',pointRadius:0,borderWidth:1.5}]},options:{...base,plugins:{legend:{position:'bottom',labels:{boxWidth:12,filter:i=>i.text}}},scales:{x:{ticks:{callback:ft}},y:{ticks:{callback:ft}}}}}}]}
   if(s.tipo==='rr'){const d=s.dados,cols=['#0064B3','#C98A00','#2E9E4F'];const hasT=ok(X.GRRt);
-    return[{t:'Componentes de variação',c:{type:'bar',data:{labels:['EV (repetib.)','AV (reprodut.)','GRR','PV (peça)'],datasets:[{label:'% Variação total',data:[X.EVp,X.AVp,X.GRRp,X.PVp],backgroundColor:'#0064B3',borderRadius:5},...(hasT?[{label:'% Tolerância',data:[X.EVt,X.AVt,X.GRRt,X.PVt],backgroundColor:'#3D8FD0aa',borderRadius:5}]:[])]},options:{...base,scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}}},plugins:[refLines([S.cfg.grrOk,S.cfg.grrCond])]},
-      {t:'Médias por peça e operador',c:{type:'line',data:{labels:X.partM.map((_,i)=>'P'+(i+1)),datasets:X.pm.map((o,i)=>({label:d.opNames[i],data:o,borderColor:cols[i],backgroundColor:cols[i],pointRadius:4,tension:.2}))},options:base}}]}
-  if(s.tipo==='atr'){const p=X.per;return[{t:'Desempenho por avaliador',c:{type:'bar',data:{labels:p.map(x=>x.nome),datasets:[{label:'Eficácia %',data:p.map(x=>x.eff),backgroundColor:'#0064B3',borderRadius:5},{label:'Perda %',data:p.map(x=>x.miss),backgroundColor:'#D23B3B',borderRadius:5},{label:'Falso alarme %',data:p.map(x=>x.fa),backgroundColor:'#C98A00',borderRadius:5}]},options:{...base,scales:{y:{beginAtZero:true,max:100}}}}},
-    {t:'Kappa por avaliador',c:{type:'bar',data:{labels:p.map(x=>x.nome),datasets:[{label:'Kappa',data:p.map(x=>x.k),backgroundColor:p.map(x=>x.k>=S.cfg.kappaOk?'#2E9E4F':x.k>=.4?'#E0A400':'#D23B3B'),borderRadius:5}]},options:{...base,plugins:{legend:{display:false}},scales:{y:{min:0,max:1}}}},plugins:[refLines([S.cfg.kappaOk],'y',['#2E9E4F'])]}]}
+     return[{t:'Componentes de variação',c:{type:'bar',data:{labels:['EV (repetib.)','AV (reprodut.)','GRR','PV (peça)'],datasets:[{label:'% Variação total',data:[X.EVp,X.AVp,X.GRRp,X.PVp],backgroundColor:'#0064B3',borderRadius:5},...(hasT?[{label:'% Tolerância',data:[X.EVt,X.AVt,X.GRRt,X.PVt],backgroundColor:'#3D8FD0aa',borderRadius:5}]:[])]},options:{...base,scales:{y:{beginAtZero:true,ticks:{callback:v=>pt(v)}}}}},plugins:[refLines([S.cfg.grrOk,S.cfg.grrCond])]},
+       {t:'Médias por peça e operador',c:{type:'line',data:{labels:X.partM.map((_,i)=>'P'+(i+1)),datasets:X.pm.map((o,i)=>({label:d.opNames[i],data:o,borderColor:cols[i],backgroundColor:cols[i],pointRadius:4,tension:.2}))},options:{...base,scales:{y:{ticks:{callback:ft}}}}}}]}
+   if(s.tipo==='atr'){const p=X.per;return[{t:'Desempenho por avaliador',c:{type:'bar',data:{labels:p.map(x=>x.nome),datasets:[{label:'Eficácia %',data:p.map(x=>x.eff),backgroundColor:'#0064B3',borderRadius:5},{label:'Perda %',data:p.map(x=>x.miss),backgroundColor:'#D23B3B',borderRadius:5},{label:'Falso alarme %',data:p.map(x=>x.fa),backgroundColor:'#C98A00',borderRadius:5}]},options:{...base,scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>pt(v)}}}}}},
+      {t:'Kappa por avaliador',c:{type:'bar',data:{labels:p.map(x=>x.nome),datasets:[{label:'Kappa',data:p.map(x=>x.k),backgroundColor:p.map(x=>x.k>=S.cfg.kappaOk?'#2E9E4F':x.k>=.4?'#E0A400':'#D23B3B'),borderRadius:5}]},options:{...base,plugins:{legend:{display:false}},scales:{y:{min:0,max:1,ticks:{callback:ft}}}}},plugins:[refLines([S.cfg.kappaOk],'y',['#2E9E4F'])]}]}
   return[]}
 function drawCharts(s,R,sel){const box=$(sel);const cf=chartCfgs(s,R);Object.keys(charts).filter(k=>k.startsWith('ed')).forEach(kill);
   if(!cf.length){box.innerHTML='<div class="empty"><i class="fas fa-chart-area"></i>Os gráficos aparecem quando houver dados suficientes</div>';return}
@@ -591,47 +610,86 @@ function drawCharts(s,R,sel){const box=$(sel);const cf=chartCfgs(s,R);Object.key
 function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o código do estudo','fa-triangle-exclamation');return}
   if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){toast('Já existe um estudo com este código','fa-triangle-exclamation');return}
   saveStudy(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast('Estudo salvo · '+s.resultado.status);$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
-function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;markDirty();rParams();rGrid();recalc()})}
-function fillDemo(){simulate(V.edit,Math.random()<.65?'good':Math.random()<.5?'mid':'bad');if(!V.edit.lie){V.edit.lie='9.90';V.edit.lse='10.10'}markDirty();rEditor()}
+ function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
+ function fillDemo(){if(!simulate(V.edit))return;V.edit.simulado=true;rEditor();markDirty();const dp=decimalPlaces(V.edit);toast(`Simulação gerada com ${dp} ${dp===1?'casa decimal':'casas decimais'} — dados sintéticos, não são medição real`,'fa-flask')}
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&V.view==='editor'){e.preventDefault();saveEdit()}if(e.key==='Escape')closeModal()});
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
 /* ---------------- simulação de dados ---------------- */
-function simulate(s,q='good'){normalize(s);const d=s.dados,nom=10,T=0.2,f={good:.004,mid:.012,bad:.03}[q];const r=x=>r4(x).toFixed(4);
-  if(s.tipo==='est'){d.ref=String(nom);d.m=d.m.map((row,i)=>{const sh=q==='bad'&&i>d.g*.6?f*3:0;return row.map(()=>r(nom+sh+gauss()*f))})}
-  if(s.tipo==='bias'){const b={good:.001,mid:.01,bad:.03}[q];d.ref=String(nom);d.v=d.v.map(()=>r(nom+b+gauss()*f))}
-  if(s.tipo==='lin'){const sl={good:0,mid:.004,bad:.012}[q];d.refs=d.refs.map((_,i)=>String(r4(nom-T+i*(2*T/(d.g-1)))));d.v=d.v.map((row,i)=>{const R=num(d.refs[i]);return row.map(()=>r(R+sl*(R-nom)*10+gauss()*f*.6))})}
-  if(s.tipo==='rr'){const parts=Array.from({length:d.parts},()=>nom+gauss()*T/6);const opB=Array.from({length:d.ops},()=>gauss()*f*.7);d.v=d.v.map((o,oi)=>o.map(row=>row.map((_,p)=>r(parts[p]+opB[oi]+gauss()*f))))}
-  if(s.tipo==='atr'){const err={good:.02,mid:.07,bad:.16}[q];d.ref=d.ref.map(()=>Math.random()<.7?'1':'0');d.v=d.v.map(o=>o.map(row=>row.map((_,p)=>Math.random()<err?String(1-+d.ref[p]):d.ref[p])))}
-  return s}
-function seed(){const inst=[['PAQ-001','Paquímetro digital 150mm','Paquímetro','Mitutoyo',0.01,'Usinagem',40],['MIC-002','Micrômetro externo 0-25mm','Micrômetro','Mitutoyo',0.001,'Usinagem',12],['REL-003','Relógio comparador','Relógio','Starrett',0.001,'Montagem',-5],['CMM-004','Máquina de medição 3D','CMM','Zeiss',0.0001,'Metrologia',160],['CAL-005','Calibrador tampão P/NP Ø10','Calibrador','Digimess','', 'Inspeção',25]].map(a=>({id:uid(),codigo:a[0],descricao:a[1],tipo:a[2],fabricante:a[3],resolucao:String(a[4]),area:a[5],unidade:'mm',serie:'SN'+Math.floor(Math.random()*1e5),ultCal:new Date(Date.now()-(365-a[6])*864e5).toISOString().slice(0,10),proxCal:new Date(Date.now()+a[6]*864e5).toISOString().slice(0,10),status:'Ativo'}));
+ function simulate(s,q='good'){
+   normalize(s);const d=s.dados,lo=num(s.lie),hi=num(s.lse),T=tol(s),mid=ok(T)?(lo+hi)/2:NaN;
+    const digits=decimalPlaces(s),resolution=10**-digits;
+    const r=x=>Number.isFinite(x)?x.toFixed(digits):'';
+   const offsets=(n,a)=>Array.from({length:n},(_,i)=>n<2?0:((2*i)/(n-1)-1)*a);
+   const fail=msg=>{toast(msg,'fa-triangle-exclamation');return false};
+   const refFor=()=>{
+     const entered=num(d.ref),ref=ok(entered)?entered:mid;
+     if(!ok(ref))return NaN;
+     if(!ok(entered))d.ref=r(ref);
+     return ref;
+   };
+   if(s.tipo==='est'){
+     const ref=refFor();if(!ok(ref))return fail('Informe um valor de referência ou limites LIE/LSE válidos antes de simular.');
+      const amp=Math.max(ok(T)&&T>0?T*.0005:Math.max(Math.abs(ref),1)*1e-7,resolution);
+     const group=[0,1,-1,.35,-.35,.7,-.7,.2,-.2,.55,-.55];
+     d.m=d.m.map((row,i)=>row.map((_,j)=>r(ref+group[i%group.length]*amp*.08+offsets(row.length,amp)[j])));
+   }
+   if(s.tipo==='bias'){
+     const ref=refFor();if(!ok(ref))return fail('Informe o valor de referência ou limites LIE/LSE válidos antes de simular.');
+      const amp=Math.max(ok(T)&&T>0?T*.0005:Math.max(Math.abs(ref),1)*1e-7,resolution*.55),off=offsets(d.n,amp);
+     d.v=d.v.map((_,i)=>r(ref+off[i]));
+   }
+   if(s.tipo==='lin'){
+     const refs=d.refs.map(num),valid=refs.filter(ok);
+     if(valid.length>=2&&new Set(valid).size<2)return fail('A linearidade exige pelo menos duas referências diferentes; revise os valores informados.');
+     if(valid.length<2&&!ok(T))return fail('Informe ao menos duas referências ou LIE/LSE válidos antes de simular linearidade.');
+     const min=valid.length>=2?Math.min(...valid):lo,max=valid.length>=2?Math.max(...valid):hi;
+      d.refs=d.refs.map((v,i)=>ok(num(v))?v:(valid.length>=2?r(min+(max-min)*i/(d.g-1)):r(lo+T*i/(d.g-1))));
+      const amp=Math.max(ok(T)&&T>0?T*.0005:Math.max(Math.abs(max-min),Math.abs(mean(d.refs.map(num))),1)*1e-7,resolution*.55);
+     d.v=d.v.map((row,i)=>{const ref=num(d.refs[i]),off=offsets(row.length,amp);return row.map((_,j)=>r(ref+off[j]))});
+   }
+   if(s.tipo==='rr'){
+     if(!ok(T)||T<=0)return fail('Informe limites LIE e LSE válidos antes de simular R&R variável.');
+     const parts=Array.from({length:d.parts},(_,p)=>lo+T*(.15+.7*p/Math.max(1,d.parts-1)));
+      const opOffsets=offsets(d.ops,Math.max(T*.0002,resolution*.25));
+     d.v=d.v.map((o,oi)=>o.map((row,trial)=>row.map((_,p)=>{
+        const jitter=Math.sin((oi+1)*17+(trial+1)*11+(p+1)*7)*Math.max(T*.0002,resolution*.55);
+       return r(parts[p]+opOffsets[oi]+jitter);
+     })));
+   }
+   if(s.tipo==='atr'){
+     d.ref=d.ref.map((v,i)=>(v==='0'||v===0||v==='1'||v===1)?String(v):String(i%2===0?1:0));
+     d.v=d.v.map(o=>o.map(row=>row.map((_,p)=>String(d.ref[p]))));
+   }
+   return s}
+ function seed(){const inst=[['PAQ-001','Paquímetro digital 150mm','Paquímetro','Mitutoyo',0.01,'Usinagem',40],['MIC-002','Micrômetro externo 0-25mm','Micrômetro','Mitutoyo',0.001,'Usinagem',12],['REL-003','Relógio comparador','Relógio','Starrett',0.001,'Montagem',-5],['CMM-004','Máquina de medição 3D','CMM','Zeiss',0.0001,'Metrologia',160],['CAL-005','Calibrador tampão P/NP Ø10','Calibrador','Digimess','', 'Inspeção',25]].map(a=>({id:uid(),codigo:a[0],descricao:a[1],tipo:a[2],fabricante:a[3],resolucao:String(a[4]),area:a[5],unidade:'mm',serie:'SN'+Math.floor(Math.random()*1e5),ultCal:new Date(Date.now()-(365-a[6])*864e5).toISOString().slice(0,10),proxCal:new Date(Date.now()+a[6]*864e5).toISOString().slice(0,10),status:'Ativo'}));
   const names=['Ana Souza','Carlos Lima','Juliana Reis','Marcos Silva'],feats=[['Eixo 4520','Diâmetro Ø10'],['Bucha 1180','Diâmetro interno'],['Flange F-22','Espessura'],['Pino P-07','Comprimento'],['Carcaça C-3','Altura']];
   const plan=['rr','rr','rr','rr','rr','bias','bias','lin','lin','est','est','atr','atr','rr','bias','est'];
   plan.forEach((t,i)=>{const s=newStudy(t);const ins=t==='atr'?inst[4]:inst[i%4];const ft=feats[i%feats.length];Object.assign(s,{nome:ft[0],caracteristica:ft[1],instrumentoTxt:ins.codigo+' — '+ins.descricao,area:ins.area,lie:'9.90',lse:'10.10',responsavel:names[i%4],data:new Date(Date.now()-Math.floor(Math.random()*330)*864e5).toISOString().slice(0,10)});
-    simulate(s,i%5===3?'bad':i%4===2?'mid':'good');if(i===15)s.dados.v=s.dados.v.map((x,j)=>j>8?'':x);saveStudy(s)});
+     simulate(s,i%5===3?'bad':i%4===2?'mid':'good');s.simulado=true;if(i===15)s.dados.m=s.dados.m.map((row,j)=>j>8?Array(s.dados.n).fill(''):row);saveStudy(s)});
   toast('Dados de exemplo carregados');render()}
 
 
 /* ---------------- CONFIGURAÇÕES ---------------- */
-function rCfg(){const c=S.cfg;const f=(k,l,t='number',st='any')=>`<div><label class="l">${l}</label><input class="f" data-c="${k}" type="${t}" step="${st}" value="${esc(c[k])}"></div>`;
+function rCfg(){const c=S.cfg,dec=Number.isInteger(+c.decimais)?Math.max(0,Math.min(8,+c.decimais)):4;const f=(k,l,t='number',st='any')=>`<div><label class="l">${l}</label><input class="f" data-c="${k}" type="${t}" step="${st}" value="${esc(c[k])}"></div>`;
   $('#main').innerHTML=`<div class="fade"><div class="top"><div><h1>Configurações</h1><div class="sub">Critérios de aceitação, empresa, sincronização e backup</div></div></div>
-  <div class="grid g2"><div class="card"><h3><i class="fas fa-building c-brand"></i>Empresa e relatórios</h3><div class="form">${f('empresa','Nome da empresa (aparece nos relatórios)','text')}${f('diasAviso','Aviso de calibração (dias antes)')}</div></div>
+   <div class="grid g2"><div class="card"><h3><i class="fas fa-building c-brand"></i>Empresa e relatórios</h3><div class="form">${f('empresa','Nome da empresa (aparece nos relatórios)','text')}${f('diasAviso','Aviso de calibração (dias antes)')}<div><label class="l">Casas decimais padrão para novos estudos</label><select class="f" data-c="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${dec===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select><small class="legend">Cada estudo pode ter uma precisão própria no editor. As medições já digitadas não são arredondadas.</small></div></div></div>
   <div class="card"><h3><i class="fas fa-users c-brand"></i>R&amp;R Variável</h3><div class="form">${f('grrOk','%GRR aceitável até')}${f('grrCond','%GRR condicional até')}${f('ndcMin','ndc mínimo')}<div><label class="l">Base do %GRR</label><select class="f" data-c="base"><option value="tv" ${c.base==='tv'?'selected':''}>Variação total (VT)</option><option value="tol" ${c.base==='tol'?'selected':''}>Tolerância</option></select></div><div><label class="l">Multiplicador σ (tolerância)</label><select class="f" data-c="k"><option value="6" ${c.k==6?'selected':''}>6σ (99,73%)</option><option value="5.15" ${c.k==5.15?'selected':''}>5,15σ (99%)</option></select></div></div></div>
   <div class="card"><h3><i class="fas fa-check-double c-brand"></i>R&amp;R Atributo</h3><div class="form">${f('effOk','Eficácia aceitável ≥ %')}${f('effCond','Eficácia condicional ≥ %')}${f('missOk','Taxa de perda ≤ %')}${f('faOk','Falso alarme ≤ %')}${f('kappaOk','Kappa mínimo')}</div></div>
   <div class="card"><h3><i class="fas fa-bullseye c-brand"></i>Tendência</h3><div class="form">${f('biasMax','%Tendência máx. sobre tolerância')}</div></div>
   <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
   <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
   <div style="margin-top:16px;text-align:right"><button class="btn pri" onclick="saveCfg()"><i class="fas fa-floppy-disk"></i>Salvar configurações</button></div></div>`;$('#imp2').onchange=importJSON}
-function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'?+e.value:e.value});
+function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'||k==='decimais'?+e.value:e.value;if(k==='decimais')S.cfg[k]=Math.max(0,Math.min(8,Math.round(+e.value||0)))});
   S.studies.forEach(s=>s.resultado=calc(s));persist();if(S.cfg.cloud&&!was)initCloud();if(!S.cfg.cloud&&was){db=null;setSync(false)}toast('Configurações salvas · estudos recalculados')}
 function wipe(){confirmBox('Apagar <b>todos</b> os estudos e instrumentos? Recomendamos baixar um backup antes.',()=>{S.studies.forEach(s=>cloudDel('msapro_estudos',s.id));S.instruments.forEach(i=>cloudDel('msapro_instrumentos',i.id));S.studies=[];S.instruments=[];persist();toast('Dados apagados','fa-trash');render()})}
 
 /* ---------------- exportação / importação ---------------- */
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 function exportJSON(){download(`msa_backup_${today()}.json`,JSON.stringify({versao:1,exportadoEm:new Date().toISOString(),...S},null,1),'application/json');toast('Backup baixado','fa-download')}
-function exportCSV(ids){const L=ids?S.studies.filter(s=>ids.includes(s.id)):filtered();const cols=['Código','Tipo','Peça','Característica','Instrumento','Área','Data','Responsável','LIE','LSE','Status','Resultado','Mensagem'];
+ function exportCSV(ids){const L=ids?S.studies.filter(s=>ids.includes(s.id)):filtered();const cols=['Código','Tipo','Peça','Característica','Instrumento','Área','Data','Responsável','LIE','LSE','Casas decimais','Status','Origem dos dados','Resultado','Mensagem'];
   const allM=[...new Set(L.flatMap(s=>Object.keys(s.resultado?.m||{})))];const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const rows=L.map(s=>[s.codigo,TYPES[s.tipo].n,s.nome,s.caracteristica,instrName(s),s.area,fdate(s.data),s.responsavel,s.lie,s.lse,s.resultado?.status,s.resultado?.chave,s.resultado?.msg,...allM.map(k=>{const v=s.resultado?.m?.[k];return ok(v)?String(+v.toFixed(6)).replace('.',','):''})].map(q).join(';'));
+   const rows=L.map(s=>{s.resultado=calc(s);const R=s.resultado;return[s.codigo,TYPES[s.tipo].n,s.nome,s.caracteristica,instrName(s),s.area,fdate(s.data),s.responsavel,s.lie,s.lse,decimalPlaces(s),R.status,s.simulado?'SIMULAÇÃO':'Registrado/manual',R.chave,R.msg,...allM.map(k=>{const v=R.m?.[k];return ok(v)?String(+v.toFixed(decimalPlaces(s))).replace('.',','):''})].map(q).join(';')});
   download(`msa_estudos_${today()}.csv`,'\ufeff'+[cols.concat(allM).map(q).join(';'),...rows].join('\n'),'text/csv');toast(`${L.length} estudo(s) exportado(s)`,'fa-file-csv')}
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.studies))throw 0;
   confirmBox(`Importar <b>${d.studies.length}</b> estudo(s) e <b>${(d.instruments||[]).length}</b> instrumento(s)? Itens com o mesmo identificador serão atualizados.`,()=>{(d.instruments||[]).forEach(saveInstr);d.studies.forEach(s=>saveStudy(s));if(d.cfg)Object.assign(S.cfg,d.cfg,{cloud:S.cfg.cloud});persist();toast('Backup importado');render()})}catch(x){toast('Arquivo inválido','fa-triangle-exclamation')}};r.readAsText(f);e.target.value=''}
@@ -641,40 +699,119 @@ function openPrint(){const L=dashSet();modal(`<div class="mh"><h3>Imprimir</h3><
   <div class="type" onclick="closeModal();printSummary()"><i class="fas fa-file-lines"></i><b>Relatório gerencial</b><small>KPIs e lista de estudos do período (${L.length})</small></div>
   <div class="type" onclick="closeModal();printStudies(dashSet().map(s=>s.id))"><i class="fas fa-copy"></i><b>Todos os estudos</b><small>Relatório completo de cada estudo (${L.length})</small></div>
   <div class="type" onclick="closeModal();go('estudos')"><i class="fas fa-list-check"></i><b>Escolher estudos</b><small>Selecione na lista e clique em Imprimir</small></div></div></div>`)}
-function chartImg(cfg){const cv=$('#printCanvas');const c=JSON.parse(JSON.stringify(cfg.c,(k,v)=>typeof v==='function'?undefined:v));c.plugins=cfg.c.plugins;c.options=Object.assign({},c.options,{animation:false,responsive:false,maintainAspectRatio:false,devicePixelRatio:2});
+function chartImg(cfg,w=520,h=360,fs=14){const cv=$('#printCanvas');cv.width=w;cv.height=h;const c=JSON.parse(JSON.stringify(cfg.c,(k,v)=>typeof v==='function'?undefined:v));c.plugins=cfg.c.plugins;c.options=Object.assign({},c.options,{animation:false,responsive:false,maintainAspectRatio:false,devicePixelRatio:2,font:{size:fs,family:"'DM Sans',Arial,sans-serif"}});
   if(cfg.c.options?.plugins?.legend?.labels?.filter){c.options.plugins.legend.labels.filter=cfg.c.options.plugins.legend.labels.filter}
+  if(cfg.c.options?.plugins?.tooltip?.callbacks){c.options.plugins.tooltip.callbacks=cfg.c.options.plugins.tooltip.callbacks}
+  Object.entries(cfg.c.options?.scales||{}).forEach(([axis,sc])=>{if(sc.ticks?.callback){c.options.scales=c.options.scales||{};c.options.scales[axis]=c.options.scales[axis]||{};c.options.scales[axis].ticks=c.options.scales[axis].ticks||{};c.options.scales[axis].ticks.callback=sc.ticks.callback}});
   const ch=new Chart(cv,c);const url=cv.toDataURL('image/png');ch.destroy();return url}
-const RPT_CSS=`body{font-family:'DM Sans',Arial,sans-serif;color:#1E2B37;margin:0;font-size:11.5px}h1,h2,h3{font-family:'Space Grotesk',Arial;margin:0}.pg{padding:18mm 14mm;page-break-after:always}.pg:last-child{page-break-after:auto}
-.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0064B3;padding-bottom:8px;margin-bottom:12px}.hd h1{font-size:18px;color:#004F8D}.hd small{color:#5B6773}
+const RPT_CSS=`*{box-sizing:border-box}
+body{font-family:'DM Sans',Arial,sans-serif;color:#1E2B37;margin:0;font-size:11.5px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1,h2,h3{font-family:'Space Grotesk',Arial;margin:0}
+@page{size:A4 portrait;margin:14mm 12mm 16mm 12mm;@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}@bottom-left{content:'MSA Pro · AIAG MSA 4ª edição';font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}}
+.pg{break-after:page;page-break-after:always}.pg:last-child{break-after:auto;page-break-after:auto}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0064B3;padding-bottom:8px;margin-bottom:12px;break-inside:avoid;break-after:avoid}.hd h1{font-size:18px;color:#004F8D}.hd small{color:#5B6773}
 table{width:100%;border-collapse:collapse;margin:6px 0 10px}td,th{border:1px solid #C9D6E2;padding:4px 6px;text-align:left}th{background:#EEF4FA;font-size:10.5px}
-.info td:nth-child(odd){background:#F5F8FB;font-weight:700;width:16%}.v{padding:10px 14px;border-radius:8px;font-weight:700;font-size:14px;margin:8px 0}.Aprovado{background:#E6F6EA;color:#2E9E4F}.Condicional{background:#FFF6DB;color:#9A6A00}.Reprovado{background:#FDEAEA;color:#D23B3B}.Incompleto{background:#EEF1F4;color:#7A8794}
-.mt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}.mt div{border:1px solid #C9D6E2;border-radius:6px;padding:5px 7px}.mt b{display:block;font-size:13px}.mt span{font-size:9.5px;color:#5B6773;text-transform:uppercase}
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:8px}.charts img{width:100%;border:1px solid #E1E8EF;border-radius:6px}.dt td,.dt th{text-align:center;font-size:9.5px;padding:2px 3px}h3{font-size:12.5px;margin:12px 0 4px;color:#004F8D}
-.sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;margin-top:34px;text-align:center}.sig div{border-top:1px solid #1E2B37;padding-top:4px}.ft{color:#7A8794;font-size:9.5px;margin-top:14px;text-align:right}
-@page{size:A4;margin:0}@media print{.np{display:none}}.np{position:fixed;top:10px;right:10px}.np button{padding:10px 16px;background:#0064B3;color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer}`;
+thead{display:table-header-group}tr,img{break-inside:avoid;page-break-inside:avoid}
+.info{break-inside:avoid}.info td:nth-child(odd){background:#F5F8FB;font-weight:700;width:16%}
+.v{padding:10px 14px;border-radius:8px;font-weight:700;font-size:14px;margin:10px 0 6px;break-inside:avoid;break-after:avoid;border:1px solid currentColor}
+.Aprovado{background:#E6F6EA;color:#2E9E4F}.Condicional{background:#FFF6DB;color:#9A6A00}.Reprovado{background:#FDEAEA;color:#D23B3B}.Incompleto{background:#EEF1F4;color:#7A8794}
+.legend{font-size:10.5px;color:#5B6773;margin:4px 0 6px}
+.mt{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0 12px}.mt div{border:1px solid #C9D6E2;border-radius:6px;padding:5px 7px;break-inside:avoid}.mt b{display:block;font-size:13.5px}.mt span{font-size:10px;color:#5B6773;text-transform:uppercase}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 12px}.charts>div{break-inside:avoid;page-break-inside:avoid}.charts>div:only-child{grid-column:1/-1}.charts img{display:block;width:100%;height:auto;border:1px solid #E1E8EF;border-radius:6px}
+.dt td,.dt th{text-align:center;font-size:10px;padding:3px 4px}
+h3{font-size:13px;margin:14px 0 4px;color:#004F8D;break-after:avoid;page-break-after:avoid}
+.rr th{background:#004F8D;color:#fff;border-color:#004F8D;font-size:10px;text-transform:none}.rr th.opn0{width:7%}
+.rr .opn{background:#004F8D;color:#fff;width:22px;padding:2px;border-color:#fff;font-weight:700}.rr .vt{writing-mode:vertical-rl;transform:rotate(180deg);margin:0 auto;letter-spacing:1px;text-transform:uppercase;font-size:10px;white-space:nowrap}
+.rr .rl{background:#EEF4FA;font-weight:700;white-space:nowrap}.rr .mc{background:#F5F8FB;font-weight:700;white-space:nowrap}
+.rr .rm td{background:#E3EDF7;font-weight:700}.rr .ra td{background:#F5F8FB}.rr .ra td.bad{color:#D23B3B;font-weight:700}.rr .rm td.mc,.rr .ra td.mc,.rr .rm td.rl,.rr .ra td.rl{background:#D5E3F2}
+.rr .rp td{background:#004F8D;color:#fff;font-weight:700;border-color:#004F8D}.rr .rp td.mc{background:#003B6B;color:#fff}.rr tbody.opg{break-inside:avoid;page-break-inside:avoid}.rr sub{font-size:8px}
+.rch2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cb{margin-bottom:8px;break-inside:avoid}.ct{background:#004F8D;color:#fff;text-align:center;font:700 11px 'Space Grotesk',Arial;padding:4px;border-radius:4px 4px 0 0}.cb img{display:block;width:100%;height:62mm;object-fit:fill;border:1px solid #C9D6E2;border-radius:4px}.cb.wide img{height:58mm}.rch2{break-inside:avoid}.land .cb img{break-inside:auto;page-break-inside:auto;break-before:avoid}
+.land .hd h1{font-size:17px}.hdr{text-align:right}.hdr b{display:block;font:700 15px 'Space Grotesk',Arial;color:#004F8D}
+.land .info td{padding:3px 6px;font-size:10.5px}.land .info td:nth-child(odd){width:9%;white-space:nowrap}
+.land .v{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 12px;font-size:13px;margin:6px 0 4px}.land .v .vm{font-size:11px;font-weight:700}
+.sim{font-size:9.5px;font-weight:700;color:#9A6A00;margin-bottom:4px}
+h3 small{font:400 10px 'DM Sans',Arial;color:#5B6773}
+.rr{table-layout:fixed;margin-top:4px}.rr td{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}.rr th.opn0{width:30px}.rr thead tr:first-child th:nth-child(2){width:62px}.rr thead tr:first-child th:last-child{width:92px}.rr .mc{text-align:right}
+.rrc{display:grid;grid-template-columns:1.5fr .85fr 1.15fr;gap:10px;align-items:start}.rrc table{margin:0 0 6px}
+.cal th{background:#004F8D;color:#fff;font-size:10px;text-align:center;border-color:#004F8D}.cal th small{font-weight:400;opacity:.85}.cal th.sm{font-size:8.5px;font-weight:400;background:#1A66A3}.cal td{font-size:10px;padding:3px 6px}.cal td small{color:#5B6773}.cal .sy{font-weight:700;white-space:nowrap;width:46px}.cal .vl{text-align:right;font-weight:700;background:#F5F8FB;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cal.k td{text-align:center;padding:2.5px 4px;font-variant-numeric:tabular-nums}.cal.k td.u{background:#FFE58A;font-weight:700}.kn{font-size:9px;color:#5B6773}.cal tr.nd td{background:#EEF4FA}
+.res{margin-top:4px}.res th{background:#004F8D;color:#fff;font-size:11.5px;text-align:center;padding:5px;border-color:#004F8D}.res td{font-size:11.5px;font-weight:700;text-align:center;padding:5px}.res td.rb{background:#EEF4FA;color:#004F8D;width:18%;text-transform:uppercase}.res td.rv{width:14%;font-variant-numeric:tabular-nums}
+.land .crit{margin-top:4px}.land .obs{font-size:10px;margin-top:6px}.land .obs b{color:#004F8D}.land .sig{margin-top:26px}
+.land{page:land}@page land{size:A4 landscape;margin:10mm 10mm 12mm;@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}@bottom-left{content:'MSA Pro · AIAG MSA 4ª edição';font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}}
+@media screen{.pg.land{width:297mm;min-height:210mm;padding:10mm}}
+.crit{font-size:10px;color:#5B6773;break-inside:avoid}.obs{break-inside:avoid}
+.sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;margin-top:34px;text-align:center;break-inside:avoid;page-break-inside:avoid}.sig div{border-top:1px solid #1E2B37;padding-top:4px;min-height:34px}
+.ft{color:#7A8794;font-size:9.5px;margin-top:14px;text-align:right}
+.np{position:fixed;top:10px;right:10px;z-index:9}.np button{padding:10px 16px;background:#0064B3;color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer}
+@media screen{body{background:#E9EDF2}.pg{width:210mm;min-height:297mm;margin:12px auto;padding:14mm 12mm;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15)}}
+@media print{.np{display:none}body{background:#fff}.pg{padding:0;margin:0;width:auto;box-shadow:none}}`;
+
 function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
-  if(s.tipo==='est')return`<table class="dt"><tr><th>#</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr>${d.m.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td>${fmt(mean(r.map(num)))}</td><td>${r.map(num).every(ok)?fmt(rng(r.map(num))):''}</td></tr>`).join('')}</table>`;
+  if(s.tipo==='est')return`<table class="dt"><tr><th>#</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr>${d.m.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td>${fmt(mean(r.map(num)),decimalPlaces(s))}</td><td>${r.map(num).every(ok)?fmt(rng(r.map(num)),decimalPlaces(s)):''}</td></tr>`).join('')}</table>`;
   if(s.tipo==='bias')return`<table class="dt"><tr><th>Leitura</th>${d.v.map((_,i)=>`<th>${i+1}</th>`).join('')}</tr><tr><td>Valor</td>${d.v.map(v=>`<td>${c(v)}</td>`).join('')}</tr></table><div>Valor de referência: <b>${esc(d.ref)}</b></div>`;
   if(s.tipo==='lin')return`<table class="dt"><tr><th>Peça</th><th>Ref.</th>${Array.from({length:d.m},(_,j)=>`<th>L${j+1}</th>`).join('')}</tr>${d.v.map((r,i)=>`<tr><td>${i+1}</td><td><b>${c(d.refs[i])}</b></td>${r.map(v=>`<td>${c(v)}</td>`).join('')}</tr>`).join('')}</table>`;
-  if(s.tipo==='rr')return`<table class="dt"><tr><th>Op.</th><th>Ciclo</th>${Array.from({length:d.parts},(_,p)=>`<th>P${p+1}</th>`).join('')}</tr>${d.v.map((o,oi)=>o.map((r,t)=>`<tr><td>${t?'':esc(d.opNames[oi])}</td><td>${t+1}</td>${r.map(v=>`<td>${c(v)}</td>`).join('')}</tr>`).join('')).join('')}</table>`;
-  if(s.tipo==='atr'){const per=s.resultado?.ser?.per||[];return`<table class="dt"><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>Falso alarme</th><th>Kappa</th></tr>${per.map(p=>`<tr><td>${esc(p.nome)}</td><td>${pct(p.eff)}</td><td>${pct(p.miss)}</td><td>${pct(p.fa)}</td><td>${fmt(p.k,3)}</td></tr>`).join('')}</table>
+  if(s.tipo==='rr'){const dp=decimalPlaces(s),f=x=>ok(x)?fxd(x,dp):'',c=v=>{const n=num(v);return v===''||v==null?'':ok(n)?fxd(n,dp):esc(v)},P=d.parts,T=d.trials,uc=s.resultado?.ser?.uclR;
+    const V=d.v.map(o=>o.map(r=>r.map(num)));const pm=[],pr=[];
+    V.forEach((o,oi)=>{pm[oi]=[];pr[oi]=[];for(let p=0;p<P;p++){const col=o.map(r=>r[p]);pm[oi][p]=mean(col);pr[oi][p]=rng(col)}});
+    const pc=Array.from({length:P},(_,p)=>mean(pm.map(o=>o[p]))),Xg=mean(pc),Rp=rng(pc);
+    const head=`<thead><tr><th rowspan="2" class="opn0">Op.</th><th rowspan="2">Repetição</th><th colspan="${P}">AMOSTRAS</th><th rowspan="2">Médias</th></tr><tr>${Array.from({length:P},(_,p)=>`<th>${p+1}</th>`).join('')}</tr></thead>`;
+    const body=V.map((o,oi)=>{const L=String.fromCharCode(97+oi),Xo=mean(pm[oi]),Ro=mean(pr[oi]);
+      const rows=o.map((r,t)=>`<tr>${t?'':`<td class="opn" rowspan="${T+2}"><div class="vt">${esc(d.opNames[oi])}</div></td>`}<td class="rl">${t+1}</td>${r.map((_,p)=>`<td>${c(d.v[oi][t][p])}</td>`).join('')}<td class="mc">${f(mean(r))}</td></tr>`).join('');
+      const med=`<tr class="rm"><td class="rl">Média</td>${pm[oi].map(x=>`<td>${f(x)}</td>`).join('')}<td class="mc">X̄<sub>${L}</sub> ${f(Xo)}</td></tr>`;
+      const amp=`<tr class="ra"><td class="rl">Amplitude</td>${pr[oi].map(x=>`<td${ok(uc)&&ok(x)&&x>uc?' class="bad"':''}>${f(x)}</td>`).join('')}<td class="mc">R̄<sub>${L}</sub> ${f(Ro)}</td></tr>`;
+      return`<tbody class="opg">${rows}${med}${amp}</tbody>`}).join('');
+    const foot=`<tbody class="opg"><tr class="rp"><td colspan="2">Média da peça</td>${pc.map(x=>`<td>${f(x)}</td>`).join('')}<td class="mc">X̿ ${f(Xg)}<br>R<sub>p</sub> ${f(Rp)}</td></tr></tbody>`;
+    return`<table class="dt rr">${head}${body}${foot}</table>`}
+  if(s.tipo==='atr'){const per=s.resultado?.ser?.per||[];return`<table class="dt"><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>Falso alarme</th><th>Kappa</th></tr>${per.map(p=>`<tr><td>${esc(p.nome)}</td><td>${pct(p.eff,decimalPlaces(s))}</td><td>${pct(p.miss,decimalPlaces(s))}</td><td>${pct(p.fa,decimalPlaces(s))}</td><td>${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</table>
     <table class="dt"><tr><th>Peça</th><th>Ref</th>${d.v.map((o,oi)=>o.map((_,t)=>`<th>${esc(d.opNames[oi])}${t+1}</th>`).join('')).join('')}</tr>${d.ref.map((r,p)=>`<tr><td>${p+1}</td><td><b>${c(r)}</b></td>${d.v.map(o=>o.map(rr=>`<td>${c(rr[p])}</td>`).join('')).join('')}</tr>`).join('')}</table>`}}
-function reportPage(s){const R=calc(s);s.resultado=R;const imgs=chartCfgs(s,R).map(c=>`<div><div style="font-weight:700;font-size:10.5px;margin-bottom:2px">${c.t}</div><img src="${chartImg(c)}"></div>`).join('');const i=instrOf(s);
+function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=v=>fxd(+v,dp),cols=['#0064B3','#C98A00','#2E9E4F'],lb=Array.from({length:P},(_,i)=>String(i+1));
+  const pr=d.v.map(o=>Array.from({length:P},(_,p)=>rng(o.map(r=>num(r[p]))))),bs={maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}},flat=pr.flat();
+  const A={type:'line',data:{labels:lb.map(x=>'P'+x),datasets:X.pm.map((o,i)=>({label:d.opNames[i],data:o,borderColor:cols[i],backgroundColor:cols[i],pointRadius:3,tension:.2}))},options:{...bs,scales:{y:{ticks:{callback:ft}}}}};
+  const B={type:'bar',data:{labels:lb,datasets:pr.map((o,i)=>({label:d.opNames[i],data:o,backgroundColor:cols[i]}))},options:{...bs,scales:{y:{beginAtZero:true,ticks:{callback:ft}}}}};
+  const C={type:'line',data:{labels:flat.map((_,i)=>String(i%P+1)),datasets:[{label:'Amplitude',data:flat,borderColor:'#0064B3',backgroundColor:'#0064B3',pointRadius:2.5,borderWidth:1.5},{label:'LSC',data:flat.map(()=>X.uclR),borderColor:'#D23B3B',borderDash:[6,4],pointRadius:0,borderWidth:1.5}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}}},layout:{padding:{bottom:18}},scales:{y:{beginAtZero:true,ticks:{callback:ft}},x:{ticks:{autoSkip:false,maxRotation:0,font:{size:10}}}}},
+    plugins:[{id:'opn',afterDraw(ch){const a=ch.chartArea,w=(a.right-a.left)/d.ops,x=ch.ctx;x.save();x.strokeStyle='#C9D6E2';x.setLineDash([3,3]);for(let i=1;i<d.ops;i++){const xx=a.left+w*i;x.beginPath();x.moveTo(xx,a.top);x.lineTo(xx,a.bottom);x.stroke()}x.fillStyle='#1E2B37';x.font="bold 13px 'DM Sans',Arial";x.textAlign='center';d.opNames.forEach((n,i)=>x.fillText(n,a.left+w*(i+.5),ch.height-3));x.restore()}}]};
+  const ft2=v=>fxd(+v,dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
+  const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#004F8D';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Space Grotesk',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
+  return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,330)}${cb('Gráfico de amplitudes — superpostas',B,760,330)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,340).replace('class="cb"','class="cb wide"')}`}
+function reportRR(s,R){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+  const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
+  const rv=adq(m['%GRR (VT)'],C.grrOk,C.grrCond),rt=adq(m['%GRR (Tol)'],C.grrOk,C.grrCond),rn=m.ndc>=C.ndcMin?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
+  const kv=(K,n)=>K&&ok(+K[n])?fxd(+K[n],4):'—',ns=[2,3,4,5,6,7,8,9,10],hl=(n,u)=>n==u?' class="u"':'';
+  const kt=`<table class="cal k"><thead><tr><th>n</th><th>D<sub>4</sub><br><small>rep.</small></th><th>K<sub>1</sub><br><small>rep.</small></th><th>K<sub>2</sub><br><small>oper.</small></th><th>K<sub>3</sub><br><small>peças</small></th></tr></thead><tbody>${ns.map(n=>`<tr><td><b>${n}</b></td><td${hl(n,T)}>${n<=3?kv(D4,n):''}</td><td${hl(n,T)}>${n<=3?kv(K1,n):''}</td><td${hl(n,O)}>${n<=3?kv(K2,n):''}</td><td${hl(n,P)}>${kv(K3,n)}</td></tr>`).join('')}</tbody></table><div class="kn">Destacado: constante utilizada (r = ${T}, o = ${O}, n = ${P}).</div>`;
+  const cr=(a,b,v)=>`<tr><td class="sy">${a}</td><td>${b}</td><td class="vl">${v}</td></tr>`;
+  const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Repetibilidade e Reprodutibilidade (R&amp;R)${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
+  const info=`<table class="info"><tr><td>Peça</td><td>${esc(s.nome)||'—'}</td><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Data</td><td>${fdate(s.data)}</td><td>Área</td><td>${esc(s.area)||'—'}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))||'—'}</td><td>Nº série / Resol.</td><td>${esc(i?.serie||'—')}${i?.resolucao?' · '+esc(i.resolucao):''}</td><td>Tolerância</td><td>${esc(s.lie)} – ${esc(s.lse)} ${un}</td><td>Peças · Oper. · Rep.</td><td>${P} · ${O} · ${T}</td></tr></table>`;
+  const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>${s.simulado?'<div class="sim">DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</div>':''}`;
+  const vr=[['%VE','Repetibilidade (equipamento)',m['%EV'],X.EVt],['%VO','Reprodutibilidade (operador)',m['%AV'],X.AVt],['%R&amp;R','Repetib. + Reprodutib.',m['%GRR (VT)'],X.GRRt],['%VP','Variação da peça',m['%PV'],X.PVt]];
+  return`<div class="pg land">${hd('')}${info}${ban}<h3>Dados de medição <small>(${un||'valores'} · ${dp} ${dp===1?'casa decimal':'casas decimais'})</small></h3>${dataTable(s)}</div>
+  <div class="pg land">${hd(' — gráficos')}${info}${rrCharts(s,R)}</div>
+  <div class="pg land">${hd(' — cálculos e resultado')}<div class="rrc"><div><table class="cal"><thead><tr><th colspan="3">Cálculos</th></tr></thead><tbody>
+  ${cr('R̿','(R̄<sub>a</sub> + R̄<sub>b</sub> + R̄<sub>c</sub>) / nº operadores',f(m['R̄̄']))}${cr('X̄<sub>DIFF</sub>','máx(X̄) − mín(X̄)',f(m['X diff']))}${cr('LSC<sub>R</sub>','R̿ × D<sub>4</sub>',f(m['LSC R']))}
+  ${cr('VE','R̿ × K<sub>1</sub> — repetibilidade',f(m.EV))}${cr('VO','√[(X̄<sub>DIFF</sub> × K<sub>2</sub>)² − VE²/(n·r)] — reprodutibilidade',f(m.AV))}${cr('R&amp;R','√(VE² + VO²)',f(m.GRR))}
+  ${cr('R<sub>p</sub>','máx(X̄ peça) − mín(X̄ peça)',f(m.Rp))}${cr('VP','R<sub>p</sub> × K<sub>3</sub> — variação da peça',f(m.PV))}${cr('VT','√(R&amp;R² + VP²) — variação total',f(m.TV))}${cr('ndc','1,41 × VP / R&amp;R',ok(m.ndc)?m.ndc:'∞')}</tbody></table></div>
+  <div>${kt}</div>
+  <div><table class="cal"><thead><tr><th rowspan="2">Variação</th><th>% Var. total</th><th>% Tolerância</th></tr><tr><th class="sm">base 6σ (VT)</th><th class="sm">${esc(String(C.k||6))}σ / (LSE − LIE)</th></tr></thead><tbody>${vr.map(r=>`<tr><td><b>${r[0]}</b><br><small>${r[1]}</small></td><td class="vl">${pc(r[2])}</td><td class="vl">${pc(r[3])}</td></tr>`).join('')}<tr class="nd"><td><b>ndc</b><br><small>nº de categorias distintas</small></td><td class="vl" colspan="2">${ok(m.ndc)?m.ndc:'∞'}</td></tr></tbody></table></div></div>
+  <table class="res"><thead><tr><th colspan="3">RESULTADO DA ANÁLISE</th></tr></thead><tbody><tr><td class="rb">Variação total</td><td class="rv">${pc(m['%GRR (VT)'])}</td><td class="${rv[1]}">${rv[0]}</td></tr><tr><td class="rb">Tolerância</td><td class="rv">${pc(m['%GRR (Tol)'])}</td><td class="${rt[1]}">${rt[0]}</td></tr><tr><td class="rb">ndc</td><td class="rv">${ok(m.ndc)?m.ndc:'∞'}</td><td class="${rn[1]}">${rn[0]}</td></tr></tbody></table>
+  <div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
+  <div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por</div><div>Aprovado por</div></div></div>`}
+function reportPage(s){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
   return`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· '+esc(i.resolucao):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Calibração</td><td>${i?fdate(i.proxCal):'—'}</td></tr></table>
-  <div class="v ${R.status}">RESULTADO: ${R.status.toUpperCase()} — ${esc(R.msg||'')}</div><div class="mt">${Object.entries(R.m||{}).map(([k,v])=>`<div><span>${k}</span><b>${fmtM(k,v)}</b></div>`).join('')}</div>
-  ${imgs?`<div class="charts">${imgs}</div>`:''}<h3>Dados de medição</h3>${dataTable(s)}<div style="font-size:10px;color:#5B6773">${criteria(s.tipo)}</div>${s.obs?`<h3>Observações / ações</h3><div>${esc(s.obs).replace(/\n/g,'<br>')}</div>`:''}
+  <div class="v ${R.status}">RESULTADO: ${R.status.toUpperCase()} — ${esc(R.msg||'')}${s.simulado?'<br><span style="font-size:10px">DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</span>':''}</div><div class="legend">Precisão exibida neste estudo: ${decimalPlaces(s)} ${decimalPlaces(s)===1?'casa decimal':'casas decimais'}.</div><div class="mt">${Object.entries(R.m||{}).map(([k,v])=>`<div><span>${k}</span><b>${fmtM(k,v,s)}</b></div>`).join('')}</div>
+  ${imgs?`<div class="charts">${imgs}</div>`:''}<h3>Dados de medição</h3>${dataTable(s).replace(/<table class="dt"><tr>(.*?)<\/tr>/g,'<table class="dt"><thead><tr>$1</tr></thead>')}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<h3>Observações / ações</h3><div class="obs">${esc(s.obs).replace(/\n/g,'<br>')}</div>`:''}
   <div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por</div><div>Aprovado por</div></div><div class="ft">MSA Pro · Metodologia AIAG MSA 4ª edição</div></div>`}
 function openWin(title,body){const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir','fa-triangle-exclamation');return}
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>window.onload=()=>setTimeout(()=>print(),500)<\/script></body></html>`);w.document.close()}
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>print(),400))}<\/script></body></html>`);w.document.close()}
 function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
   toast('Gerando relatório...','fa-print');setTimeout(()=>openWin(L.length===1?L[0].codigo:`Relatórios MSA (${L.length})`,L.map(s=>reportPage(JSON.parse(JSON.stringify(s)))).join('')),30)}
-function printSummary(){const L=dashSet().sort((a,b)=>(b.data||'').localeCompare(a.data||''));const c=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length;
+function printSummary(){const L=dashSet().sort((a,b)=>(b.data||'').localeCompare(a.data||''));const simCount=L.filter(s=>s.simulado).length,c=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length;
   const st=STATUS.map(c);const img=chartImg({c:{type:'bar',data:{labels:STATUS,datasets:[{data:st,backgroundColor:STATUS.map(x=>SCOL[x])}]},options:{plugins:{legend:{display:false}}}}});
   const tk=Object.keys(TYPES);const img2=chartImg({c:{type:'bar',data:{labels:tk.map(t=>TYPES[t].n),datasets:STATUS.map(x=>({label:x,data:tk.map(t=>L.filter(s=>s.tipo===t&&(s.resultado?.status||'Incompleto')===x).length),backgroundColor:SCOL[x]}))},options:{scales:{x:{stacked:true},y:{stacked:true}}}}});
-  openWin('Relatório gerencial MSA',`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório gerencial MSA</h1></div><small>${{30:'Últimos 30 dias',90:'Últimos 90 dias',365:'Últimos 12 meses',0:'Todo o período'}[V.dash.periodo]}${V.dash.area?' · '+esc(V.dash.area):''} · ${new Date().toLocaleString('pt-BR')}</small></div>
+  openWin('Relatório gerencial MSA',`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório gerencial MSA</h1></div><small>${{30:'Últimos 30 dias',90:'Últimos 90 dias',365:'Últimos 12 meses',0:'Todo o período'}[V.dash.periodo]}${V.dash.area?' · '+esc(V.dash.area):''} · ${new Date().toLocaleString('pt-BR')}</small></div>${simCount?`<div style="color:#9A6A00;font-weight:700;margin-bottom:8px">${simCount} estudo(s) de simulação incluído(s) nos indicadores — dados sintéticos, não operacionais.</div>`:''}
   <div class="mt"><div><span>Total</span><b>${L.length}</b></div><div><span>Aprovados</span><b style="color:#2E9E4F">${st[0]}</b></div><div><span>Condicionais</span><b style="color:#9A6A00">${st[1]}</b></div><div><span>Reprovados</span><b style="color:#D23B3B">${st[2]}</b></div><div><span>Incompletos</span><b>${st[3]}</b></div></div>
-  <div class="charts"><img src="${img}"><img src="${img2}"></div><h3>Estudos</h3><table><tr><th>Código</th><th>Tipo</th><th>Peça / Característica</th><th>Instrumento</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Status</th></tr>${L.map(s=>`<tr><td><b>${esc(s.codigo)}</b></td><td>${TYPES[s.tipo].n}</td><td>${esc(s.nome)} ${esc(s.caracteristica)}</td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel)}</td><td>${esc(s.resultado?.chave)}</td><td class="${s.resultado?.status}">${s.resultado?.status}</td></tr>`).join('')}</table><div class="ft">MSA Pro</div></div>`)}
+   <div class="charts"><img src="${img}"><img src="${img2}"></div><h3>Estudos</h3><table><thead><tr><th>Código</th><th>Tipo</th><th>Peça / Característica</th><th>Instrumento</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Status</th></tr></thead>${L.map(s=>`<tr><td><b>${esc(s.codigo)}</b>${s.simulado?'<br><small style="color:#9A6A00;font-weight:700">SIMULAÇÃO</small>':''}</td><td>${TYPES[s.tipo].n}</td><td>${esc(s.nome)} ${esc(s.caracteristica)}</td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel)}</td><td>${esc(s.resultado?.chave)}</td><td class="${s.resultado?.status}">${s.resultado?.status}</td></tr>`).join('')}</table><div class="ft">MSA Pro</div></div>`)}
 
 /* ---------------- modais ---------------- */
 function modal(h){$('#modal').innerHTML=h;$('#ov').classList.add('show')}
