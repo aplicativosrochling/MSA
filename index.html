@@ -87,6 +87,8 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
 .dg td.out{background:var(--bad-bg)!important;color:var(--bad)}
 .dg td.tg{cursor:pointer;font-weight:700;padding:6px;user-select:none}
 .dg td.tg.v1{background:var(--ok-bg);color:var(--ok)}.dg td.tg.v0{background:var(--bad-bg);color:var(--bad)}.dg td.tg.vn{color:#bbb}
+.dg th input{width:100%;min-width:72px;border:1px dashed var(--border);background:#fff;border-radius:6px;padding:3px 4px;font-weight:700;color:var(--brand-d);text-align:center;outline:0}
+.dg th input:focus{border-color:var(--brand-l);background:#E8F2FB;border-style:solid}
 .res{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .m{background:#F7FAFC;border:1px solid var(--border);border-radius:12px;padding:10px 12px}
 .m .k{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
@@ -209,7 +211,10 @@ function resize(m,r,c,f=''){m=m||[];return Array.from({length:r},(_,i)=>Array.fr
 /* ---------------- dados / persistência ---------------- */
 let S={studies:[],instruments:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,decimais:4,cloud:true,diasAviso:30}};
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(S));try{bc&&bc.postMessage('upd')}catch(e){}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}
+  catch(e){try{const slim=JSON.parse(JSON.stringify(S));slim.studies.forEach(s=>{if(s.resultado)delete s.resultado.ser});localStorage.setItem(KEY,JSON.stringify(slim));console.warn('MSA Pro: cota do localStorage cheia — salvo sem dados de gráficos (recomputados ao abrir)')}
+  catch(e2){console.warn('MSA Pro: não foi possível salvar localmente (cota excedida)',e2);toast('Armazenamento local cheio — alterações podem não ser salvas no navegador','fa-triangle-exclamation')}}
+  try{bc&&bc.postMessage('upd')}catch(e){}}
 let db=null,bc=null;try{bc=new BroadcastChannel('msa_pro');bc.onmessage=()=>{load();refresh()}}catch(e){}
 window.addEventListener('storage',e=>{if(e.key===KEY){load();refresh()}});
 function cloudSet(col,doc){if(db)db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>setSync(true)).catch(e=>setSync(false,e&&e.code||'erro'))}
@@ -217,7 +222,7 @@ function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{}
 let cloudOk=false,unsub=null,syncTimer=null;
 function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Dados locais (offline)')}
 let authTried=false,progDone=false;
-function ensureProg(){if(progDone)return;progDone=true;if(progMissing().length)genProg()}
+function ensureProg(){if(progDone)return;progDone=true;migrateProg();if(progMissing().length)genProg()}
 function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x))}
 function initCloud(){
   if(!S.cfg.cloud){setSync(false);ensureProg();return}
@@ -238,10 +243,10 @@ function startSubs(){
       // envia estudos locais ainda não existentes na nuvem (primeira sincronização)
       S.studies.filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x));
       const loc=new Map(S.studies.map(x=>[x.id,x]));remote.forEach(r=>{const l=loc.get(r.id);if(!l||(r.atualizadoEm||'')>=(l.atualizadoEm||''))loc.set(r.id,r)});S.studies=[...loc.values()];
-      S.studies.forEach(x=>{if(!x.resultado)x.resultado=calc(x)});
+      S.studies.forEach(x=>{if(!x.resultado||x.tipo==='atr')x.resultado=calc(x)});
       ensureProg(); // garante os 28 estudos do procedimento e envia ao Firebase
     }else S.studies=remote;
-    localStorage.setItem(KEY,JSON.stringify(S));if(!snap.metadata.fromCache){clearTimeout(syncTimer);setSync(true)}refresh();
+    persist();if(!snap.metadata.fromCache){clearTimeout(syncTimer);setSync(true)}refresh();
   },err=>{
     if(err&&err.code==='permission-denied'&&!authTried&&firebase.auth){authTried=true;
       firebase.auth().signInAnonymously().then(startSubs).catch(()=>{setSync(false,'permission-denied — ajuste as regras do Firestore');ensureProg()});return}
@@ -260,16 +265,17 @@ function newStudy(t){
   const base={id:uid(),tipo:t,codigo:nextCode(t),nome:'',instrumentoId:'',instrumentoTxt:'',peca:'',caracteristica:'',unidade:'mm',lie:'',lse:'',responsavel:'',area:'',data:today(),obs:'',decimais:decimalPlaces(),criadoEm:new Date().toISOString()};
   const D={est:{n:5,g:20,ref:'',m:mtx(20,5)},bias:{ref:'',n:15,v:Array(15).fill('')},lin:{g:5,m:10,refs:Array(5).fill(''),v:mtx(5,10)},
     rr:{ops:3,parts:10,trials:3,opNames:['A','B','C'],v:[mtx(3,10),mtx(3,10),mtx(3,10)]},
-    atr:{ops:3,parts:30,trials:3,opNames:['A','B','C'],ref:Array(30).fill(''),v:[mtx(3,30),mtx(3,30),mtx(3,30)]}};
+    atr:{ops:3,parts:50,trials:3,opNames:['Avaliador 1','Avaliador 2','Avaliador 3'],ref:Array(50).fill(''),v:[mtx(3,50),mtx(3,50),mtx(3,50)]}};
   base.dados=D[t];return base;
 }
+const cvA=x=>{const t=String(x??'').trim().toUpperCase();return t==='A'||t==='1'||t==='OK'||t==='BOM'?'A':(t==='R'||t==='0'||t==='NOK'||t==='RUIM'?'R':'')};
 function normalize(s){const d=s.dados;s.decimais=decimalPlaces(s);
   if(s.tipo==='est'){d.n=Math.min(10,Math.max(2,+d.n||5));d.g=Math.max(2,+d.g||20);d.m=resize(d.m,d.g,d.n)}
   if(s.tipo==='bias'){d.n=Math.max(2,+d.n||15);d.v=Array.from({length:d.n},(_,i)=>d.v?.[i]??'')}
   if(s.tipo==='lin'){d.g=Math.max(2,+d.g||5);d.m=Math.max(2,+d.m||10);d.refs=Array.from({length:d.g},(_,i)=>d.refs?.[i]??'');d.v=resize(d.v,d.g,d.m)}
-  if(s.tipo==='rr'||s.tipo==='atr'){d.ops=Math.min(s.tipo==='rr'?3:5,Math.max(2,+d.ops||3));d.trials=Math.min(s.tipo==='rr'?3:5,Math.max(2,+d.trials||3));d.parts=Math.min(s.tipo==='rr'?10:100,Math.max(s.tipo==='rr'?2:5,+d.parts||10));
-    d.opNames=Array.from({length:d.ops},(_,i)=>d.opNames?.[i]||String.fromCharCode(65+i));d.v=Array.from({length:d.ops},(_,o)=>resize(d.v?.[o],d.trials,d.parts));
-    if(s.tipo==='atr')d.ref=Array.from({length:d.parts},(_,i)=>d.ref?.[i]??'')}
+  if(s.tipo==='rr'||s.tipo==='atr'){d.ops=Math.min(s.tipo==='rr'?3:5,Math.max(2,+d.ops||3));d.trials=Math.min(s.tipo==='rr'?3:5,Math.max(2,+d.trials||3));d.parts=Math.min(s.tipo==='rr'?10:100,Math.max(s.tipo==='rr'?2:5,+d.parts||(s.tipo==='rr'?10:50)));
+    d.opNames=Array.from({length:d.ops},(_,i)=>d.opNames?.[i]||('Avaliador '+(i+1)));d.v=Array.from({length:d.ops},(_,o)=>resize(d.v?.[o],d.trials,d.parts));
+    if(s.tipo==='atr'){d.ref=Array.from({length:d.parts},(_,i)=>cvA(d.ref?.[i]));d.v=d.v.map(o=>o.map(r=>r.map(cvA)))}}
   return s}
 
 /* ---------------- cálculos MSA (AIAG 4ª ed.) ---------------- */
@@ -328,20 +334,37 @@ function cRR(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const v=d.v.map(o=>
     chave:'%GRR '+pct(ref,decimalPlaces(s)),kv:ref,msg:`%GRR ${pct(ref,decimalPlaces(s))} (${S.cfg.base==='tol'&&ok(tl)?'tolerância':'variação total'}) · ndc = ${ndc}`+(outR.length?` · ${outR.length} amplitude(s) acima do LSC`:''),
     ser:{Xop,Rop,partM,pm,outR,uclR,EVp:p(EV),AVp:p(AV),GRRp:p(GRR),PVp:p(PV),EVt:pt(EV),AVt:pt(AV),GRRt:pt(GRR),PVt:pt(PV)}}}
 function kappa(a,b){const n=a.length;if(!n)return NaN;let ag=0,a1=0,b1=0;for(let i=0;i<n;i++){if(a[i]===b[i])ag++;if(a[i]===1)a1++;if(b[i]===1)b1++}const po=ag/n,pe=(a1/n)*(b1/n)+(1-a1/n)*(1-b1/n);return pe===1?(po===1?1:0):(po-pe)/(1-pe)}
-function cAtr(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const ref=d.ref.map(x=>x===''?null:+x);const v=d.v.map(o=>o.map(r=>r.map(x=>x===''?null:+x)));
+function xtab(a,b){const n=a.length;let RR=0,RA=0,AR=0,AA=0,nR=0,mR=0;
+  for(let i=0;i<n;i++){const x=a[i],y=b[i];if(x===0&&y===0){RR++;nR++;mR++}else if(x===0&&y===1){RA++;nR++}else if(x===1&&y===0){AR++;mR++}else AA++}
+  const nA=n-nR,mA=n-mR,eRR=nR*mR/n,eRA=nR*mA/n,eAR=nA*mR/n,eAA=nA*mA/n;
+  const po=(RR+AA)/n,pe=(eRR+eAA)/n,k=pe>=1?(po>=1?1:0):(po-pe)/(1-pe);
+  return{n,RR,RA,AR,AA,eRR,eRA,eAR,eAA,po,pe,k,totR:nR,totA:nA,colR:mR,colA:mA}}
+function pairK(ser,i,j){const p=(ser.pairs||[]).find(x=>(x.ai===i&&x.bi===j)||(x.ai===j&&x.bi===i));return p?p.k:NaN}
+function cAtr(s){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;const rv=x=>x==='A'?1:x==='R'?0:null;const ref=d.ref.map(rv);const v=d.v.map(o=>o.map(r=>r.map(rv)));
   const filled=v.flat(2).filter(x=>x!==null).length+ref.filter(x=>x!==null).length,need=O*P*T+P;
   if(filled<need)return{status:'Incompleto',m:{'Preenchido':filled/need*100},msg:`Preencha todas as avaliações e a referência (${filled}/${need})`,chave:'—'};
-  if(ref.some(x=>x!==0&&x!==1)||v.flat(2).some(x=>x!==0&&x!==1))return{status:'Incompleto',m:{},msg:'Use somente 1 (OK) ou 0 (NOK) em todas as referências e avaliações.',chave:'—'};
-  if(new Set(ref).size<2)return{status:'Incompleto',m:{'Peças':P},msg:'Inclua referências OK e NOK; uma única classe não permite avaliar discriminação e Kappa adequadamente.',chave:'—'};
+  if(ref.some(x=>x!==0&&x!==1)||v.flat(2).some(x=>x!==0&&x!==1))return{status:'Incompleto',m:{},msg:'Use somente A (aceito) ou R (reprovado) em todas as referências e avaliações.',chave:'—'};
+  if(new Set(ref).size<2)return{status:'Incompleto',m:{'Peças':P},msg:'Inclua peças boas (A) e ruins (R) na referência; uma única classe não permite avaliar a discriminação e o Kappa.',chave:'—'};
   const per=[];let gMiss=0,gNok=0,gFa=0,gOk=0,allAgree=0;
-  for(let o=0;o<O;o++){let eff=0,miss=0,fa=0,nok=0,okc=0;const A=[],B=[];
-    for(let p=0;p<P;p++){const calls=v[o].map(r=>r[p]);if(calls.every(c=>c===ref[p]))eff++;calls.forEach(c=>{A.push(c);B.push(ref[p]);if(ref[p]===0){nok++;if(c===1)miss++}else{okc++;if(c===0)fa++}})}
-    gMiss+=miss;gNok+=nok;gFa+=fa;gOk+=okc;per.push({nome:d.opNames[o],eff:eff/P*100,miss:nok?miss/nok*100:0,fa:okc?fa/okc*100:0,k:kappa(A,B)})}
+  for(let o=0;o<O;o++){let eff=0,miss=0,fa=0,nok=0,okc=0,matchGood=0,missed=0,mixed=0,matchBad=0,faParts=0;const A=[],B=[];
+    for(let p=0;p<P;p++){const calls=v[o].map(r=>r[p]);if(calls.every(c=>c===ref[p]))eff++;
+      if(calls.every(c=>c===1))ref[p]===1?matchGood++:missed++;
+      else if(calls.every(c=>c===0))ref[p]===0?matchBad++:faParts++;
+      else mixed++;
+      calls.forEach(c=>{A.push(c);B.push(ref[p]);if(ref[p]===0){nok++;if(c===1)miss++}else{okc++;if(c===0)fa++}})}
+    gMiss+=miss;gNok+=nok;gFa+=fa;gOk+=okc;
+    per.push({nome:d.opNames[o],eff:eff/P*100,miss:nok?miss/nok*100:0,fa:okc?fa/okc*100:0,k:kappa(A,B),matchGood,missed,mixed,matchBad,faParts})}
   for(let p=0;p<P;p++){if(v.every(o=>o.every(r=>r[p]===ref[p])))allAgree++}
+  const flatOp=o=>v[o].flat(),refX=[].concat(...Array.from({length:T},()=>ref));
+  const pairs=[],refs=[];
+  for(let i=0;i<O;i++)for(let j=i+1;j<O;j++)pairs.push(Object.assign({ai:i,bi:j,a:d.opNames[i],b:d.opNames[j]},xtab(flatOp(i),flatOp(j))));
+  for(let i=0;i<O;i++)refs.push(Object.assign({ai:i,a:d.opNames[i]},xtab(flatOp(i),refX)));
   const c=S.cfg,minK=Math.min(...per.map(x=>x.k)),minE=Math.min(...per.map(x=>x.eff)),maxM=Math.max(...per.map(x=>x.miss)),maxF=Math.max(...per.map(x=>x.fa));
-  const status=(minE>=c.effOk&&maxM<=c.missOk&&maxF<=c.faOk&&minK>=c.kappaOk)?'Aprovado':(minE>=c.effCond&&maxM<=c.missOk*2.5&&maxF<=c.faOk*2&&minK>=0.4)?'Condicional':'Reprovado';
-  return{status,m:{'Eficácia sistema':allAgree/P*100,'Eficácia mín.':minE,'Kappa mín.':minK,'Taxa de perda máx.':maxM,'Falso alarme máx.':maxF,'Perda global':gNok?gMiss/gNok*100:0,'Falso alarme global':gOk?gFa/gOk*100:0,'Peças':P},
-    chave:'Kappa '+fmt(minK,decimalPlaces(s)),kv:minK,msg:`Eficácia do sistema ${pct(allAgree/P*100,decimalPlaces(s))} · Kappa mínimo ${fmt(minK,decimalPlaces(s))}`,ser:{per}}}
+  const minPairK=pairs.length?Math.min(...pairs.map(x=>x.k)):NaN,kAll=Math.min(minK,ok(minPairK)?minPairK:minK);
+  const status=(minE>=c.effOk&&maxM<=c.missOk&&maxF<=c.faOk&&kAll>=c.kappaOk)?'Aprovado':(minE>=c.effCond&&maxM<=c.missOk*2.5&&maxF<=c.faOk*2&&kAll>=.4)?'Condicional':'Reprovado';
+  return{status,m:{'Eficácia sistema':allAgree/P*100,'Eficácia mín.':minE,'Kappa mín. vs ref':minK,'Kappa mín. entre avaliadores':minPairK,'Taxa de perda máx.':maxM,'Falso alarme máx.':maxF,'Perda global':gNok?gMiss/gNok*100:0,'Falso alarme global':gOk?gFa/gOk*100:0,'Peças':P},
+    chave:'Kappa '+fmt(minK,decimalPlaces(s)),kv:minK,msg:`Eficácia do sistema ${pct(allAgree/P*100,decimalPlaces(s))} · Kappa mínimo ${fmt(minK,decimalPlaces(s))} · entre avaliadores ${fmt(minPairK,decimalPlaces(s))}`,
+    ser:{per,pairs,refs,allAgree,sysEff:allAgree/P*100}}}
 const isPct=k=>k.startsWith('%')||['Eficácia sistema','Eficácia mín.','Taxa de perda máx.','Falso alarme máx.','Perda global','Falso alarme global','Preenchido'].includes(k);
 const fmtM=(k,v,s=null)=>isPct(k)?pct(v,decimalPlaces(s)):(['Pontos fora','Subgrupos','n','Pontos','Peças','ndc'].includes(k)?(ok(v)?v:'∞'):fmt(v,decimalPlaces(s)));
 
@@ -390,7 +413,40 @@ function genProg(){
     Object.assign(s,{id:'prog_'+p.k+'_'+t,progId:progId(p,t),instrumentoTxt:p.eq,padrao:p.pad,freq:p.freq,unidade:p.un,
       obs:`Gerado do procedimento ${PROC_ID} (item 2.4). Equipamento: ${p.eq}. Padrão de referência: ${p.pad}. Frequência: ${/^\d+$/.test(p.freq)?p.freq+' meses':p.freq}. Atualizar identificação (instrumento, peça, característica, LIE/LSE, responsável, data).`});
     saveStudy(normalize(s))});
-  toast(`${miss.length} estudo(s) do procedimento criados e enviados ao Firebase`);return miss.length}
+  toast(`${miss.length} estudo(s) do procedimento criados e enviados ao Firebase`);if(typeof refresh==='function')refresh();return miss.length}
+/* ---------- deduplicação e vínculo com o programa (anti-duplicação) ---------- */
+const dataFill=s=>{let n=0;const walk=v=>{if(Array.isArray(v))v.forEach(walk);else if(v!==''&&v!=null)n++};if(s.dados)Object.values(s.dados).forEach(walk);return n};
+function progCandidates(p,t){const pid=progId(p,t);
+  const exact=S.studies.filter(s=>s.tipo===t&&(s.progId===pid||s.id==='prog_'+p.k+'_'+t));
+  const loose=S.studies.filter(s=>s.tipo===t&&!s.progId&&s.instrumentoTxt===p.eq&&(s.padrao===p.pad||/procedimento/i.test(s.obs||'')));
+  const seen=new Set(),all=[];exact.concat(loose).forEach(s=>{if(!seen.has(s.id)){seen.add(s.id);all.push(s)}});
+  return all}
+function migrateProg(){
+  let removed=0,fixed=0;
+  const recency=s=>String(s.atualizadoEm||s.criadoEm||'');
+  // 1) programa do procedimento: no máximo uma cópia por item; mantém a mais preenchida
+  PROG.forEach(p=>p.est.forEach(t=>{const pid=progId(p,t),canon='prog_'+p.k+'_'+t;
+    const cand=progCandidates(p,t);if(!cand.length)return;
+    cand.sort((a,b)=>dataFill(b)-dataFill(a)||recency(b).localeCompare(recency(a)));
+    const keep=cand[0];
+    cand.slice(1).forEach(s=>{S.studies=S.studies.filter(x=>x.id!==s.id);cloudDel('msapro_estudos',s.id);removed++});
+    if(keep.progId!==pid){keep.progId=pid;fixed++}
+    if(keep.id!==canon&&!S.studies.some(x=>x.id===canon)){const i=S.studies.findIndex(x=>x.id===keep.id);keep.id=canon;if(i>=0)S.studies[i]=keep;fixed++}}));
+  // 2) duplicatas exatas fora do programa (mesmo tipo+codigo): mantém a melhor cópia
+  const groups=new Map();
+  S.studies.forEach(s=>{const k=s.tipo+'|'+s.codigo;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(s)});
+  groups.forEach(g=>{if(g.length<2)return;
+    const filled=g.filter(s=>dataFill(s)>0),empty=g.filter(s=>!dataFill(s));const drop=new Set();
+    if(filled.length){const best=filled.sort((a,b)=>dataFill(b)-dataFill(a)||recency(b).localeCompare(recency(a)))[0];
+      filled.slice(1).forEach(s=>{if(JSON.stringify(s.dados||{})===JSON.stringify(best.dados||{}))drop.add(s)});
+      empty.forEach(s=>drop.add(s));
+    }else{empty.sort((a,b)=>(b.progId?1:0)-(a.progId?1:0)||recency(b).localeCompare(recency(a)));empty.slice(1).forEach(s=>drop.add(s))}
+    drop.forEach(s=>{S.studies=S.studies.filter(x=>x.id!==s.id);cloudDel('msapro_estudos',s.id);removed++})});
+  return{removed,fixed}}
+function migrateAll(report){const r=migrateProg();
+  if(r.removed||r.fixed){persist();if(report||r.removed)toast(`${r.removed} duplicado(s) removido(s) · ${r.fixed} estudo(s) vinculado(s) ao programa`,'fa-broom')}
+  else if(report)toast('Nenhuma duplicidade encontrada','fa-circle-info');
+  return r}
 function askGenProg(){const n=progMissing().length;if(!n){toast('Todos os estudos do programa já existem','fa-circle-info');return}
   confirmBox(`Criar <b>${n}</b> estudo(s) em branco com base na tabela do procedimento <b>${PROC_ID}</b>?<br><small>Estudos já gerados não são duplicados. Depois é só abrir cada um e atualizar os campos de identificação.</small>`,()=>{genProg();if(V.view==='procedimento')rProc();else refresh()})}
 function procPrint(){openWin('Procedimento '+PROC_ID,`<style>${PROC_CSS}</style><div class="proc">${PROC_HTML}</div>`)}
@@ -540,7 +596,7 @@ function rParams(){const s=V.edit,d=s.dados;const ni=(k,l,mn,mx)=>`<label class=
   if(s.tipo==='bias')h=`<label class="row" style="gap:6px"><span class="l" style="margin:0">Valor de referência</span><input class="f" style="width:120px" inputmode="decimal" value="${esc(d.ref)}" oninput="V.edit.dados.ref=this.value;markDirty();recalc()"></label>`+ni('n','Nº leituras',2,100);
   if(s.tipo==='lin')h=ni('g','Nº peças de referência',5,10)+ni('m','Leituras por peça',2,20);
   if(s.tipo==='rr')h=ni('ops','Operadores',2,3)+ni('parts','Peças',2,10)+ni('trials','Ciclos',2,3);
-  if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5)+`<span class="legend">Clique nas células para alternar: <b class="c-ok">1 = OK</b> · <b class="c-bad">0 = NOK</b> · vazio</span>`;
+  if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5)+`<span class="legend">Clique nas células para alternar: <b class="c-ok">A = Aceito</b> · <b class="c-bad">R = Reprovado</b> · vazio</span>`;
   $('#params').innerHTML=h}
 function cell(path,val){return`<td><input data-p="${path}" value="${esc(val)}" inputmode="decimal"></td>`}
 function rGrid(){const s=V.edit,d=s.dados;let h='';
@@ -551,14 +607,16 @@ function rGrid(){const s=V.edit,d=s.dados;let h='';
     d.v.forEach((o,oi)=>{o.forEach((r,t)=>{h+=`<tr>${t===0?`<td class="h" rowspan="${d.trials+1}"><input data-op="${oi}" value="${esc(d.opNames[oi])}" style="font-weight:700;width:70px"></td>`:''}<td class="h">${t+1}</td>${r.map((v,p)=>cell(`v.${oi}.${t}.${p}`,v)).join('')}<td class="c" id="rm${oi}_${t}"></td></tr>`});
       h+=`<tr><td class="h" style="color:var(--warn)">R</td>${Array.from({length:d.parts},(_,p)=>`<td class="c" id="rr${oi}_${p}" style="background:#FFFBEF"></td>`).join('')}<td class="c" id="rb${oi}" style="background:#FFF6DB"></td></tr>`});
     h+=`<tr><td class="h" colspan="2">Média peça</td>${Array.from({length:d.parts},(_,p)=>`<td class="c" id="pm${p}"></td>`).join('')}<td class="c" id="pmT"></td></tr></tbody></table>`}
-  if(s.tipo==='atr'){h=`<table class="dg"><thead><tr><th>Peça</th><th>Referência</th>${d.v.map((o,oi)=>o.map((_,t)=>`<th>${esc(d.opNames[oi])}${t+1}</th>`).join('')).join('')}<th>Concordância</th></tr></thead><tbody>${d.ref.map((rv,p)=>`<tr><td class="h">${p+1}</td>${tg('ref.'+p,rv)}${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
-    <div class="row" style="padding:10px">${d.opNames.map((n,i)=>`<label class="row" style="gap:6px"><span class="l" style="margin:0">Avaliador ${i+1}</span><input class="f" style="width:90px" data-op="${i}" value="${esc(n)}"></label>`).join('')}<button class="btn sm" onclick="fillCol(1)">Referência: tudo OK</button></div>`}
+  if(s.tipo==='atr'){const oph=d.v.map((o,oi)=>`<th colspan="${d.trials}"><input data-op="${oi}" value="${esc(d.opNames[oi])}" title="Nome do avaliador"></th>`).join('');
+    const trh=d.v.map(o=>o.map((_,t)=>`<th>${t+1}</th>`).join('')).join('');
+    h=`<table class="dg"><thead><tr><th rowspan="2">Peça</th>${oph}<th rowspan="2">Ref.</th><th rowspan="2">Conc.</th></tr><tr>${trh}</tr></thead><tbody>${d.ref.map((rv2,p)=>`<tr><td class="h">${p+1}</td>${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}${tg('ref.'+p,rv2)}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
+    <div class="row" style="padding:10px;gap:10px"><button class="btn sm" onclick="fillCol('A')"><i class="fas fa-check c-ok"></i> Referência: tudo A</button><button class="btn sm" onclick="fillCol('R')"><i class="fas fa-xmark c-bad"></i> Referência: tudo R</button><span class="legend">Células: clique para alternar <b class="c-ok">A</b> → <b class="c-bad">R</b> → vazio · A = Aceito (passa) · R = Reprovado (não passa)</span></div>`}
   $('#grid').innerHTML=h;
   $$('#grid input[data-p]').forEach(e=>{e.oninput=()=>{setPath(V.edit.dados,e.dataset.p,e.value);markDirty();recalcSoon()};e.onkeydown=navKey;e.onpaste=pasteGrid});
   $$('#grid input[data-op]').forEach(e=>e.onchange=()=>{V.edit.dados.opNames[+e.dataset.op]=e.value||String.fromCharCode(65+ +e.dataset.op);markDirty();if(s.tipo==='atr')rGrid();recalc()});
-  $$('#grid td.tg').forEach(e=>e.onclick=()=>{const cur=getPath(V.edit.dados,e.dataset.p);const nx=cur===''?'1':cur==='1'||cur===1?'0':'';setPath(V.edit.dados,e.dataset.p,nx);e.className='tg '+(nx===''?'vn':'v'+nx);e.textContent=nx===''?'·':nx;markDirty();recalcSoon()});
+  $$('#grid td.tg').forEach(e=>e.onclick=()=>{const cur=getPath(V.edit.dados,e.dataset.p);const nx=cur===''||cur==null?'A':(cur==='A'||cur===1||cur==='1')?'R':'';setPath(V.edit.dados,e.dataset.p,nx);e.className='tg '+(nx===''?'vn':nx==='A'?'v1':'v0');e.textContent=nx===''?'·':nx;markDirty();recalcSoon()});
 }
-const tg=(p,v)=>`<td class="tg ${v===''||v==null?'vn':'v'+v}" data-p="${p}">${v===''||v==null?'·':v}</td>`;
+const tg=(p,v)=>{const t=String(v??'');const cls=t==='A'||t==='1'?'v1':(t==='R'||t==='0'?'v0':'vn');const lbl=t==='A'||t==='1'?'A':(t==='R'||t==='0'?'R':'·');return`<td class="tg ${cls}" data-p="${p}">${lbl}</td>`};
 function fillCol(v){V.edit.dados.ref=V.edit.dados.ref.map(()=>String(v));markDirty();rGrid();recalc()}
 function getPath(o,p){return p.split('.').reduce((a,k)=>a[k],o)}
 function setPath(o,p,v){const k=p.split('.');const last=k.pop();k.reduce((a,x)=>a[x],o)[last]=v}
@@ -583,11 +641,12 @@ function recalc(){const s=V.edit,R=calc(s);s.resultado=R;const d=s.dados;
   if(s.tipo==='atr')d.ref.forEach((rv,p)=>{const e=$('#ag'+p);if(!e)return;const calls=d.v.flatMap(o=>o.map(r=>r[p]));if(rv===''||calls.some(c=>c===''))e.textContent='';else{const a=calls.every(c=>String(c)===String(rv));e.innerHTML=a?'<span class="c-ok">✔</span>':'<span class="c-bad">✘</span>'}});
   // painel de resultado
   const vc={Aprovado:['bg-ok c-ok','fa-circle-check'],Condicional:['bg-warn c-warn','fa-triangle-exclamation'],Reprovado:['bg-bad c-bad','fa-circle-xmark'],Incompleto:['bg-inc','fa-hourglass-half']}[R.status];
-   let extra='';if(s.tipo==='atr'&&R.ser)extra=`<table class="t" style="margin-top:12px;font-size:12.5px"><thead><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>F. alarme</th><th>Kappa</th></tr></thead><tbody>${R.ser.per.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td class="${p.eff>=S.cfg.effOk?'c-ok':p.eff>=S.cfg.effCond?'c-warn':'c-bad'}">${pct(p.eff,decimalPlaces(s))}</td><td class="${p.miss<=S.cfg.missOk?'c-ok':'c-bad'}">${pct(p.miss,decimalPlaces(s))}</td><td class="${p.fa<=S.cfg.faOk?'c-ok':'c-bad'}">${pct(p.fa,decimalPlaces(s))}</td><td class="${p.k>=S.cfg.kappaOk?'c-ok':p.k>=.4?'c-warn':'c-bad'}">${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</tbody></table>`;
+   let extra='';if(s.tipo==='atr'&&R.ser){extra=`<table class="t" style="margin-top:12px;font-size:12.5px"><thead><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>F. alarme</th><th>Kappa vs ref.</th></tr></thead><tbody>${R.ser.per.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td class="${p.eff>=S.cfg.effOk?'c-ok':p.eff>=S.cfg.effCond?'c-warn':'c-bad'}">${pct(p.eff,decimalPlaces(s))}</td><td class="${p.miss<=S.cfg.missOk?'c-ok':'c-bad'}">${pct(p.miss,decimalPlaces(s))}</td><td class="${p.fa<=S.cfg.faOk?'c-ok':'c-bad'}">${pct(p.fa,decimalPlaces(s))}</td><td class="${p.k>=S.cfg.kappaOk?'c-ok':p.k>=.4?'c-warn':'c-bad'}">${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</tbody></table>`;
+   if(R.ser.pairs&&R.ser.pairs.length)extra+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 4px">Kappa entre avaliadores (tabulação cruzada)</div><table class="t" style="font-size:12.5px"><thead><tr><th></th>${R.ser.per.map(p=>`<th>${esc(p.nome)}</th>`).join('')}</tr></thead><tbody>${R.ser.per.map((a,i2)=>`<tr><td><b>${esc(a.nome)}</b></td>${R.ser.per.map((b,j2)=>{const kk=pairK(R.ser,i2,j2);return`<td class="${i2===j2?'':kk>=S.cfg.kappaOk?'c-ok':kk>=.4?'c-warn':'c-bad'}">${i2===j2?'—':fmt(kk,decimalPlaces(s))}</td>`}).join('')}</tr>`).join('')}</tbody></table>`}
    $('#res').innerHTML=`<div class="verdict ${vc[0]}"><i class="fas ${vc[1]}"></i><div><b>${R.status}</b><small>${esc(R.msg||'')}</small></div></div>${s.simulado?'<div class="legend" style="margin:-4px 0 12px;color:var(--warn);font-weight:700"><i class="fas fa-flask"></i> DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</div>':''}<div class="res">${Object.entries(R.m||{}).map(([k,v])=>`<div class="m"><div class="k">${k}</div><div class="x">${fmtM(k,v,s)}</div>`).join('')}</div>${extra}<div class="legend" style="margin-top:12px">${criteria(s.tipo)}</div>`;
   drawCharts(s,R,'#chs');
 }
-function criteria(t){const c=S.cfg;return{est:'Critério: todos os subgrupos completos; 20 ou mais recomendados para avaliar estabilidade; nenhum ponto fora dos limites X̄/R e regra de 7 pontos.',bias:`Critério: teste t bilateral a 5%; com tolerância informada, %Tendência também deve respeitar o limite de ${c.biasMax}%.`,lin:'Critério: pelo menos 5 referências distintas e 2 leituras por referência; testes t da inclinação e do intercepto a 5%.',rr:`Critério local: %GRR ≤ ${c.grrOk}% aceitável · ${c.grrOk}–${c.grrCond}% condicional · > ${c.grrCond}% reprovado · ndc ≥ ${c.ndcMin}. Base: ${c.base==='tol'?'tolerância':'variação total'} (${c.k}σ); amplitude fora do LSC invalida o estudo.`,atr:`Critérios configuráveis: eficácia ≥ ${c.effOk}%, perda ≤ ${c.missOk}%, falso alarme ≤ ${c.faOk}%, Kappa ≥ ${c.kappaOk}; usar referências OK e NOK.`}[t]}
+function criteria(t){const c=S.cfg;return{est:'Critério: todos os subgrupos completos; 20 ou mais recomendados para avaliar estabilidade; nenhum ponto fora dos limites X̄/R e regra de 7 pontos.',bias:`Critério: teste t bilateral a 5%; com tolerância informada, %Tendência também deve respeitar o limite de ${c.biasMax}%.`,lin:'Critério: pelo menos 5 referências distintas e 2 leituras por referência; testes t da inclinação e do intercepto a 5%.',rr:`Critério local: %GRR ≤ ${c.grrOk}% aceitável · ${c.grrOk}–${c.grrCond}% condicional · > ${c.grrCond}% reprovado · ndc ≥ ${c.ndcMin}. Base: ${c.base==='tol'?'tolerância':'variação total'} (${c.k}σ); amplitude fora do LSC invalida o estudo.`,atr:`Critérios (AIAG MSA 4ª ed. — análise de atributos por tabulação cruzada): eficácia ≥ ${c.effOk}%, taxa de perda ≤ ${c.missOk}%, falso alarme ≤ ${c.faOk}% e Kappa de Cohen ≥ ${c.kappaOk} contra a referência e entre avaliadores; referência com peças boas (A) e ruins (R).`}[t]}
 function chartCfgs(s,R){const X=R.ser;if(!X)return[];const dp=decimalPlaces(s),ft=v=>fmt(+v,dp),pt=v=>`${ft(v)}%`;const lc=(d,c,extra={})=>Object.assign({data:d,borderColor:c,pointRadius:0,borderWidth:1.5,borderDash:[6,4],fill:false},extra);const base={maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>{const v=c.parsed?.y??c.parsed?.x,l=c.dataset.label||'';return ok(v)?`${l?l+': ':''}${l.includes('%')?pt(v):l==='Frequência'?v:ft(v)}`:l}}}}};
    if(s.tipo==='est'){const lb=X.xb.map((_,i)=>i+1),options={...base,scales:{y:{ticks:{callback:ft}}}};return[
      {t:'Carta X̄',c:{type:'line',data:{labels:lb,datasets:[{label:'X̄',data:X.xb,borderColor:'#0064B3',pointBackgroundColor:X.xb.map((_,i)=>X.outX.includes(i)?'#D23B3B':'#0064B3'),pointRadius:4,tension:0},lc(lb.map(()=>X.ucl),'#D23B3B',{label:'LSC'}),lc(lb.map(()=>X.X),'#2E9E4F',{label:'Média',borderDash:[]}),lc(lb.map(()=>X.lcl),'#D23B3B',{label:'LIC'})]},options}},
@@ -658,8 +717,9 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      })));
    }
    if(s.tipo==='atr'){
-     d.ref=d.ref.map((v,i)=>(v==='0'||v===0||v==='1'||v===1)?String(v):String(i%2===0?1:0));
-     d.v=d.v.map(o=>o.map(row=>row.map((_,p)=>String(d.ref[p]))));
+     d.ref=d.ref.map((v,i)=>(v==='A'||v==='R')?v:(i%4===3?'R':'A'));
+     const perr=q==='bad'?.16:q==='mid'?.05:0;
+     d.v=d.v.map(o=>o.map(row=>row.map((_,p)=>Math.random()<perr?(d.ref[p]==='A'?'R':'A'):d.ref[p])));
    }
    return s}
  function seed(){const inst=[['PAQ-001','Paquímetro digital 150mm','Paquímetro','Mitutoyo',0.01,'Usinagem',40],['MIC-002','Micrômetro externo 0-25mm','Micrômetro','Mitutoyo',0.001,'Usinagem',12],['REL-003','Relógio comparador','Relógio','Starrett',0.001,'Montagem',-5],['CMM-004','Máquina de medição 3D','CMM','Zeiss',0.0001,'Metrologia',160],['CAL-005','Calibrador tampão P/NP Ø10','Calibrador','Digimess','', 'Inspeção',25]].map(a=>({id:uid(),codigo:a[0],descricao:a[1],tipo:a[2],fabricante:a[3],resolucao:String(a[4]),area:a[5],unidade:'mm',serie:'SN'+Math.floor(Math.random()*1e5),ultCal:new Date(Date.now()-(365-a[6])*864e5).toISOString().slice(0,10),proxCal:new Date(Date.now()+a[6]*864e5).toISOString().slice(0,10),status:'Ativo'}));
@@ -678,7 +738,7 @@ function rCfg(){const c=S.cfg,dec=Number.isInteger(+c.decimais)?Math.max(0,Math.
   <div class="card"><h3><i class="fas fa-check-double c-brand"></i>R&amp;R Atributo</h3><div class="form">${f('effOk','Eficácia aceitável ≥ %')}${f('effCond','Eficácia condicional ≥ %')}${f('missOk','Taxa de perda ≤ %')}${f('faOk','Falso alarme ≤ %')}${f('kappaOk','Kappa mínimo')}</div></div>
   <div class="card"><h3><i class="fas fa-bullseye c-brand"></i>Tendência</h3><div class="form">${f('biasMax','%Tendência máx. sobre tolerância')}</div></div>
   <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
-  <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
+  <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
   <div style="margin-top:16px;text-align:right"><button class="btn pri" onclick="saveCfg()"><i class="fas fa-floppy-disk"></i>Salvar configurações</button></div></div>`;$('#imp2').onchange=importJSON}
 function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'||k==='decimais'?+e.value:e.value;if(k==='decimais')S.cfg[k]=Math.max(0,Math.min(8,Math.round(+e.value||0)))});
   S.studies.forEach(s=>s.resultado=calc(s));persist();if(S.cfg.cloud&&!was)initCloud();if(!S.cfg.cloud&&was){db=null;setSync(false)}toast('Configurações salvas · estudos recalculados')}
@@ -727,9 +787,9 @@ h3{font-size:13px;margin:14px 0 4px;color:#004F8D;break-after:avoid;page-break-a
 .rr .rp td{background:#004F8D;color:#fff;font-weight:700;border-color:#004F8D}.rr .rp td.mc{background:#003B6B;color:#fff}.rr tbody.opg{break-inside:avoid;page-break-inside:avoid}.rr sub{font-size:8px}
 .rch2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cb{margin-bottom:8px;break-inside:avoid}.ct{background:#004F8D;color:#fff;text-align:center;font:700 11px 'Space Grotesk',Arial;padding:4px;border-radius:4px 4px 0 0}.cb img{display:block;width:100%;height:62mm;object-fit:fill;border:1px solid #C9D6E2;border-radius:4px}.cb.wide img{height:58mm}.rch2{break-inside:avoid}.land .cb img{break-inside:auto;page-break-inside:auto;break-before:avoid}
-.land .hd h1{font-size:17px}.hdr{text-align:right}.hdr b{display:block;font:700 15px 'Space Grotesk',Arial;color:#004F8D}
-.land .info td{padding:3px 6px;font-size:10.5px}.land .info td:nth-child(odd){width:9%;white-space:nowrap}
-.land .v{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 12px;font-size:13px;margin:6px 0 4px}.land .v .vm{font-size:11px;font-weight:700}
+.land .hd h1{font-size:17px}.land .hd{padding-bottom:6px;margin-bottom:8px}.land h3{font-size:12px;margin:8px 0 3px}.hdr{text-align:right}.hdr b{display:block;font:700 15px 'Space Grotesk',Arial;color:#004F8D}
+.land .info td{padding:2px 5px;font-size:9.8px}.land .info td:nth-child(odd){width:9%;white-space:nowrap}
+.land .v{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 10px;font-size:12px;margin:4px 0 2px}.land .v .vm{font-size:10.5px;font-weight:700}
 .sim{font-size:9.5px;font-weight:700;color:#9A6A00;margin-bottom:4px}
 h3 small{font:400 10px 'DM Sans',Arial;color:#5B6773}
 .rr{table-layout:fixed;margin-top:4px}.rr td{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}.rr th.opn0{width:30px}.rr thead tr:first-child th:nth-child(2){width:62px}.rr thead tr:first-child th:last-child{width:92px}.rr .mc{text-align:right}
@@ -738,14 +798,55 @@ h3 small{font:400 10px 'DM Sans',Arial;color:#5B6773}
 .cal.k td{text-align:center;padding:2.5px 4px;font-variant-numeric:tabular-nums}.cal.k td.u{background:#FFE58A;font-weight:700}.kn{font-size:9px;color:#5B6773}.cal tr.nd td{background:#EEF4FA}
 .res{margin-top:4px}.res th{background:#004F8D;color:#fff;font-size:11.5px;text-align:center;padding:5px;border-color:#004F8D}.res td{font-size:11.5px;font-weight:700;text-align:center;padding:5px}.res td.rb{background:#EEF4FA;color:#004F8D;width:18%;text-transform:uppercase}.res td.rv{width:14%;font-variant-numeric:tabular-nums}
 .land .crit{margin-top:4px}.land .obs{font-size:10px;margin-top:6px}.land .obs b{color:#004F8D}.land .sig{margin-top:26px}
-.land{page:land}@page land{size:A4 landscape;margin:10mm 10mm 12mm;@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}@bottom-left{content:'MSA Pro · AIAG MSA 4ª edição';font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}}
+.land{page:land}@page land{size:A4 landscape;margin:9mm 9mm 11mm;@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}@bottom-left{content:'MSA Pro · AIAG MSA 4ª edição';font:8pt 'DM Sans',Arial,sans-serif;color:#7A8794}}
 @media screen{.pg.land{width:297mm;min-height:210mm;padding:10mm}}
 .crit{font-size:10px;color:#5B6773;break-inside:avoid}.obs{break-inside:avoid}
 .sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;margin-top:34px;text-align:center;break-inside:avoid;page-break-inside:avoid}.sig div{border-top:1px solid #1E2B37;padding-top:4px;min-height:34px}
 .ft{color:#7A8794;font-size:9.5px;margin-top:14px;text-align:right}
 .np{position:fixed;top:10px;right:10px;z-index:9}.np button{padding:10px 16px;background:#0064B3;color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer}
 @media screen{body{background:#E9EDF2}.pg{width:210mm;min-height:297mm;margin:12px auto;padding:14mm 12mm;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15)}}
-@media print{.np{display:none}body{background:#fff}.pg{padding:0;margin:0;width:auto;box-shadow:none}}`;
+@media print{.np{display:none}body{background:#fff}.pg{padding:0;margin:0;width:auto;box-shadow:none}}
+/* ---- R&R atributo (conforme planilha de tabulação cruzada) ---- */
+.dgA{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.dgA table{margin:0}
+.dt.a{table-layout:fixed}.dt.a td,.dt.a th{font-size:8.2px;padding:1.5px 2.4px;text-align:center}
+.dt.a th.op{background:#004F8D;color:#fff;font-size:8.5px;padding:2px}
+.dt.a td.ok{background:#E6F6EA;color:#1E7A3C;font-weight:700}
+.dt.a td.nok{background:#FDEAEA;color:#C02828;font-weight:700}
+.xts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:2px 0 6px}
+.xt{break-inside:avoid;page-break-inside:avoid}
+.xt .tits{font:700 9px 'Space Grotesk',Arial;background:#004F8D;color:#fff;text-align:center;padding:2px 4px;border-radius:3px 3px 0 0}
+.xt table{width:100%;margin:0}
+.xt th{background:#EEF4FA;font-size:8px;padding:1.8px 2.5px;text-align:center}
+.xt td{font-size:8.4px;padding:1.8px 2.5px;text-align:center;font-variant-numeric:tabular-nums}
+.xt td.lb{background:#EEF4FA;font-weight:700;font-size:8px}
+.xt td.ob{font-size:7.5px;color:#5B6773}
+.xt td.esp{color:#7A8794}
+.xt td.kv{font-weight:700;background:#F5F8FB;white-space:nowrap;font-size:8px}
+.xt tr.tt td{background:#E3EDF7;font-weight:700}
+.ef2{display:grid;grid-template-columns:1.9fr 1.1fr;gap:8px;align-items:start;margin:2px 0 6px;break-inside:avoid}
+.dt.ef td,.dt.ef th{font-size:8.6px;padding:2px 3px;text-align:center}
+.dt.ef th{font-size:8px}
+.dt.ef td.lb{text-align:left;font-weight:700;background:#F5F8FB;white-space:nowrap}
+.okc{color:#1E7A3C;font-weight:700}.wrc{color:#9A6A00;font-weight:700}.bgc{color:#C02828;font-weight:700}
+.km th{font-size:8.5px}.km td{font-size:9px;text-align:center;font-variant-numeric:tabular-nums;padding:2px 4px}
+.km td.lb{text-align:left;font-weight:700;background:#F5F8FB;white-space:nowrap}
+.ana{border:1px solid #C9D6E2;border-radius:6px;padding:6px 10px;margin-top:2px;break-inside:avoid;page-break-inside:avoid}
+.ana .at{font:700 10px 'Space Grotesk',Arial;color:#004F8D;letter-spacing:1.2px;margin-bottom:2px}
+.ana p{margin:1px 0;font-size:10px}
+.ana .verd{display:inline-block;margin-top:5px;padding:4px 12px;border-radius:5px;font:700 11.5px 'Space Grotesk',Arial}
+.at2 .sig{margin-top:8px}
+.at2 .crit{margin-top:2px}
+/* ---- grade A/R adaptativa: linhas maiores preenchendo a altura útil da página ---- */
+.dgA.one{grid-template-columns:1fr}
+.pg.land.fill{display:flex;flex-direction:column}
+.pg.land.fill .hd,.pg.land.fill .info,.pg.land.fill .v,.pg.land.fill .sim,.pg.land.fill h3{flex:0 0 auto}
+.pg.land.fill .dgA{flex:1 1 auto;min-height:0}
+.pg.land.fill .dgA table{height:100%}
+.dt.a.f10 td{font-size:10.5px}.dt.a.f9 td{font-size:10px}.dt.a.f8 td{font-size:9.5px}.dt.a.f7 td{font-size:9px}.dt.a.f6 td{font-size:8.6px}
+.dt.a.f10 th,.dt.a.f9 th{font-size:9.2px}.dt.a.f8 th,.dt.a.f7 th{font-size:9px}.dt.a.f6 th{font-size:8.5px}
+@media screen{.pg.land.fill{height:210mm}}
+@media print{.pg.land.fill{height:189.4mm}}`;
 
 function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
   if(s.tipo==='est')return`<table class="dt"><tr><th>#</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr>${d.m.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td>${fmt(mean(r.map(num)),decimalPlaces(s))}</td><td>${r.map(num).every(ok)?fmt(rng(r.map(num)),decimalPlaces(s)):''}</td></tr>`).join('')}</table>`;
@@ -796,7 +897,39 @@ function reportRR(s,R){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trial
   <table class="res"><thead><tr><th colspan="3">RESULTADO DA ANÁLISE</th></tr></thead><tbody><tr><td class="rb">Variação total</td><td class="rv">${pc(m['%GRR (VT)'])}</td><td class="${rv[1]}">${rv[0]}</td></tr><tr><td class="rb">Tolerância</td><td class="rv">${pc(m['%GRR (Tol)'])}</td><td class="${rt[1]}">${rt[0]}</td></tr><tr><td class="rb">ndc</td><td class="rv">${ok(m.ndc)?m.ndc:'∞'}</td><td class="${rn[1]}">${rn[0]}</td></tr></tbody></table>
   <div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   <div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por</div><div>Aprovado por</div></div></div>`}
-function reportPage(s){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
+function reportAtr(s,R){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+  const fk=v=>ok(v)?fxd(+v,4):'—',fn=v=>ok(v)?(+v).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—';
+  const kc=v=>!ok(v)?'':v>=C.kappaOk?'okc':v>=.4?'wrc':'bgc';
+  const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Atributos — Análise de Riscos (R&amp;R Atributo)${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
+  const info=`<table class="info"><tr><td>Part Number</td><td>${esc(s.nome)||'—'}</td><td>Características</td><td>${esc(s.caracteristica)||'—'}</td><td>Tolerância</td><td>${esc(s.lie)||'—'} – ${esc(s.lse)||'—'} ${un}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Equipamento</td><td>${esc(i?i.descricao:(s.instrumentoTxt||'—'))}</td><td>TAG / Código</td><td>${esc(i?i.codigo:(s.instrumentoTxt||'—'))}</td><td>Modelo</td><td>Passa / Não Passa (A/R)</td><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td></tr></table>`;
+  const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>${s.simulado?'<div class="sim">DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</div>':''}`;
+  const cell=v=>v==='A'?'<td class="ok">A</td>':v==='R'?'<td class="nok">R</td>':'<td>·</td>';
+  const rcell=v=>v==='A'?'<td class="ok"><b>A</b></td>':v==='R'?'<td class="nok"><b>R</b></td>':'<td>·</td>';
+  const acell=p=>{const cs=d.v.flatMap(o=>o.map(r=>r[p]));if(d.ref[p]===''||cs.some(c=>c===''))return'<td></td>';return cs.every(c=>c===d.ref[p])?'<td class="ok">✔</td>':'<td class="nok">✘</td>'};
+  const thA=`<thead><tr><th rowspan="2" style="width:24px">Peça</th>${d.opNames.map(n=>`<th class="op" colspan="${T}">${esc(n)}</th>`).join('')}<th rowspan="2">Ref.</th><th rowspan="2" style="width:26px">Conc.</th></tr><tr>${Array.from({length:O},()=>Array.from({length:T},(_,t)=>`<th>${t+1}</th>`).join('')).join('')}</tr></thead>`;
+  const rows=(a,b)=>Array.from({length:b-a},(_,k)=>{const p=a+k;return`<tr><td>${p+1}</td>${d.v.map(o=>o.map(r=>cell(r[p])).join('')).join('')}${rcell(d.ref[p])}${acell(p)}</tr>`}).join('');
+  const half=Math.ceil(P/2);
+  const rowsPer=P<=26?P:half;
+  const fcls=rowsPer<=13?'f10':rowsPer<=17?'f9':rowsPer<=21?'f8':rowsPer<=26?'f7':rowsPer<=30?'f6':'';
+  const fill=rowsPer>=8&&rowsPer<=26?' fill':'';
+  const tab=(a,b)=>`<table class="dt a${fcls?' '+fcls:''}">${thA}<tbody>${rows(a,b)}</tbody></table>`;
+  const grid=P<=26?`<div class="dgA one">${tab(0,P)}</div>`:`<div class="dgA">${tab(0,half)}${tab(half,P)}</div>`;
+  const xtT=(t,ct)=>`<div class="xt"><div class="tits">${t}</div><table><thead><tr><th colspan="2"></th><th>R</th><th>A</th><th>Total</th><th></th></tr></thead><tbody><tr><td class="lb" rowspan="2">R</td><td class="ob">Obs.</td><td>${fn(ct.RR)}</td><td>${fn(ct.RA)}</td><td><b>${fn(ct.totR)}</b></td><td class="kv" rowspan="2">Po ${fk(ct.po)}</td></tr><tr><td class="ob">Esp.</td><td class="esp">${fn(ct.eRR)}</td><td class="esp">${fn(ct.eRA)}</td><td></td></tr><tr><td class="lb" rowspan="2">A</td><td class="ob">Obs.</td><td>${fn(ct.AR)}</td><td>${fn(ct.AA)}</td><td><b>${fn(ct.totA)}</b></td><td class="kv" rowspan="2">Pe ${fk(ct.pe)}</td></tr><tr><td class="ob">Esp.</td><td class="esp">${fn(ct.eAR)}</td><td class="esp">${fn(ct.eAA)}</td><td></td></tr><tr class="tt"><td class="lb">Total</td><td></td><td>${fn(ct.colR)}</td><td>${fn(ct.colA)}</td><td><b>${fn(ct.n)}</b></td><td class="kv">κ ${fk(ct.k)}</td></tr></tbody></table></div>`;
+  const pairBlocks=(X.pairs||[]).map(p=>xtT(`Avaliador ${esc(p.a)} × ${esc(p.b)}`,p)).join('');
+  const refBlocks=(X.refs||[]).map(r=>xtT(`Avaliador ${esc(r.a)} × Referência`,r)).join('');
+  const kMat=`<table class="cal k km"><thead><tr><th>Kappa</th>${d.opNames.map(n=>`<th>${esc(n)}</th>`).join('')}<th>Ref.</th></tr></thead><tbody>${d.opNames.map((n,i2)=>`<tr><td class="lb"><b>${esc(n)}</b></td>${d.opNames.map((m,j2)=>`<td class="${i2===j2?'':kc(pairK(X,i2,j2))}">${i2===j2?'—':fk(pairK(X,i2,j2))}</td>`).join('')}<td class="${kc(X.per[i2].k)}">${fk(X.per[i2].k)}</td></tr>`).join('')}</tbody></table><div class="kn">Kappa de Cohen: ≥ ${fk(C.kappaOk)} boa concordância · 0,40–${fk(C.kappaOk)} moderada · &lt; 0,40 insuficiente.</div>`;
+  const efT=`<table class="dt ef"><thead><tr><th rowspan="2">Avaliador</th><th colspan="6">Concordância com a referência — nº de peças (100% dos ciclos)</th><th colspan="4">Métricas por avaliador</th></tr><tr><th>100% acerto<br>Bom (A/A)</th><th>100% perda<br>(ref. R → A)</th><th>100% falso alarme<br>(ref. A → R)</th><th>Misto</th><th>100% acerto<br>Ruim (R/R)</th><th>100% acerto<br>Bom + Ruim</th><th>Eficácia</th><th>Taxa de perda</th><th>Falso alarme</th><th>Kappa</th></tr></thead><tbody>${X.per.map(p=>`<tr><td class="lb">${esc(p.nome)}</td><td>${p.matchGood}</td><td>${p.missed}</td><td>${p.faParts}</td><td>${p.mixed}</td><td>${p.matchBad}</td><td><b>${p.matchGood+p.matchBad}</b></td><td class="${p.eff>=C.effOk?'okc':p.eff>=C.effCond?'wrc':'bgc'}">${pct(p.eff,2)}</td><td class="${p.miss<=C.missOk?'okc':'bgc'}">${pct(p.miss,2)}</td><td class="${p.fa<=C.faOk?'okc':'bgc'}">${pct(p.fa,2)}</td><td class="${kc(p.k)}">${fk(p.k)}</td></tr>`).join('')}</tbody></table>`;
+  const minPairK=(X.pairs||[]).length?Math.min(...X.pairs.map(x=>x.k)):NaN;
+  const concorda=ok(minPairK)?minPairK>=C.kappaOk:true;
+  const verd={Aprovado:'SISTEMA DE MEDIÇÃO ADEQUADO',Condicional:'SISTEMA DE MEDIÇÃO CONDICIONAL — usar com restrições',Reprovado:'SISTEMA DE MEDIÇÃO NÃO ADEQUADO'}[R.status]||R.status;
+  const ana=`<div class="ana"><div class="at">ANÁLISE</div><p>${concorda?`Existe boa concordância entre os avaliadores (Kappa mínimo entre avaliadores ${fk(minPairK)}).`:`A concordância entre avaliadores é insuficiente (Kappa mínimo ${fk(minPairK)} &lt; ${fk(C.kappaOk)}) — treinar os avaliadores e repetir o estudo.`}</p><p>Eficácia do sistema (todos os avaliadores corretos em todos os ciclos): <b>${pct(X.sysEff,2)}</b> — ${X.allAgree} de ${P} peças.</p><p><span class="verd ${R.status}">${verd}</span></p></div>`;
+  return`<div class="pg land${fill}">${hd('')}${info}${ban}<h3>Resultados das avaliações <small>· A = Aceito (passa) · R = Reprovado (não passa) · Ref. = valor de referência · ✔ = 100% de concordância com a referência</small></h3>${grid}</div>
+  <div class="pg land at2">${hd(' — tabulação cruzada e resultado')}${info}${ban}
+  <h3>Tabulação cruzada <small>· avaliador × avaliador e avaliador × referência — observado e esperado por ciclo de avaliação (n = ${P*T} comparações)</small></h3><div class="xts">${pairBlocks}${refBlocks}</div>
+  <div class="ef2"><div><h3 style="margin-top:2px">Eficácia e concordância <small>· conforme planilha de análise de atributos</small></h3>${efT}</div><div><h3 style="margin-top:2px">Matriz de Kappa</h3>${kMat}</div></div>
+  ${ana}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
+  <div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por</div><div>Aprovado por</div></div></div>`}
+function reportPage(s){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
   return`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· '+esc(i.resolucao):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Calibração</td><td>${i?fdate(i.proxCal):'—'}</td></tr></table>
   <div class="v ${R.status}">RESULTADO: ${R.status.toUpperCase()} — ${esc(R.msg||'')}${s.simulado?'<br><span style="font-size:10px">DADOS SINTÉTICOS DE SIMULAÇÃO — não usar para liberar produto ou validar processo.</span>':''}</div><div class="legend">Precisão exibida neste estudo: ${decimalPlaces(s)} ${decimalPlaces(s)===1?'casa decimal':'casas decimais'}.</div><div class="mt">${Object.entries(R.m||{}).map(([k,v])=>`<div><span>${k}</span><b>${fmtM(k,v,s)}</b></div>`).join('')}</div>
@@ -820,7 +953,7 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeModal()};
 function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div class="mb">${msg}</div><div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="cYes">Confirmar</button></div>`);$('#cYes').onclick=()=>{closeModal();yes()}}
 
 /* ---------------- início ---------------- */
-load();S.studies.forEach(s=>{if(!s.resultado)s.resultado=calc(s)});render();initCloud();
+load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);render();initCloud();
 setTimeout(()=>{if(!S.cfg.progOfertado&&progMissing().length===PROG.reduce((a,p)=>a+p.est.length,0)){S.cfg.progOfertado=true;persist();askGenProg()}},3000);
 </script>
 </body>
