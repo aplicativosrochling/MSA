@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v26</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v27</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -518,7 +518,7 @@ function mtx(r,c,f=''){return Array.from({length:r},()=>Array.from({length:c},()
 function resize(m,r,c,f=''){m=m||[];return Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>(m[i]&&m[i][j]!==undefined)?m[i][j]:f))}
 
 /* ---------------- dados / persistência ---------------- */
-let S={studies:[],instruments:[],fams:[],inv:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,decimais:4,cloud:true,diasAviso:30,usuario:'',emailAvisos:''}};
+let S={studies:[],instruments:[],fams:[],inv:[],cfg:{empresa:'Minha Empresa',grrOk:10,grrCond:30,ndcMin:5,base:'tv',k:6,biasMax:10,effOk:90,effCond:80,missOk:2,faOk:5,kappaOk:0.75,decimais:4,cloud:true,diasAviso:30,usuario:'',emailAvisos:'',emailAuto:false,emailAutoLast:'',emailAutoLog:''}};
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];S.fams=d.fams||[];S.inv=d.inv||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
 /* Dados vivem SOMENTE no Firebase. O localStorage é lido uma única vez (migração) e depois apagado. */
 function cloudCfg(){return db?db.collection('msapro_config').doc('cfg').set({id:'cfg',json:JSON.stringify(S.cfg)}).then(()=>true).catch(()=>false):Promise.resolve(false)}
@@ -881,7 +881,7 @@ function rCron(){const t=new Date();if(!V.cal)V.cal={y:t.getFullYear(),m:t.getMo
   const stat=(lb,v,sub,ic,cls)=>`<div class="card kpi"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
   $('#main').innerHTML=`<div class="fade">
    <div class="top"><div><h1>Cronograma</h1><div class="sub">Agenda de recálculos MSA · aviso com ${av} dias de antecedência</div></div><div class="sp"></div>
-   <button class="btn" onclick="mailDigest()" title="Envia pelo seu cliente de e-mail o resumo de vencidos e vencendo"><i class="fas fa-envelope"></i>Avisos por e-mail</button>
+   <button class="btn" onclick="mailDigest()" title="Envio manual — abre o seu cliente de e-mail com o resumo pronto (o automático dispara sozinho quando há vencidos, se ativado em Configurações)"><i class="fas fa-envelope"></i>Avisos por e-mail</button>
    <button class="btn" onclick="askNotify()" title="Notificações do navegador quando houver vencidos"><i class="fas fa-bell"></i>Notificações</button>
    <button class="btn" onclick="printSched()"><i class="fas fa-print"></i>Imprimir anual</button>
    <button class="btn pri" onclick="schedPicker()"><i class="fas fa-calendar-plus"></i>Agendar estudo</button></div>
@@ -1202,12 +1202,10 @@ function regEv(id){const i=S.instruments.find(x=>x.id===id);if(!i)return;
     closeModal();refresh();
     toast(`Evento registrado · ${i.codigo}${n?` · revalidação marcada para ${n} estudo(s)`:''}`,'fa-screwdriver-wrench')}}
 
-/* --- aviso por e-mail (resumo pelo cliente de correio) --- */
-function mailDigest(){const dest=(S.cfg.emailAvisos||'').trim();
-  if(!dest){toast('Configure o e-mail em Configurações → Rastreabilidade e avisos','fa-envelope');return}
-  const items=schedItems().sort((a,b)=>(a.p||'').localeCompare(b.p||''));
+/* --- aviso por e-mail (manual via cliente de correio + automático via FormSubmit) --- */
+function digestData(){const items=schedItems().sort((a,b)=>(a.p||'').localeCompare(b.p||''));
   const over=items.filter(x=>x.st==='over'),soon=items.filter(x=>x.st==='soon');
-  if(!over.length&&!soon.length){toast('Nada vencido ou vencendo — nada para enviar','fa-circle-check');return}
+  if(!over.length&&!soon.length)return null;
   const L=[];
   L.push('Resumo de vencimentos MSA — '+(S.cfg.empresa||'')+' — gerado em '+fdate(today()));
   L.push('');
@@ -1216,8 +1214,47 @@ function mailDigest(){const dest=(S.cfg.emailAvisos||'').trim();
   if(soon.length){L.push('VENCENDO em até '+(+S.cfg.diasAviso||30)+' dias ('+soon.length+'):');
     soon.forEach(x=>L.push('  - '+x.s.codigo+' '+(x.s.nome||x.s.caracteristica||'')+' | '+instrName(x.s)+' | vence '+fdate(x.p)));L.push('')}
   L.push('Registre o recálculo no Cronograma (botão de reciclagem) após concluir o estudo.');
-  const sub='MSA Pro — '+over.length+' vencido(s), '+soon.length+' vencendo — '+(S.cfg.empresa||'');
-  location.href='mailto:'+encodeURIComponent(dest)+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(L.join('\n'))}
+  return{over,soon,L,sub:'MSA Pro — '+over.length+' vencido(s), '+soon.length+' vencendo — '+(S.cfg.empresa||'')}}
+function mailDigest(){const dest=(S.cfg.emailAvisos||'').trim();
+  if(!dest){toast('Configure o e-mail em Configurações → Rastreabilidade e avisos','fa-envelope');return}
+  const d=digestData();if(!d){toast('Nada vencido ou vencendo — nada para enviar','fa-circle-check');return}
+  location.href='mailto:'+encodeURIComponent(dest)+'?subject='+encodeURIComponent(d.sub)+'&body='+encodeURIComponent(d.L.join('\n'))}
+
+/* --- envio automático (FormSubmit — gratuito, funciona direto de arquivo local; 1ª vez exige clicar em Activate no inbox) --- */
+function mailDests(){return (S.cfg.emailAvisos||'').split(',').map(x=>x.trim()).filter(Boolean)}
+function formSubmitSend(to,sub,msg){return fetch('https://formsubmit.co/ajax/'+encodeURIComponent(to),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({name:'MSA Pro — '+(S.cfg.empresa||''),_subject:sub,_template:'box',_captcha:'false',message:msg})})}
+async function sendAutoMail(force){
+  if(!S.cfg.emailAuto)return null;
+  const dest=mailDests();if(!dest.length)return null;
+  const d=digestData();if(!d)return null;
+  if(!d.over.length)return null;
+  if(!force&&S.cfg.emailAutoLast===today())return null;
+  const msg=d.L.join('\n');const out=[];
+  for(const to of dest){try{const r=await formSubmitSend(to,d.sub,msg);const j=await r.json().catch(()=>({}));out.push({to,ok:!!r.ok&&String(j.success)==='true',m:j.message||''})}
+    catch(e){out.push({to,ok:false,m:'sem conexão'})}}
+  const okn=out.filter(x=>x.ok).length;
+  const when=new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  S.cfg.emailAutoLog=when+' · '+okn+'/'+out.length+' enviado(s) · '+d.over.length+' vencido(s), '+d.soon.length+' vencendo → '+dest.join(', ');
+  if(okn===out.length)S.cfg.emailAutoLast=today();
+  persist();
+  if(okn>0){toast('E-mail automático enviado — '+d.over.length+' vencido(s) · '+dest.join(', '),'fa-paper-plane');notifyOverdue(true)}
+  else{toast('Envio automático falhou — confira internet/ativação em Configurações','fa-triangle-exclamation')}
+  if(V.view==='config')rCfg();
+  return out}
+function toggleAutoMail(){
+  if(S.cfg.emailAuto){S.cfg.emailAuto=false;persist();toast('Envio automático desativado','fa-bell-slash');rCfg();return}
+  const dest=mailDests();
+  if(!dest.length){toast('Preencha "Avisos por e-mail para" antes de ativar','fa-envelope');return}
+  toast('Enviando pedido de ativação para '+dest.join(', ')+'…','fa-paper-plane');
+  const d=digestData();
+  const sub='MSA Pro — ativação do envio automático — '+(S.cfg.empresa||'');
+  const msg=d?d.L.join('\n'):'Ativação do envio automático de avisos MSA — nenhum estudo vencido ou vencendo no momento.';
+  Promise.all(dest.map(to=>formSubmitSend(to,sub,msg).then(r=>r.json().catch(()=>({}))).catch(()=>({}))))
+   .then(()=>{S.cfg.emailAuto=true;
+     const when=new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+     S.cfg.emailAutoLog=when+' · automático ativado — pedido enviado para '+dest.length+' endereço(s)';persist();
+     modal(`<div class="mh"><h3><i class="fas fa-paper-plane c-brand"></i> Envio automático ativado</h3></div><div class="mb"><p>Para liberar o envio automático, cada destinatário confirma <b>uma única vez</b>:</p><p>1. Abra a caixa de entrada de <b>${esc(dest.join(', '))}</b>;<br>2. Localize o e-mail do <b>FormSubmit</b> que acabou de chegar;<br>3. Clique em <b>"Activate FormSubmit"</b>.</p><p class="legend">A partir daí, sempre que o sistema for aberto com estudo <b>vencido</b>, o resumo sai sozinho (1× por dia). Requer internet — sem internet, o botão "Avisos por e-mail" do Cronograma continua funcionando.</p></div><div class="mf"><button class="btn pri" onclick="closeModal()">Entendi</button></div>`)})
+   .catch(()=>{toast('Falha de conexão com o serviço de e-mail','fa-triangle-exclamation')})}
 
 /* --- notificações do navegador --- */
 function askNotify(){if(!('Notification' in window)){toast('Este navegador não suporta notificações','fa-circle-info');return}
@@ -1618,7 +1655,7 @@ function rDash(){
 function kpi(lb,v,s,ic,c,bar,f,click){const on=click||(f?`go('estudos',{f:${JSON.stringify(Object.assign({},f,{periodo:V.dash.periodo,area:V.dash.area})).replace(/"/g,"'")}})`:'');
   return`<div class="card kpi" onclick="${on}"><div class="lb"><i class="fas ${ic} bg-${c} c-${c}"></i>${lb}</div><div class="v">${v}</div><div class="s">${s}</div><div class="bar"><span style="width:${Math.max(0,Math.min(100,bar))}%;background:var(--${c==='brand'?'brand':c})"></span></div></div>`}
 function recent(L){const r=[...L].sort((a,b)=>(b.atualizadoEm||'').localeCompare(a.atualizadoEm||'')).slice(0,7);if(!r.length)return'<div class="empty"><i class="fas fa-inbox"></i>Sem estudos no período</div>';
-   return r.map(s=>`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-brand c-brand"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · ${fdate(s.data)}${s.simulado?' · SIMULAÇÃO':''}</small></div><small style="color:var(--muted)">${esc(s.resultado?.chave||'')}</small>${badge(s)}</div>`).join('')}
+   return r.map(s=>`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-brand c-brand"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · ${fdate(s.data)}</small></div><small style="color:var(--muted)">${esc(s.resultado?.chave||'')}</small>${badge(s)}</div>`).join('')}
 function attention(L){const items=[];
   L.filter(s=>s.resultado?.status==='Reprovado').slice(0,5).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-bad c-bad"><i class="fas fa-circle-xmark"></i></div><div class="tx"><b>${esc(s.codigo)} reprovado</b><small>${esc(s.resultado.chave)} · ${esc(instrName(s))}</small></div></div>`));
   L.filter(s=>s.resultado?.status==='Incompleto').slice(0,3).forEach(s=>items.push(`<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico bg-inc"><i class="fas fa-hourglass-half"></i></div><div class="tx"><b>${esc(s.codigo)} incompleto</b><small>${esc(s.resultado.msg)}</small></div></div>`));
@@ -1670,7 +1707,7 @@ function rList(){const L=filtered(),f=V.f;
   const th=(k,l)=>`<th onclick="V.sort={k:'${k}',d:V.sort.k==='${k}'?-V.sort.d:1};rList()">${l}${V.sort.k===k?(V.sort.d>0?' ▲':' ▼'):''}</th>`;
   $('#lst').innerHTML=L.length?`<table class="t"><thead><tr><th style="width:34px"><input type="checkbox" ${L.length&&L.every(s=>V.sel.has(s.id))?'checked':''} onclick="event.stopPropagation();${L.map(s=>`'${s.id}'`).length?`[${L.map(s=>`'${s.id}'`).join(',')}].forEach(i=>this.checked?V.sel.add(i):V.sel.delete(i));rList()`:''}"></th>${th('codigo','Código')}${th('tipo','Tipo')}${th('nome','Peça / Característica')}${th('instr','Instrumento')}${th('data','Data')}${th('responsavel','Responsável')}${th('kv','Resultado')}${th('status','Status')}<th style="cursor:default">Ações</th></tr></thead><tbody>
    ${L.map(s=>`<tr class="cl" onclick="openStudy('${s.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${V.sel.has(s.id)?'checked':''} onchange="this.checked?V.sel.add('${s.id}'):V.sel.delete('${s.id}');rList()"></td>
-    <td><b>${esc(s.codigo)}</b>${s.simulado?'<small class="tag" style="margin-left:6px;color:var(--warn);background:var(--warn-bg)">SIMULAÇÃO</small>':''}</td><td><span class="tag"><i class="fas ${TYPES[s.tipo].ic}"></i> ${TYPES[s.tipo].n}</span></td><td>${esc(s.nome||s.peca||'—')}<div style="color:var(--muted);font-size:12px">${esc(s.caracteristica)}</div></td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?`<div style="color:var(--muted);font-size:12px">unid. ${esc(s.instrumentoCod)}</div>`:''}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel||'—')}</td><td>${esc(s.resultado?.chave||'—')}</td><td>${badge(s)}${s.revalObr?'<div style="margin-top:4px"><span class="tag" style="color:var(--bad);background:var(--bad-bg)"><i class="fas fa-rotate"></i> revalidar</span></div>':''}${s.aprovadoPor?'<div style="margin-top:4px"><span class="tag" style="color:var(--ok);background:var(--ok-bg)"><i class="fas fa-user-check"></i> '+esc(s.aprovadoPor)+'</span></div>':''}</td>
+    <td><b>${esc(s.codigo)}</b></td><td><span class="tag"><i class="fas ${TYPES[s.tipo].ic}"></i> ${TYPES[s.tipo].n}</span></td><td>${esc(s.nome||s.peca||'—')}<div style="color:var(--muted);font-size:12px">${esc(s.caracteristica)}</div></td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?`<div style="color:var(--muted);font-size:12px">unid. ${esc(s.instrumentoCod)}</div>`:''}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel||'—')}</td><td>${esc(s.resultado?.chave||'—')}</td><td>${badge(s)}${s.revalObr?'<div style="margin-top:4px"><span class="tag" style="color:var(--bad);background:var(--bad-bg)"><i class="fas fa-rotate"></i> revalidar</span></div>':''}${s.aprovadoPor?'<div style="margin-top:4px"><span class="tag" style="color:var(--ok);background:var(--ok-bg)"><i class="fas fa-user-check"></i> '+esc(s.aprovadoPor)+'</span></div>':''}</td>
    <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Editar" onclick="openStudy('${s.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm" title="Imprimir" onclick="printStudies(['${s.id}'])"><i class="fas fa-print"></i></button> <button class="btn ic sm" title="Duplicar" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i></button> <button class="btn ic sm dan" title="Excluir" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty"><i class="fas fa-folder-open"></i>Nenhum estudo encontrado.<br><br><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Criar estudo</button></div>`;
 }
@@ -1806,7 +1843,7 @@ function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o c�
    const n0=_cnt(_prev||{}),n1=_cnt(s);logHist(s,'Alteração',(dif.length?'campos: '+dif.join(', '):'identificação sem mudanças')+(n0!==n1?` · medições ${n0}→${n1}`:''))}
   saveStudy(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast('Estudo salvo · '+s.resultado.status);$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
  function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
- function fillDemo(){if(!simulate(V.edit))return;V.edit.simulado=true;rEditor();markDirty();const dp=decimalPlaces(V.edit);toast(`Simulação gerada com ${dp} ${dp===1?'casa decimal':'casas decimais'} — valores aprovados, prontos para o relatório`,'fa-flask')}
+ function fillDemo(){if(!simulate(V.edit))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);toast(`Simulação gerada com ${dp} ${dp===1?'casa decimal':'casas decimais'} — valores aprovados, prontos para o relatório`,'fa-flask')}
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&V.view==='editor'){e.preventDefault();saveEdit()}if(e.key==='Escape')closeModal()});
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
@@ -1863,7 +1900,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
   const plan=['rr','rr','rr','rr','rr','bias','bias','lin','lin','est','est','atr','atr','rr','bias','est'];
   plan.forEach((t,i)=>{const s=newStudy(t);const ins=t==='atr'?inst[4]:inst[i%4];const ft=feats[i%feats.length];Object.assign(s,{nome:ft[0],caracteristica:ft[1],instrumentoId:ins.id,instrumentoTxt:ins.codigo+' — '+ins.descricao,area:ins.area,lie:'9.90',lse:'10.10',responsavel:names[i%4],data:new Date(Date.now()-Math.floor(Math.random()*330)*864e5).toISOString().slice(0,10)});
      if(i%3!==2){s.freqMeses=[3,6,12][i%3];s.proxima=addMonthsISO(s.data,s.freqMeses)}
-     simulate(s,'good');s.simulado=true;saveStudy(s)});
+     simulate(s,'good');saveStudy(s)});
   S.instruments=inst;if(!S.fams.length)S.fams=defaultFams();const ff=S.fams.find(x=>x.cod==='PAQ')||S.fams[0];if(ff)S.studies.filter(s=>s.tipo==='rr').slice(0,2).forEach(s=>{s.familiaId=ff.id;s.instrumentoTxt=ff.cod+' — '+ff.nome+' (família)'});persist();
   toast('Dados de exemplo carregados');render()}
 
@@ -1875,7 +1912,7 @@ function rCfg(){const c=S.cfg,dec=Number.isInteger(+c.decimais)?Math.max(0,Math.
   <div class="card"><h3><i class="fas fa-users c-brand"></i>R&amp;R Variável</h3><div class="form">${f('grrOk','%GRR aceitável até')}${f('grrCond','%GRR condicional até')}${f('ndcMin','ndc mínimo')}<div><label class="l">Base do %GRR</label><select class="f" data-c="base"><option value="tv" ${c.base==='tv'?'selected':''}>Variação total (VT)</option><option value="tol" ${c.base==='tol'?'selected':''}>Tolerância</option></select></div><div><label class="l">Multiplicador σ (tolerância)</label><select class="f" data-c="k"><option value="6" ${c.k==6?'selected':''}>6σ (99,73%)</option><option value="5.15" ${c.k==5.15?'selected':''}>5,15σ (99%)</option></select></div></div></div>
   <div class="card"><h3><i class="fas fa-check-double c-brand"></i>R&amp;R Atributo</h3><div class="form">${f('effOk','Eficácia aceitável ≥ %')}${f('effCond','Eficácia condicional ≥ %')}${f('missOk','Taxa de perda ≤ %')}${f('faOk','Falso alarme ≤ %')}${f('kappaOk','Kappa mínimo')}</div></div>
   <div class="card"><h3><i class="fas fa-bullseye c-brand"></i>Tendência</h3><div class="form">${f('biasMax','%Tendência máx. sobre tolerância')}</div></div>
-  <div class="card"><h3><i class="fas fa-user-shield c-brand"></i>Rastreabilidade e avisos</h3><div class="form">${f('usuario','Usuário local (quem cria/altera/aprova)','text')}${f('emailAvisos','Avisos por e-mail para (separe com vírgula)','text')}<small class="legend">O usuário é gravado nos eventos de criação, alteração e aprovação de cada estudo. O botão “Avisos por e-mail” do Cronograma abre o seu cliente de correio com o resumo pronto — o envio automático em segundo plano exige um servidor e não é feito pelo arquivo local.</small></div></div>
+  <div class="card"><h3><i class="fas fa-user-shield c-brand"></i>Rastreabilidade e avisos</h3><div class="form">${f('usuario','Usuário local (quem cria/altera/aprova)','text')}${f('emailAvisos','Avisos por e-mail para (separe com vírgula)','text')}<div><label class="l">Envio automático — dispara sozinho quando há estudo vencido</label><div class="row"><button class="btn ${c.emailAuto?'dan':'pri'}" onclick="toggleAutoMail()"><i class="fas ${c.emailAuto?'fa-bell-slash':'fa-paper-plane'}"></i>${c.emailAuto?'Desativar envio automático':'Ativar envio automático'}</button>${c.emailAuto?'<span class="tag" style="color:var(--ok);background:var(--ok-bg)"><i class="fas fa-circle-check"></i> automático ativo</span>':''}</div>${c.emailAutoLog?`<small class="legend">Último evento: ${esc(c.emailAutoLog)}</small>`:''}</div><small class="legend">O usuário é gravado nos eventos de criação, alteração e aprovação de cada estudo. <b>Automático:</b> ao abrir o sistema com estudo vencido, o resumo é enviado sozinho (1× por dia) pelo serviço gratuito FormSubmit — na 1ª ativação, confirme no inbox clicando em “Activate FormSubmit”. Requer internet. <b>Manual:</b> o botão “Avisos por e-mail” do Cronograma abre o seu cliente de correio com o resumo pronto.</small></div></div>
   <div class="card"><h3><i class="fas fa-clipboard-check c-brand"></i>Validação do motor de cálculo (AIAG MSA 4ª ed.)</h3><p class="legend">Executa o exemplo oficial do manual (10 peças × 3 avaliadores × 3 tentativas) e compara com os valores publicados — EV 0,202 · AV 0,230 · GRR 0,306 · %GRR 26,68 · ndc 5 — além do t crítico (conferido contra SciPy), constantes X̄-R e kappa de Cohen. Rode antes de aprovar instrumentos.</p><div id="vaiout"><button class="btn pri" onclick="aiagSelfTest('vaiout')"><i class="fas fa-play"></i>Executar validação agora</button></div></div>
   <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
   <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
@@ -1889,7 +1926,7 @@ function download(name,content,type){const a=document.createElement('a');a.href=
 function exportJSON(){download(`msa_backup_${today()}.json`,JSON.stringify({versao:1,exportadoEm:new Date().toISOString(),...S},null,1),'application/json');toast('Backup baixado','fa-download')}
  function exportCSV(ids){const L=ids?S.studies.filter(s=>ids.includes(s.id)):filtered();const cols=['Código','Tipo','Peça','Característica','Instrumento','Código do instrumento','Família','Área','Data','Responsável','LIE','LSE','Casas decimais','Status','Origem dos dados','Resultado','Mensagem'];
   const allM=[...new Set(L.flatMap(s=>Object.keys(s.resultado?.m||{})))];const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-   const rows=L.map(s=>{s.resultado=calc(s);const R=s.resultado;return[s.codigo,TYPES[s.tipo].n,s.nome,s.caracteristica,instrName(s),s.instrumentoCod||'',famLabel(s),s.area,fdate(s.data),s.responsavel,s.lie,s.lse,decimalPlaces(s),R.status,s.simulado?'SIMULAÇÃO':'Registrado/manual',R.chave,R.msg,...allM.map(k=>{const v=R.m?.[k];return ok(v)?String(+v.toFixed(decimalPlaces(s))).replace('.',','):''})].map(q).join(';')});
+   const rows=L.map(s=>{s.resultado=calc(s);const R=s.resultado;return[s.codigo,TYPES[s.tipo].n,s.nome,s.caracteristica,instrName(s),s.instrumentoCod||'',famLabel(s),s.area,fdate(s.data),s.responsavel,s.lie,s.lse,decimalPlaces(s),R.status,'Registrado/manual',R.chave,R.msg,...allM.map(k=>{const v=R.m?.[k];return ok(v)?String(+v.toFixed(decimalPlaces(s))).replace('.',','):''})].map(q).join(';')});
   download(`msa_estudos_${today()}.csv`,'\ufeff'+[cols.concat(allM).map(q).join(';'),...rows].join('\n'),'text/csv');toast(`${L.length} estudo(s) exportado(s)`,'fa-file-csv')}
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.studies))throw 0;
   confirmBox(`Importar <b>${d.studies.length}</b> estudo(s), <b>${(d.instruments||[]).length}</b> instrumento(s), <b>${(d.fams||[]).length}</b> família(s) e <b>${(d.inv||[]).length}</b> item(ns) de inventário? Itens com o mesmo identificador serão atualizados.`,()=>{(d.instruments||[]).forEach(saveInstr);(d.fams||[]).forEach(saveFam);(d.inv||[]).forEach(saveInvItem);d.studies.forEach(s=>saveStudy(s));if(d.cfg)Object.assign(S.cfg,d.cfg,{cloud:S.cfg.cloud});persist();toast('Backup importado');render()})}catch(x){toast('Arquivo inválido','fa-triangle-exclamation')}};r.readAsText(f);e.target.value=''}
@@ -2198,7 +2235,7 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeModal()};
 function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div class="mb">${msg}</div><div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="cYes">Confirmar</button></div>`);$('#cYes').onclick=()=>{closeModal();yes()}}
 
 /* ---------------- início ---------------- */
-load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);render();initCloud();setTimeout(notifyOverdue,2500);
+load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
 </script>
 <script>
 (function(){var mode='auto';try{mode=localStorage.getItem('msa-theme')||'auto'}catch(e){}
