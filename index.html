@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v27</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v28</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -522,7 +522,9 @@ let S={studies:[],instruments:[],fams:[],inv:[],cfg:{empresa:'Minha Empresa',grr
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];S.fams=d.fams||[];S.inv=d.inv||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
 /* Dados vivem SOMENTE no Firebase. O localStorage é lido uma única vez (migração) e depois apagado. */
 function cloudCfg(){return db?db.collection('msapro_config').doc('cfg').set({id:'cfg',json:JSON.stringify(S.cfg)}).then(()=>true).catch(()=>false):Promise.resolve(false)}
-function persist(){clearTimeout(persist.t);persist.t=setTimeout(cloudCfg,500)}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify({studies:S.studies,instruments:S.instruments,fams:S.fams,inv:S.inv,cfg:S.cfg}))}catch(e){}}
+function persist(){clearTimeout(persist.t);persist.t=setTimeout(saveLocal,300);clearTimeout(persist.c);persist.c=setTimeout(cloudCfg,500)}
+window.addEventListener('beforeunload',()=>{try{if(persist.t){clearTimeout(persist.t);saveLocal()}}catch(e){}});
 let db=null;
 function cloudSet(col,doc){if(!db)return Promise.resolve(false);return db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>{setSync(true);return true}).catch(e=>{setSync(false,e&&e.code||'erro');return false})}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
@@ -530,7 +532,7 @@ let cloudOk=false,unsub=null,syncTimer=null;
 function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Sem Firebase — alterações NÃO ficam salvas')}
 let authTried=false,progDone=false;
 function ensureProg(){if(progDone)return;progDone=true;migrateProg()} /* apenas deduplicação; o planejamento agora é por Famílias */
-function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x))}
+function retryCloud(){authTried=false;progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x));S.instruments.forEach(x=>cloudSet('msapro_instrumentos',x));S.fams.forEach(x=>cloudSet('msapro_familias',x));S.inv.forEach(x=>cloudSet('msapro_inventario',x))}
 function initCloud(){
   if(!S.cfg.cloud){setSync(false);ensureProg();return}
   if(typeof firebase==='undefined'){setSync(false,'biblioteca Firebase bloqueada');ensureProg();return}
@@ -549,7 +551,7 @@ function startSubs(){
     const remote=snap.docs.map(d=>{const x=d.data();try{return x.json?JSON.parse(x.json):x}catch(e){return x}});const ids=new Set(remote.map(r=>r.id));
     if(first){first=false;
       const lo=S.studies.filter(x=>!ids.has(x.id));
-      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet(col,x))));else{if(lo.length)rescue('studies',lo);mig(Promise.resolve(true));S.studies=remote}
+      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet(col,x))));else{mig(Promise.resolve(true));S.studies=mergeById(S.studies,remote);pushMissing(col,S.studies,remote)}
       S.studies.forEach(x=>{if(!x.resultado||x.tipo==='atr')x.resultado=calc(x)});
       ensureProg();
     }else S.studies=remote;
@@ -561,8 +563,10 @@ function startSubs(){
   subsExtra();
 }
 let un2=[],mg={n:3,ok:true},resc={};
-const mig=p=>p.then(r=>{if(![].concat(r).every(Boolean))mg.ok=false;if(--mg.n===0&&mg.ok){try{localStorage.removeItem(KEY)}catch(e){}}});
+const mig=p=>p.then(r=>{if(![].concat(r).every(Boolean))mg.ok=false;if(--mg.n===0&&mg.ok){saveLocal()}});
 function rescue(k,items){resc[k]=items;clearTimeout(rescue.t);rescue.t=setTimeout(()=>{try{const b=new Blob([JSON.stringify(resc,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='msa_copia_local_antes_de_migrar.json';a.click()}catch(e){}toast('Havia dados só neste navegador — baixei uma cópia de segurança','fa-triangle-exclamation')},1200)}
+function mergeById(loc,rem){const m=new Map(rem.map(x=>[x.id,x]));loc.forEach(x=>{const r=m.get(x.id);if(!r)m.set(x.id,x);else if(String(x.atualizadoEm||'')>String(r.atualizadoEm||''))m.set(x.id,x)});return[...m.values()]}
+function pushMissing(col,arr,rem){const ids=new Set(rem.map(r=>r.id));arr.filter(x=>!ids.has(x.id)).forEach(x=>cloudSet(col,x))}
 function subsExtra(){
   un2.forEach(u=>{try{u()}catch(e){}});un2=[];mg={n:3,ok:true};
   const pj=d=>{const x=d.data();try{return x.json?JSON.parse(x.json):x}catch(e){return x}};
@@ -571,21 +575,27 @@ function subsExtra(){
     if(f2&&snap.metadata.fromCache)return;
     const rem=snap.docs.map(pj),ids=new Set(rem.map(r=>r.id));
     if(f2){f2=false;const lo=S.instruments.filter(x=>!ids.has(x.id));
-      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet('msapro_instrumentos',x))));else{if(lo.length)rescue('instruments',lo);mig(Promise.resolve(true));S.instruments=rem}
+      if(!ids.size)mig(Promise.all(lo.map(x=>cloudSet('msapro_instrumentos',x))));else{mig(Promise.resolve(true));S.instruments=mergeById(S.instruments,rem);pushMissing('msapro_instrumentos',S.instruments,rem)}
     }else S.instruments=rem;
     refresh()},()=>{mig(Promise.resolve(false))}));
   un2.push(db.collection('msapro_familias').onSnapshot({includeMetadataChanges:true},snap=>{
     if(f4&&snap.metadata.fromCache)return;
     const rem=snap.docs.map(pj),ids=new Set(rem.map(r=>r.id));
-    if(f4){f4=false;if(!ids.size&&S.fams.length)S.fams.forEach(x=>cloudSet('msapro_familias',x));else S.fams=rem}
+    if(f4){f4=false;
+      if(!ids.size){if(S.fams.length)S.fams.forEach(x=>cloudSet('msapro_familias',x))}
+      else{S.fams=mergeById(S.fams,rem);pushMissing('msapro_familias',S.fams,rem)}
+      saveLocal()}
     else S.fams=rem;
-    refresh()},()=>{}));
+    refresh()},e=>{setSync(false,(e&&e.code)||'erro')}));
   un2.push(db.collection('msapro_inventario').onSnapshot({includeMetadataChanges:true},snap=>{
     if(f5&&snap.metadata.fromCache)return;
     const rem=snap.docs.map(pj),ids=new Set(rem.map(r=>r.id));
-    if(f5){f5=false;if(!ids.size&&S.inv.length)S.inv.forEach(x=>cloudSet('msapro_inventario',x));else S.inv=rem}
+    if(f5){f5=false;
+      if(!ids.size){if(S.inv.length)S.inv.forEach(x=>cloudSet('msapro_inventario',x))}
+      else{S.inv=mergeById(S.inv,rem);pushMissing('msapro_inventario',S.inv,rem)}
+      saveLocal()}
     else S.inv=rem;
-    refresh()},()=>{}));
+    refresh()},e=>{setSync(false,(e&&e.code)||'erro')}));
   un2.push(db.collection('msapro_config').doc('cfg').onSnapshot({includeMetadataChanges:true},d=>{
     if(f3&&d.metadata.fromCache)return;
     if(d.exists){try{Object.assign(S.cfg,JSON.parse(d.data().json),{cloud:true})}catch(e){}if(f3)mig(Promise.resolve(true));refresh()}
