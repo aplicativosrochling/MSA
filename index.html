@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v29</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v30</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -851,11 +851,67 @@ function askGenProg(){const n=progMissing().length;if(!n){toast('Todos os estudo
   confirmBox(`Criar <b>${n}</b> estudo(s) em branco com base na tabela do procedimento <b>${PROC_ID}</b>?<br><small>Estudos já gerados não são duplicados. Depois é só abrir cada um e atualizar os campos de identificação.</small>`,()=>{genProg();if(V.view==='procedimento')rProc();else refresh()})}
 function procPrint(){openWin('Procedimento '+PROC_ID,`<style>${PROC_CSS}</style><div class="proc">${PROC_HTML}</div>`)}
 const PROC_CSS=`.proc{font:12px/1.5 'Segoe UI',Arial,sans-serif;color:#252423}.proc h3.s1{font:700 14px 'Segoe UI',Arial;color:#165A9C;margin:16px 0 6px;border-bottom:2px solid #1E6FBE;padding-bottom:3px}.proc h4.s2{font:700 12.5px 'Segoe UI',Arial;margin:10px 0 3px}.proc p{margin:4px 0}.proc table{width:100%;border-collapse:collapse;margin:8px 0;font-size:11.5px}.proc td,.proc th{border:1px solid #999;padding:4px 7px;vertical-align:top;text-align:left}.proc .plogo{max-width:130px}`;
+/* ---- geração de estudos POR FAMÍLIA a partir da tabela 2.4 do procedimento ---- */
+const PROC_FAM={
+ micint:{cod:'MIC',kw:['micrometro']},torque:{cod:'TOR',kw:['torque']},balanca:{cod:'BAL',kw:['balanca']},
+ duro:{cod:'DUR',kw:['durometro']},paq:{cod:'PAQ',kw:['paquimetro']},relogio:{cod:'REL',kw:['relogio','apalpador']},
+ passa:{cod:'DIS',kw:['dispositivo','gabarito']},spc:{cod:'DIS',kw:['dispositivo','gabarito']},
+ cmm:{cod:'CMM',kw:['cmm','tridimensional','medicao 3d','mmc']},
+ uni:{cod:'ENS',kw:['universal de ensaios']},plasto:{cod:'ENS',kw:['plastometro']},
+ altura:{cod:'ALT',kw:['altura']},espess:{cod:'ESP',kw:['espess']},micro:{cod:'MIC',kw:['micrometro']},
+ vazam:{cod:'ENS',kw:['vazamento']},dinam:{cod:'ENS',kw:['dinamometro']}};
+function procFamMatch(p){const m=PROC_FAM[p.k];if(!m)return null;
+ return S.fams.find(f=>f.cod===m.cod)||S.fams.find(f=>m.kw.some(k=>ivN(f.nome).includes(k))||f.tipos.some(t=>m.kw.some(k=>ivN(t).includes(k))))||null}
+/* 0 = novo · 1 = já existe estudo do tipo nesta família · 2 = já existe no programa do procedimento (progId/prog_*) */
+function procFamState(p,t,fid){
+ if(fid&&S.studies.some(s=>s.tipo===t&&s.familiaId===fid))return 1;
+ if(S.studies.some(s=>s.tipo===t&&(s.progId===progId(p,t)||s.id==='prog_'+p.k+'_'+t)))return 2;
+ return 0}
+function procFamCount(){let ex=0;const uni=new Set();PROG.forEach((p,i)=>{const el=$('#pfam-'+i);const fid=el?el.value:'';if(!fid)return;
+  p.est.forEach(t=>{procFamState(p,t,fid)?ex++:uni.add(fid+'|'+t)})});return{n:uni.size,ex}}
+function procFamRefresh(){const c=procFamCount(),b=$('#pfBtn');
+ if(b){b.innerHTML=`<i class="fas fa-wand-magic-sparkles"></i>Criar ${c.n} estudo(s)`;b.disabled=!c.n;b.style.opacity=c.n?'1':'.5'}
+ const t=$('#pfTag');if(t)t.textContent=c.ex?`${c.ex} estudo(s) já existem e serão mantidos — nada é duplicado`:''}
+function procFamModal(){
+ if(!S.fams.length){modal(`<div class="mh"><h3>Criar estudos do procedimento ${PROC_ID}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb"><div class="empty"><i class="fas fa-layer-group"></i>Nenhuma família cadastrada.<br>A tabela 2.4 gera estudos <b>por família de instrumentos</b> — um estudo cobre todos os instrumentos similares.<br><br><button class="btn pri" onclick="closeModal();seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Criar catálogo padrão (AIAG)</button></div></div>`);return}
+ const rows=PROG.map((p,i)=>{const hit=procFamMatch(p);
+  const tags=p.est.map(t=>{const st=hit?procFamState(p,t,hit.id):0;
+   const L={0:['novo','color:var(--brand);background:var(--brand-t)'],1:['já existe nesta família','color:#1E7A3C;background:#E7F6EA'],2:['já existe (programa)','color:#605E5C;background:#F1F0EF']}[st];
+   return `<span class="tag" style="${L[1]}"><i class="fas ${TYPES[t].ic}"></i> ${TYPES[t].n} · ${L[0]}</span>`}).join(' ');
+  const opts=[`<option value="">— ignorar —</option>`];
+  if(hit)opts.push(`<option value="${hit.id}" selected>${esc(hit.cod)} · ${esc(hit.nome)}</option>`);
+  S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).forEach(f=>{if(!hit||f.id!==hit.id)opts.push(`<option value="${f.id}">${esc(f.cod)} · ${esc(f.nome)}</option>`)});
+  return `<tr><td><b>${esc(p.eq)}</b><div style="color:var(--muted);font-size:12px">Padrão: ${esc(p.pad)}</div></td><td>${tags}</td><td style="white-space:nowrap">${esc(p.freq)}</td><td><select class="f" id="pfam-${i}" style="width:100%;min-width:200px" onchange="procFamRefresh()">${opts.join('')}</select></td></tr>`}).join('');
+ modal(`<div class="mh"><h3>Criar estudos da tabela 2.4 — ${PROC_ID}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+ <div class="mb"><p class="legend" style="margin-top:0"><i class="fas fa-circle-info"></i> Cada linha da tabela do procedimento gera os estudos MSA exigidos na <b>família vinculada</b> (AIAG MSA 4ª ed.: um estudo por família cobre todos os instrumentos similares). A frequência preenche o <b>Cronograma</b> de recálculos automaticamente. Estudos já existentes não são duplicados.</p>
+ <div class="tw" style="max-height:50vh;overflow:auto"><table class="t"><thead><tr><th>Equipamento (item 2.4)</th><th>Estudos gerados</th><th>Frequência</th><th>Família vinculada</th></tr></thead><tbody>${rows}</tbody></table></div>
+ <p class="legend" id="pfTag" style="margin:8px 0 0"></p></div>
+ <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="pfBtn" onclick="procFamCreate()"></button></div>`);
+ procFamRefresh()}
+function procFamCreate(){
+ const t0=today(),out=[];
+ PROG.forEach((p,i)=>{const el=$('#pfam-'+i);const fid=el?el.value:'';if(!fid)return;
+  const fam=S.fams.find(f=>f.id===fid);if(!fam)return;
+  p.est.forEach(t=>{if(procFamState(p,t,fid))return;
+   const s=newStudy(t);
+   while(S.studies.some(x=>x.codigo===s.codigo)){const m=s.codigo.match(/^(.*-)(\d+)$/);if(!m)break;s.codigo=m[1]+String(+m[2]+1).padStart(3,'0')}
+   s.familiaId=fam.id;s.instrumentoId='';s.instrumentoCod='';
+   s.instrumentoTxt=`Família ${fam.cod} — ${fam.nome} (família)`;
+   s.nome=`${TYPES[t].n} — ${fam.nome}`;s.peca='';s.caracteristica='';
+   if(p.un)s.unidade=p.un;
+   s.responsavel=fam.resp||userName();s.area='';s.data=t0;
+   if(/^\d+$/.test(p.freq)){s.freqMeses=+p.freq;s.proxima=addMonthsISO(t0,+p.freq)}else{s.freqMeses=0;s.proxima=''}
+   s.obs=`Procedimento ${PROC_ID} (item 2.4) · Equipamento: ${p.eq} · Padrão de referência: ${p.pad} · Frequência: ${/^\d+$/.test(p.freq)?p.freq+' meses':p.freq} · Estudo por família (AIAG MSA 4ª ed.) — cobre todos os instrumentos similares.`;
+   saveStudy(normalize(s));out.push(s)})});
+ closeModal();
+ toast(out.length?`${out.length} estudo(s) criado(s) da tabela 2.4 e vinculados às famílias`:'Nenhum estudo novo — tudo já existe','fa-table-list');
+ if(out.length){V.view='estudos';V.f={q:'',tipo:'',status:'',instr:'',periodo:'',area:'',fam:''};render()}}
 function rProc(){
   $('#main').innerHTML=`<div class="fade"><div class="top"><div><h1>Procedimento ${PROC_ID}</h1><div class="sub">Metrologia de Equipamentos de Teste · Rev. A · 10-jan-2025</div></div><div class="sp"></div>
+   <button class="btn pri" onclick="procFamModal()"><i class="fas fa-table-list"></i>Criar estudos 2.4</button>
    <button class="btn" onclick="procPrint()"><i class="fas fa-print"></i>Imprimir</button></div>
    <div class="card"><div class="proc">${PROC_HTML}</div></div>
-   <p class="legend" style="margin-top:10px"><i class="fas fa-layer-group"></i> O programa de estudos MSA (item 2.4) agora é gerenciado por <b>família de instrumentos</b> — cadastre/grupe em <b>Famílias</b> e acompanhe os prazos no <b>Cronograma</b> (AIAG MSA 4ª ed.).</p></div>`}
+   <p class="legend" style="margin-top:10px"><i class="fas fa-layer-group"></i> O programa de estudos MSA (item 2.4) agora é gerenciado por <b>família de instrumentos</b> — use <b>Criar estudos 2.4</b> para gerar de uma vez os estudos desta tabela vinculados às famílias, cadastre/grupe em <b>Famílias</b> e acompanhe os prazos no <b>Cronograma</b> (AIAG MSA 4ª ed.).</p></div>`}
 
 /* ---------------- CRONOGRAMA DE RECÁLCULOS MSA ---------------- */
 const FREQ_LBL={0:'Sem recorrência',1:'Mensal',2:'Bimestral',3:'Trimestral',4:'Quadrimestral',6:'Semestral',12:'Anual',24:'Bienal'};
@@ -1487,6 +1543,7 @@ function rFams(){const invOn=!!S.inv.length;
   $('#main').innerHTML=`<div class="fade">
   <div class="top"><div><h1>Famílias de Instrumentos</h1><div class="sub">Estudos MSA por família — AIAG MSA 4ª ed.: instrumentos similares podem ser avaliados por um estudo representativo</div></div><div class="sp"></div>
   ${S.fams.length?'':`<button class="btn" onclick="seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Catálogo padrão</button>`}
+  <button class="btn" onclick="procFamModal()"><i class="fas fa-table-list"></i>Estudos do procedimento</button>
   <button class="btn" onclick="impInv()"><i class="fas fa-file-import"></i>Importar inventário (CSV)</button>
   <button class="btn pri" onclick="famModal()"><i class="fas fa-layer-group"></i>Nova família</button></div>
   <div class="grid kpis" style="margin-bottom:16px">
