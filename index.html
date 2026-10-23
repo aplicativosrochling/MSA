@@ -2,14 +2,16 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#15171C">
+<meta name="mobile-web-app-capable" content="yes">
 <title>MSA Pro — Gestão de Análise de Sistemas de Medição</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>(function(){var m="auto";try{m=localStorage.getItem("msa-theme")||"auto"}catch(e){}var h=new Date().getHours();document.documentElement.setAttribute("data-theme",m==="auto"?(h>=6&&h<18?"light":"dark"):m)})()</script>
 <style>
 /*TEMA*/
@@ -153,15 +155,117 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
 .thm .sg button.on{background:#fff;color:var(--side);font-weight:700}
 .thm+.side-foot{margin-top:0}
 
+
+/* ======== REDESIGN v19: moderno, limpo, foco nos dados ======== */
+:root{--bg:#F3F5F9;--bg2:#F0F3F8;--bg3:#F7F9FC;--bd2:#D5DBE8;--border:#E4E8F0;--brand:#2456E8;--brand-d:#1A3FB8;--brand-l:#4F7BFF;--brand-t:#E9EFFE;--text:#141A2A;--muted:#667089;--r:16px;--sh:0 1px 2px rgba(20,26,42,.05),0 6px 20px rgba(20,26,42,.05);--side:#15171C}
+:root[data-theme="dark"]{--bg:#0C0F18;--bg2:#1B2236;--bg3:#161C2E;--bd2:#33405F;--card:#131929;--border:#222B44;--brand:#4F7BFF;--brand-d:#8AAAFF;--brand-l:#8AAAFF;--brand-t:#1C2A52;--text:#E9EDF9;--muted:#93A0C2;--sh:0 1px 2px rgba(0,0,0,.4);--side:#0A0C11}
+body{font-family:'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif;font-size:14px;letter-spacing:-.005em}
+h1,h2,h3,h4,.logo b,.kpi .v{font-family:'Plus Jakarta Sans','Segoe UI',sans-serif}
+.main{padding:28px 36px 48px;max-width:1480px}
+.top h1{font-size:28px;font-weight:800;letter-spacing:-.03em}
+/* sidebar */
+.side{width:256px;padding:22px 14px}
+.logo{border-bottom:0;padding:2px 8px 22px}
+.logo .ic{width:44px;height:44px;border-radius:14px}
+.nav-s{font-size:11.5px;letter-spacing:0;text-transform:none;color:#7C8196;padding:18px 12px 6px;font-weight:600}
+.nav{border-radius:12px;padding:10px 12px;font-weight:600;color:#C9CCD8;margin-bottom:2px}
+.nav i{color:#8B90A6;transition:.15s}
+.nav:hover{background:rgba(255,255,255,.06)}
+.nav.on{background:rgba(245,184,0,.13);color:#fff}.nav.on i{color:var(--pbi)}
+.nav.on:before{left:-14px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0}
+.nav .cnt{background:rgba(255,255,255,.1);border-radius:20px;padding:1px 9px}
+/* cartões */
+.card{border-radius:var(--r);padding:22px;border-color:var(--border)}
+.card h3{font-size:15px;font-weight:700}
+.kpi{border-radius:var(--r)}
+.kpi:hover{transform:none;border-color:var(--brand);box-shadow:var(--sh),0 0 0 3px var(--brand-t)}
+.kpi .lb{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600}
+.kpi .lb i{width:32px;height:32px;border-radius:10px}
+.kpi .v{font-size:32px;font-weight:800;letter-spacing:-.03em}
+.kpi .bar{height:6px;border-radius:6px}
+/* botões, campos, filtros */
+.btn{border-radius:12px;padding:10px 16px;border-color:var(--border);background:var(--card);font-weight:600;box-shadow:0 1px 1px rgba(20,26,42,.04)}
+.btn:hover{background:var(--bg3);border-color:var(--bd2)}
+.btn.pri{background:var(--brand);border-color:var(--brand);box-shadow:0 4px 14px rgba(36,86,232,.28)}
+.btn.pri:hover{background:var(--brand-d);border-color:var(--brand-d)}
+.btn.sm{border-radius:10px}
+.search{border-radius:12px;border-color:var(--border);background:var(--card);padding:10px 14px}
+select.f,input.f,textarea.f,.top select{border-radius:12px;border-color:var(--border);background:var(--card);padding:10px 12px}
+select.f:focus,input.f:focus,textarea.f:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-t)}
+.chip{border-radius:999px;padding:7px 14px;font-weight:600;border-color:var(--border);background:var(--card)}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.tag{border-radius:999px;padding:3px 10px;font-weight:600}
+button:focus-visible,.nav:focus-visible,.chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+/* tabelas */
+.tw{border-radius:var(--r);border-color:var(--border)}
+table.t th{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700;color:var(--muted);background:var(--bg3);padding:13px 12px}
+table.t td{padding:13px 12px;border-bottom:1px solid var(--border)}
+table.t tr.cl:hover td{background:var(--brand-t)}
+.dg th{background:var(--bg3)}
+.modal{border-radius:20px}
+.list-i{border-radius:10px;padding:12px 8px}
+.list-i .ico{border-radius:11px}
+.toast{border-radius:14px}
+.thm .sg{border-radius:12px}.thm .sg button{border-radius:9px}
+::-webkit-scrollbar{width:11px;height:11px}
+@media(max-width:900px){.main{padding:18px 16px 36px}.top h1{font-size:23px}}
+
+.usr{margin-top:auto;padding:10px 12px;font-size:12.5px;color:#C9CCD8;cursor:pointer;border-radius:10px}.usr:hover{background:rgba(255,255,255,.06)}.usr+.thm{margin-top:0}
+.dg td.h,.dg th:first-child{position:sticky;left:0;z-index:2;background:var(--bg3)}
+@media(max-width:900px){.dg input[data-p]{min-width:68px;height:44px;text-align:center}.dg td.c{min-width:60px}.dg{font-size:13px}}
+/* ======== v21: MOBILE + DESKTOP ======== */
+.mbar,.bbar,.sbd{display:none}
+@media(max-width:900px){
+ .app{flex-direction:column}
+ .mbar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:40;background:var(--side);color:#fff;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;font-size:16px}
+ .mbar .ml{width:30px;height:30px;border-radius:9px;background:var(--pbi);color:var(--side);display:grid;place-items:center;font-size:14px}
+ .side{display:flex;position:fixed;left:0;top:0;bottom:0;height:100dvh;width:286px;max-width:86vw;z-index:80;overflow-y:auto;transform:translateX(-105%);transition:transform .25s ease;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+ .side.open{transform:none;box-shadow:12px 0 40px rgba(0,0,0,.35)}
+ .sbd{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:75;opacity:0;pointer-events:none;transition:opacity .25s}
+ .sbd.on{opacity:1;pointer-events:auto}
+ .bbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--card);border-top:1px solid var(--border);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around;box-shadow:0 -4px 20px rgba(20,26,42,.08)}
+ .bt{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:12px;cursor:pointer;min-height:48px}
+ .bt i{font-size:18px}.bt.on{color:var(--brand)}
+ .bt.plus{flex:0 0 54px;height:54px;min-height:0;margin:-20px 4px 0;border-radius:50%;background:var(--brand);color:#fff;justify-content:center;box-shadow:0 6px 18px rgba(36,86,232,.4)}.bt.plus i{font-size:20px}
+ .main{padding:16px 14px calc(96px + env(safe-area-inset-bottom,0px));max-width:100%}
+ .toast{left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));text-align:center}
+ .g3,.g2{grid-template-columns:minmax(0,1fr)}
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .kpi{padding:14px}.kpi .v{font-size:25px}
+ .card{padding:16px}
+ .top{gap:10px;margin-bottom:16px}.top>div:first-child{flex:1 1 100%}.top h1{font-size:23px}
+ .top .row,.top .search{width:100%}.top .row .btn{flex:1;justify-content:center}
+ .top select{flex:1}
+ input,select,textarea{font-size:16px!important}
+ .btn{min-height:42px}
+ .tw{-webkit-overflow-scrolling:touch}
+ table.t th,table.t td{padding:11px 10px}
+}
+#ov{z-index:100}.toast{z-index:110}
+@media(max-width:640px){
+ .ov{align-items:flex-end;padding:0}
+ .modal{max-width:none;max-height:92dvh;border-radius:20px 20px 0 0}
+ .types{grid-template-columns:1fr 1fr}
+ .chips,.row.wrap{gap:6px}
+ .chips{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch}.chips .chip{white-space:nowrap;flex:0 0 auto}
+ .form{grid-template-columns:minmax(0,1fr)}
+ .dg td,.dg th{min-width:56px}
+}
+@media(hover:none){.kpi:hover{box-shadow:var(--sh);border-color:var(--border)}}
+@media(min-width:901px) and (max-width:1180px){.side{width:216px}.main{padding:24px 22px 40px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
 <div class="app">
+  <header class="mbar"><span class="ml"><i class="fas fa-ruler-combined"></i></span><b>MSA Pro</b></header>
+  <div class="sbd" id="sbd" onclick="closeDrawer()"></div>
   <aside class="side">
     <div class="logo"><div class="ic"><i class="fas fa-ruler-combined"></i></div><div><b>MSA Pro</b><small>Análise de Sistemas de Medição</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
+    <button class="nav" data-v="cronograma"><i class="fas fa-calendar-check"></i>Cronograma<span class="cnt" id="cntC">0</span></button>
     <div class="nav-s">Novo estudo</div>
     <button class="nav" data-new="est"><i class="fas fa-wave-square"></i>Estabilidade</button>
     <button class="nav" data-new="bias"><i class="fas fa-bullseye"></i>Tendência (Bias)</button>
@@ -172,10 +276,12 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
     <button class="nav" data-v="procedimento"><i class="fas fa-file-lines"></i>Procedimento<span class="cnt" id="cntP">0</span></button>
     <div class="nav-s">Sistema</div>
     <button class="nav" data-v="config"><i class="fas fa-gear"></i>Configurações</button>
+    <div class="usr" id="usr" onclick="askUser()" title="Trocar usuário"></div>
     <div class="thm"><div class="tl" id="thmL"></div><div class="sg" role="group" aria-label="Tema"><button data-m="auto">Auto</button><button data-m="light">Dia</button><button data-m="dark">Noite</button></div></div>
     <div class="side-foot" style="cursor:pointer" title="Clique para reconectar ao Firebase" onclick="retryCloud()"><span class="dot" id="syncDot"></span><span id="syncTxt">Dados locais</span></div>
   </aside>
   <main class="main" id="main"></main>
+  <nav class="bbar" aria-label="Atalhos"><button class="bt" data-v="dashboard" onclick="go('dashboard')"><i class="fas fa-chart-pie"></i>Painel</button><button class="bt" data-v="estudos" onclick="go('estudos')"><i class="fas fa-folder-open"></i>Estudos</button><button class="bt plus" onclick="openNew()" aria-label="Novo estudo"><i class="fas fa-plus"></i></button><button class="bt" data-v="cronograma" onclick="go('cronograma')"><i class="fas fa-calendar-check"></i>Cronograma</button><button class="bt" onclick="openDrawer()"><i class="fas fa-bars"></i>Menu</button></nav>
 </div>
 
 <div class="ov" id="ov"><div class="modal" id="modal"></div></div>
@@ -183,6 +289,7 @@ label.l{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin
 <canvas id="printCanvas" width="900" height="380" style="position:fixed;left:-9999px;top:0"></canvas>
 
 <script>
+if(typeof Chart==='undefined'){window.Chart=function(){this.destroy=function(){};this.update=function(){}};Chart.defaults=(function m(){return new Proxy({},{get:function(t,k){return k in t?t[k]:(t[k]=m())},set:function(t,k,v){t[k]=v;return true}})})();Chart.register=function(){};window.__noChart=true;setTimeout(function(){toast('Gráficos indisponíveis: a biblioteca Chart.js não carregou (verifique a internet)','fa-triangle-exclamation')},2000)}
 /* ============================================================
    MSA PRO — sistema completo em arquivo único
    Persistência: localStorage (sempre) + Firebase Firestore (opcional, tempo real)
@@ -233,7 +340,17 @@ function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){
 function cloudCfg(){return db?db.collection('msapro_config').doc('cfg').set({id:'cfg',json:JSON.stringify(S.cfg)}).then(()=>true).catch(()=>false):Promise.resolve(false)}
 function persist(){clearTimeout(persist.t);persist.t=setTimeout(cloudCfg,500)}
 let db=null;
-function cloudSet(col,doc){if(!db)return Promise.resolve(false);return db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:JSON.stringify(doc)}).then(()=>{setSync(true);return true}).catch(e=>{setSync(false,e&&e.code||'erro');return false})}
+let pendW=0,failW=new Set(),lastWarn=0;
+const warnSave=m=>{if(Date.now()-lastWarn>5000){lastWarn=Date.now();toast(m,'fa-triangle-exclamation')}};
+window.addEventListener('beforeunload',e=>{if(pendW>0||failW.size){e.preventDefault();e.returnValue=''}});
+function cloudSet(col,doc){
+  if(!db){warnSave('Sem conexão com o Firebase — esta alteração NÃO foi salva');return Promise.resolve(false)}
+  const j=JSON.stringify(doc);
+  if(j.length>950000){failW.add(doc.id);setSync(false,'estudo grande demais (limite de 1 MB por documento)');warnSave('Estudo grande demais para salvar no Firebase (limite 1 MB)');return Promise.resolve(false)}
+  pendW++;
+  return db.collection(col).doc(doc.id).set({id:doc.id,codigo:doc.codigo||'',tipo:doc.tipo||'',atualizadoEm:doc.atualizadoEm||'',json:j})
+    .then(()=>{pendW--;failW.delete(doc.id);setSync(true);return true})
+    .catch(e=>{pendW--;failW.add(doc.id);const c=e&&e.code||'erro';setSync(false,c);warnSave('NÃO foi possível salvar na nuvem ('+c+'). Não feche a página.');return false})}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
 let cloudOk=false,unsub=null,syncTimer=null;
 function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Sem Firebase — alterações NÃO ficam salvas')}
@@ -289,7 +406,7 @@ function subsExtra(){
     else if(f3)mig(cloudCfg());
     f3=false},()=>{mig(Promise.resolve(false))}));
 }
-function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s);const i=S.studies.findIndex(x=>x.id===s.id);if(i>=0)S.studies[i]=s;else S.studies.push(s);persist();cloudSet('msapro_estudos',s)}
+function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s);const i=S.studies.findIndex(x=>x.id===s.id);traceLog(s,i>=0?S.studies[i]:null);if(i>=0)S.studies[i]=s;else S.studies.push(s);persist();cloudSet('msapro_estudos',s)}
 function delStudy(id){S.studies=S.studies.filter(x=>x.id!==id);persist();cloudDel('msapro_estudos',id)}
 function saveInstr(x){x.atualizadoEm=new Date().toISOString();const i=S.instruments.findIndex(y=>y.id===x.id);if(i>=0)S.instruments[i]=x;else S.instruments.push(x);persist();cloudSet('msapro_instrumentos',x)}
 function delInstr(id){S.instruments=S.instruments.filter(x=>x.id!==id);persist();cloudDel('msapro_instrumentos',id)}
@@ -409,13 +526,15 @@ const fmtM=(k,v,s=null)=>isPct(k)?pct(v,decimalPlaces(s)):(['Pontos fora','Subgr
 let V={view:'dashboard',f:{q:'',tipo:'',status:'',instr:'',periodo:'',area:''},sort:{k:'data',d:-1},sel:new Set(),edit:null,dirty:false,dash:{periodo:'365',area:''}};
 const charts={};function kill(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
 function killAll(){Object.keys(charts).forEach(kill)}
-function go(view,opts={}){if(V.view==='editor'&&V.dirty&&!opts.force){confirmBox('Há alterações não salvas. Deseja sair sem salvar?',()=>{V.dirty=false;go(view,opts)});return}
+function openDrawer(){document.querySelector('.side').classList.add('open');$('#sbd').classList.add('on')}
+function closeDrawer(){document.querySelector('.side').classList.remove('open');$('#sbd').classList.remove('on')}
+function go(view,opts={}){closeDrawer();if(V.view==='editor'&&V.dirty&&!opts.force){confirmBox('Há alterações não salvas. Deseja sair sem salvar?',()=>{V.dirty=false;go(view,opts)});return}
   V.view=view;if(opts.f)V.f=Object.assign({q:'',tipo:'',status:'',instr:'',periodo:'',area:''},opts.f);if(view!=='editor')V.edit=null;render();window.scrollTo(0,0)}
-function refresh(){$('#cntE').textContent=S.studies.length;if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc()}
-function render(){killAll();$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view||(V.view==='editor'&&n.dataset.new===V.edit?.tipo)));
+function refresh(){$('#cntE').textContent=S.studies.length;if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc();else if(V.view==='cronograma')rCron();updCron()}
+function render(){killAll();$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view||(V.view==='editor'&&n.dataset.new===V.edit?.tipo)));$$('.bt[data-v]').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view));
   $('#cntE').textContent=S.studies.length;$('#cntP').textContent=PROG.reduce((a,p)=>a+p.est.length,0)-progMissing().length+'/'+PROG.reduce((a,p)=>a+p.est.length,0);
-  ({dashboard:rDash,estudos:rList,editor:rEditor,config:rCfg,procedimento:rProc})[V.view]()}
-$$('.nav').forEach(n=>n.onclick=()=>n.dataset.new?openNew(n.dataset.new):go(n.dataset.v));
+  ({dashboard:rDash,estudos:rList,editor:rEditor,config:rCfg,procedimento:rProc,cronograma:rCron})[V.view]();updCron()}
+$$('.nav').forEach(n=>n.onclick=()=>{closeDrawer();n.dataset.new?openNew(n.dataset.new):go(n.dataset.v)});
 
 
 /* ---------------- PROCEDIMENTO P08_05WI 25A + PROGRAMA MSA ---------------- */
@@ -596,7 +715,7 @@ function rList(){const L=filtered(),f=V.f;
   $('#lst').innerHTML=L.length?`<table class="t"><thead><tr><th style="width:34px"><input type="checkbox" ${L.length&&L.every(s=>V.sel.has(s.id))?'checked':''} onclick="event.stopPropagation();${L.map(s=>`'${s.id}'`).length?`[${L.map(s=>`'${s.id}'`).join(',')}].forEach(i=>this.checked?V.sel.add(i):V.sel.delete(i));rList()`:''}"></th>${th('codigo','Código')}${th('tipo','Tipo')}${th('nome','Peça / Característica')}${th('instr','Instrumento')}${th('data','Data')}${th('responsavel','Responsável')}${th('kv','Resultado')}${th('status','Status')}<th style="cursor:default">Ações</th></tr></thead><tbody>
    ${L.map(s=>`<tr class="cl" onclick="openStudy('${s.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" ${V.sel.has(s.id)?'checked':''} onchange="this.checked?V.sel.add('${s.id}'):V.sel.delete('${s.id}');rList()"></td>
     <td><b>${esc(s.codigo)}</b>${s.simulado?'<small class="tag" style="margin-left:6px;color:#8A6B00;background:#FFF4CE">SIMULAÇÃO</small>':''}</td><td><span class="tag"><i class="fas ${TYPES[s.tipo].ic}"></i> ${TYPES[s.tipo].n}</span></td><td>${esc(s.nome||s.peca||'—')}<div style="color:var(--muted);font-size:12px">${esc(s.caracteristica)}</div></td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel||'—')}</td><td>${esc(s.resultado?.chave||'—')}</td><td>${badge(s)}</td>
-   <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Editar" onclick="openStudy('${s.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm" title="Imprimir" onclick="printStudies(['${s.id}'])"><i class="fas fa-print"></i></button> <button class="btn ic sm" title="Duplicar" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i></button> <button class="btn ic sm dan" title="Excluir" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`
+   <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Editar" onclick="openStudy('${s.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm" title="Imprimir" onclick="printStudies(['${s.id}'])"><i class="fas fa-print"></i></button> <button class="btn ic sm" title="Duplicar" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i></button> <button class="btn ic sm" title="Rastreabilidade" onclick="traceModal('${s.id}')"><i class="fas fa-clock-rotate-left"></i></button> <button class="btn ic sm dan" title="Excluir" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty"><i class="fas fa-folder-open"></i>Nenhum estudo encontrado.<br><br><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Criar estudo</button></div>`;
 }
 function askDel(id){const s=S.studies.find(x=>x.id===id);confirmBox(`Excluir o estudo <b>${esc(s.codigo)}</b>? Esta ação não pode ser desfeita.`,()=>{delStudy(id);V.sel.delete(id);toast('Estudo excluído','fa-trash');if(V.view==='editor')go('estudos',{force:true});else refresh()})}
@@ -611,7 +730,7 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
   $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="go('estudos')"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
    <button class="btn" onclick="fillDemo()" title="Preenche com dados simulados"><i class="fas fa-wand-magic-sparkles"></i>Simular dados</button>
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
-   ${V.isNew?'':`<button class="btn" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i>Duplicar</button><button class="btn dan" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button>`}
+   <button class="btn" onclick="importModal()"><i class="fas fa-file-import"></i>Importar dados</button>${V.isNew?'':`<button class="btn" onclick="traceModal('${s.id}')"><i class="fas fa-clock-rotate-left"></i>Rastreabilidade</button><button class="btn" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i>Duplicar</button><button class="btn dan" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button>`}
    <button class="btn" onclick="saveEdit(true)"><i class="fas fa-print"></i>Salvar e imprimir</button>
    <button class="btn pri" onclick="saveEdit()"><i class="fas fa-floppy-disk"></i>Salvar <small style="opacity:.7">Ctrl+S</small></button></div>
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-circle-info c-brand"></i>Identificação</h3><div class="form" id="info"></div></div>
@@ -635,7 +754,7 @@ function rParams(){const s=V.edit,d=s.dados;const ni=(k,l,mn,mx)=>`<label class=
   if(s.tipo==='rr')h=ni('ops','Operadores',2,3)+ni('parts','Peças',2,10)+ni('trials','Ciclos',2,3);
   if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5)+`<span class="legend">Clique nas células para alternar: <b class="c-ok">A = Aceito</b> · <b class="c-bad">R = Reprovado</b> · vazio</span>`;
   $('#params').innerHTML=h}
-function cell(path,val){return`<td><input data-p="${path}" value="${esc(val)}" inputmode="decimal"></td>`}
+function cell(path,val){return`<td><input data-p="${path}" value="${esc(val)}" inputmode="decimal" enterkeyhint="next"></td>`}
 function rGrid(){const s=V.edit,d=s.dados;let h='';
   if(s.tipo==='est'){h=`<table class="dg"><thead><tr><th>Subgrupo</th><th>Data</th><th>Hora</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr></thead><tbody>${d.m.map((r,i)=>`<tr><td class="h">${i+1}</td><td><input data-p="dts.${i}" value="${esc((d.dts||[])[i]||'')}" placeholder="dd/mm/aa"></td><td><input data-p="hrs.${i}" value="${esc((d.hrs||[])[i]||'')}" placeholder="hh:mm"></td>${r.map((v,j)=>cell(`m.${i}.${j}`,v)).join('')}<td class="c" id="cx${i}"></td><td class="c" id="cr${i}"></td></tr>`).join('')}</tbody></table>`}
   if(s.tipo==='bias'){h=`<table class="dg"><thead><tr><th>Leitura</th>${d.v.map((_,i)=>`<th>${i+1}</th>`).join('')}</tr></thead><tbody><tr><td class="h">Valor</td>${d.v.map((v,i)=>cell(`v.${i}`,v)).join('')}</tr><tr><td class="h">Bias</td>${d.v.map((_,i)=>`<td class="c" id="bb${i}"></td>`).join('')}</tr></tbody></table>`}
@@ -703,7 +822,7 @@ function drawCharts(s,R,sel){const box=$(sel);const cf=chartCfgs(s,R);Object.key
   if(!cf.length){box.innerHTML='<div class="empty"><i class="fas fa-chart-area"></i>Os gráficos aparecem quando houver dados suficientes</div>';return}
   if(box.dataset.n!=String(cf.length)||!box.querySelector('canvas')){box.innerHTML=cf.map((c,i)=>`<div style="margin-bottom:14px"><div class="l">${c.t}</div><div class="chart" style="height:240px"><canvas id="ed${i}"></canvas></div></div>`).join('');box.dataset.n=cf.length}
   cf.forEach((c,i)=>{box.querySelectorAll('.l')[i].textContent=c.t;charts['ed'+i]=new Chart($('#ed'+i),c.c)})}
-function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o código do estudo','fa-triangle-exclamation');return}
+function saveEdit(print){if(!curUser()){askUser(()=>saveEdit(print));return}const s=V.edit;if(!s.codigo.trim()){toast('Informe o código do estudo','fa-triangle-exclamation');return}
   if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){toast('Já existe um estudo com este código','fa-triangle-exclamation');return}
   saveStudy(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast('Estudo salvo · '+s.resultado.status);$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
  function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
@@ -775,11 +894,130 @@ function rCfg(){const c=S.cfg,dec=Number.isInteger(+c.decimais)?Math.max(0,Math.
   <div class="card"><h3><i class="fas fa-check-double c-brand"></i>R&amp;R Atributo</h3><div class="form">${f('effOk','Eficácia aceitável ≥ %')}${f('effCond','Eficácia condicional ≥ %')}${f('missOk','Taxa de perda ≤ %')}${f('faOk','Falso alarme ≤ %')}${f('kappaOk','Kappa mínimo')}</div></div>
   <div class="card"><h3><i class="fas fa-bullseye c-brand"></i>Tendência</h3><div class="form">${f('biasMax','%Tendência máx. sobre tolerância')}</div></div>
   <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
-  <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
+  ${revCfgCard()}<div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
   <div style="margin-top:16px;text-align:right"><button class="btn pri" onclick="saveCfg()"><i class="fas fa-floppy-disk"></i>Salvar configurações</button></div></div>`;$('#imp2').onchange=importJSON}
 function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'||k==='decimais'?+e.value:e.value;if(k==='decimais')S.cfg[k]=Math.max(0,Math.min(8,Math.round(+e.value||0)))});
   S.studies.forEach(s=>s.resultado=calc(s));persist();if(S.cfg.cloud&&!was)initCloud();if(!S.cfg.cloud&&was){db=null;setSync(false)}toast('Configurações salvas · estudos recalculados')}
 function wipe(){confirmBox('Apagar <b>todos</b> os estudos e instrumentos? Recomendamos baixar um backup antes.',()=>{S.studies.forEach(s=>cloudDel('msapro_estudos',s.id));S.instruments.forEach(i=>cloudDel('msapro_instrumentos',i.id));S.studies=[];S.instruments=[];persist();toast('Dados apagados','fa-trash');render()})}
+
+
+
+
+/* ---------------- IMPORTAÇÃO DE MEDIÇÕES (CSV / colar do Excel) ---------------- */
+const isN=x=>/^[+-]?\d+([.,]\d+)?$/.test(x),tn=x=>String(x).replace(',','.');
+function parseTbl(t){const L=String(t).replace(/^\ufeff/,'').replace(/\r/g,'').split('\n').filter(l=>l.trim());if(!L.length)return[];const f=L[0],col=!/[\t;.]/.test(L.join('\n'))&&L.every(l=>/^\s*[+-]?\d+,\d+\s*$/.test(l)),dl=f.includes('\t')?'\t':f.includes(';')?';':',';return L.map(l=>col?[l.trim()]:l.split(dl).map(c=>c.trim().replace(/^"|"$/g,'').trim()))}
+const impErr=m=>{toast(m,'fa-triangle-exclamation');return false};
+const padTo=(r,n)=>Array.from({length:n},(_,i)=>r[i]??'');
+function importMed(text){const s=V.edit,d=s.dados,R=parseTbl(text),nums=r=>r.filter(isN).map(tn);let msg='';
+  if(!R.length)return impErr('Nada para importar');
+  if(s.tipo==='bias'){const v=R.flat().filter(isN).map(tn);if(v.length<2)return impErr('Encontrei menos de 2 números');d.n=v.length;d.v=v;msg=v.length+' leituras'}
+  else if(s.tipo==='est'){let rows=R.map(nums).filter(r=>r.length>=2);if(rows.length<2)return impErr('Preciso de pelo menos 2 linhas (subgrupos) com 2 números');
+    if(rows[0].length>2&&rows.every((r,i)=>+r[0]===i+1))rows=rows.map(r=>r.slice(1));
+    const n=Math.min(10,Math.max(2,rows[0].length));d.n=n;d.g=rows.length;d.m=rows.map(r=>padTo(r,n));d.dts=[];d.hrs=[];msg=rows.length+' subgrupos × '+n}
+  else if(s.tipo==='lin'){const rows=R.map(nums).filter(r=>r.length>=3);if(rows.length<2)return impErr('Cada linha: referência + leituras (mínimo 2 linhas)');
+    const m=Math.max(2,...rows.map(r=>r.length-1));d.g=rows.length;d.m=m;d.refs=rows.map(r=>r[0]);d.v=rows.map(r=>padTo(r.slice(1),m));msg=rows.length+' peças × '+m+' leituras'}
+  else if(s.tipo==='rr'){const lg=R.filter(r=>r.length>=4&&!isN(r[0])&&isN(r[r.length-1]));
+    if(lg.length>=4&&lg.length>=R.length-1){const ops=[],pts=[],cnt={};lg.forEach(r=>{if(!ops.includes(r[0]))ops.push(r[0]);if(!pts.includes(r[1]))pts.push(r[1])});
+      lg.forEach(r=>{const k=r[0]+'|'+r[1];cnt[k]=(cnt[k]||0)+1});const T=Math.max(...Object.values(cnt));
+      if(ops.length<2||ops.length>3)return impErr('R&R aceita 2 ou 3 operadores — o arquivo tem '+ops.length);
+      if(pts.length<2||pts.length>10)return impErr('R&R aceita de 2 a 10 peças — o arquivo tem '+pts.length);
+      if(T<2||T>3)return impErr('R&R aceita 2 ou 3 repetições — o arquivo tem '+T);
+      const v=ops.map(()=>Array.from({length:T},()=>Array(pts.length).fill(''))),seen={};
+      lg.forEach(r=>{const k=r[0]+'|'+r[1],t=seen[k]=(seen[k]||0)+1;v[ops.indexOf(r[0])][t-1][pts.indexOf(r[1])]=tn(r[r.length-1])});
+      d.ops=ops.length;d.parts=pts.length;d.trials=T;d.opNames=ops;d.v=v;msg=ops.length+' operadores × '+pts.length+' peças × '+T+' repetições'}
+    else{const rows=R.map(nums).filter(r=>r.length>=2),T=+d.trials||3;if(!rows.length||rows.length%T)return impErr('Formato por linhas: uma linha por operador×ciclo ('+T+' ciclos por operador). Encontrei '+rows.length+' linhas');
+      const O=rows.length/T,P=rows[0].length;if(O<2||O>3)return impErr('R&R aceita 2 ou 3 operadores — encontrei '+O);if(P<2||P>10)return impErr('R&R aceita de 2 a 10 peças — encontrei '+P);
+      d.ops=O;d.trials=T;d.parts=P;d.v=Array.from({length:O},(_,o)=>rows.slice(o*T,o*T+T).map(r=>padTo(r,P)));msg=O+' operadores × '+P+' peças × '+T+' ciclos'}}
+  else if(s.tipo==='atr'){const rows=R.map(r=>r.map(cvA).filter(Boolean)).filter(r=>r.length>=5),T=+d.trials||3;
+    if(rows.length<1+T||(rows.length-1)%T)return impErr('Formato: 1ª linha = referência (A/R), depois '+T+' linhas por avaliador. Encontrei '+rows.length+' linhas válidas');
+    const O=(rows.length-1)/T,P=rows[0].length;if(O<2||O>5)return impErr('Atributo aceita de 2 a 5 avaliadores — encontrei '+O);
+    d.ops=O;d.trials=T;d.parts=P;d.ref=rows[0];d.v=Array.from({length:O},(_,o)=>rows.slice(1+o*T,1+o*T+T).map(r=>padTo(r,P)));msg=O+' avaliadores × '+P+' peças × '+T+' ciclos'}
+  normalize(s);markDirty();rParams();rGrid();recalc();closeModal();toast('Importado: '+msg);return true}
+const IMPH={rr:'<b>Formato A (exportação de CMM/planilha):</b> colunas <i>Operador; Peça; Repetição; Valor</i>, uma linha por medição.<br><b>Formato B:</b> uma linha por operador×ciclo (na ordem do formulário AIAG), uma coluna por peça.',
+ atr:'1ª linha: a referência de cada peça (A ou R). Depois, uma linha por avaliador×ciclo, na mesma ordem das peças. Aceita A/R, 1/0, OK/NOK.',
+ bias:'Uma coluna (ou linha) com as leituras da peça de referência.',est:'Uma linha por subgrupo, uma coluna por leitura (a coluna de nº do subgrupo é ignorada).',lin:'Uma linha por peça: referência, depois as leituras.'};
+function importModal(){const s=V.edit;modal(`<div class="mh"><h3>Importar medições</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
+  <p class="legend">${IMPH[s.tipo]}<br>Aceita vírgula ou ponto decimal. Os valores atuais da grade serão substituídos.</p>
+  <label class="l">Arquivo CSV / TXT</label><input class="f" type="file" accept=".csv,.txt,.tsv" onchange="impFile(this)">
+  <label class="l" style="margin-top:10px">…ou cole aqui (copie as células no Excel e cole)</label><textarea class="f" id="impT" rows="7" placeholder="Cole os dados aqui"></textarea></div>
+  <div class="mf"><button class="btn" onclick="impTpl()"><i class="fas fa-download"></i>Baixar modelo</button><button class="btn pri" onclick="importMed($('#impT').value)"><i class="fas fa-file-import"></i>Importar</button></div>`)}
+function impFile(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#impT').value=r.result;toast('Arquivo lido — confira e clique em Importar')};r.readAsText(f)}
+function impTpl(){const s=V.edit,d=s.dados;let L=[];
+  if(s.tipo==='rr'){L.push(['Operador','Peça','Repetição','Valor']);d.opNames.forEach(o=>{for(let p=1;p<=d.parts;p++)for(let t=1;t<=d.trials;t++)L.push([o,p,t,''])})}
+  else if(s.tipo==='atr'){L.push(Array.from({length:d.parts},()=>'A'));d.opNames.forEach(()=>{for(let t=0;t<d.trials;t++)L.push(Array.from({length:d.parts},()=>''))})}
+  else if(s.tipo==='est'){for(let g=0;g<d.g;g++)L.push(Array.from({length:d.n},()=>''))}
+  else if(s.tipo==='lin'){for(let g=0;g<d.g;g++)L.push(['ref',...Array.from({length:d.m},()=>'')])}
+  else L.push(Array.from({length:d.n},()=>''));
+  download('modelo_importacao_'+s.tipo+'.csv','\ufeff'+L.map(r=>r.join(';')).join('\r\n'),'text/csv')}
+
+/* ---------------- RASTREABILIDADE ---------------- */
+const curUser=()=>{try{return localStorage.getItem('msa-user')||''}catch(e){return''}};
+const TRK={dados:'medições',data:'data',codigo:'código',nome:'peça',caracteristica:'característica',instrumentoId:'instrumento',instrumentoTxt:'instrumento',responsavel:'responsável',lie:'LIE',lse:'LSE',unidade:'unidade',area:'área',obs:'observações',decimais:'casas decimais',revMeses:'periodicidade',revBase:'base da revalidação'};
+const ADM=['revMeses','revalidadoPor','revBase','revOrigem'],NOLOG=['atualizadoEm','resultado','hist','aprov','criadoPor','criadoEm'];
+function traceLog(s,old){const u=curUser()||'Não identificado',now=new Date().toISOString();s.hist=(s.hist||[]).slice(-59);
+  if(!old){s.criadoPor=s.criadoPor||u;if(!s.hist.length)s.hist.push({em:now,por:u,acao:'Criado'});return}
+  const ch=Object.keys(s).filter(k=>!NOLOG.includes(k)&&JSON.stringify(s[k])!==JSON.stringify(old[k]));if(!ch.length)return;
+  s.hist.push({em:now,por:u,acao:'Alterado',det:[...new Set(ch.map(k=>TRK[k]||k))].join(', ')});
+  if(s.aprov&&ch.some(k=>!ADM.includes(k))){s.hist.push({em:now,por:u,acao:'Aprovação invalidada (estudo alterado)'});s.aprov=null}}
+function askUser(cb){modal(`<div class="mh"><h3>Quem está usando o sistema?</h3></div><div class="mb"><p class="legend">O nome fica registrado em cada criação, alteração e aprovação de estudo.</p><input class="f" id="uNm" placeholder="Nome e sobrenome" value="${esc(curUser())}"></div><div class="mf"><button class="btn pri" onclick="setUser(${cb?'true':'false'})">Salvar</button></div>`);window._ucb=cb;setTimeout(()=>$('#uNm')&&$('#uNm').focus(),50)}
+function setUser(run){const v=($('#uNm').value||'').trim();if(!v){toast('Informe o nome','fa-triangle-exclamation');return}try{localStorage.setItem('msa-user',v)}catch(e){}closeModal();showUser();if(run&&window._ucb)window._ucb()}
+function showUser(){const e=$('#usr');if(e)e.innerHTML='<i class="fas fa-user"></i> '+esc(curUser()||'Identificar usuário')}
+const fdt=d=>d?new Date(d).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'—';
+function traceModal(id){const s=S.studies.find(x=>x.id===id);if(!s)return;const done=s.resultado&&s.resultado.status!=='Incompleto';
+  modal(`<div class="mh"><h3>Rastreabilidade — ${esc(s.codigo)}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
+  <p><b>Criado por:</b> ${esc(s.criadoPor||'—')} · ${fdt(s.criadoEm)}<br><b>Última alteração:</b> ${fdt(s.atualizadoEm)}<br><b>Aprovação:</b> ${s.aprov?`<span class="tag" style="background:var(--ok-bg);color:var(--ok)">Aprovado por ${esc(s.aprov.por)} em ${fdt(s.aprov.em)}</span>`:'<span class="tag" style="background:var(--inc-bg);color:var(--inc)">Não aprovado</span>'}</p>
+  <div class="row" style="margin:10px 0">${s.aprov?`<button class="btn" onclick="aprovar('${id}',false)">Remover aprovação</button>`:`<button class="btn pri" ${done?'':'disabled title="Conclua o estudo antes"'} onclick="aprovar('${id}',true)"><i class="fas fa-stamp"></i>Aprovar estudo</button>`}</div>
+  <div class="tw"><table class="t"><thead><tr><th>Data</th><th>Usuário</th><th>Ação</th></tr></thead><tbody>${(s.hist||[]).slice().reverse().map(h=>`<tr><td style="white-space:nowrap">${fdt(h.em)}</td><td>${esc(h.por)}</td><td>${esc(h.acao)}${h.det?`<br><small style="color:var(--muted)">${esc(h.det)}</small>`:''}</td></tr>`).join('')||'<tr><td colspan="3" style="color:var(--muted)">Sem histórico (estudo anterior ao registro).</td></tr>'}</tbody></table></div></div>`)}
+function aprovar(id,on){if(!curUser()){askUser(()=>aprovar(id,on));return}const s=S.studies.find(x=>x.id===id);if(!s)return;const n=JSON.parse(JSON.stringify(s)),u=curUser(),now=new Date().toISOString();n.hist=n.hist||[];
+  if(on){n.aprov={por:u,em:now};n.hist.push({em:now,por:u,acao:'Aprovado'})}else{n.aprov=null;n.hist.push({em:now,por:u,acao:'Aprovação removida'})}
+  saveStudy(n);toast(on?'Estudo aprovado':'Aprovação removida');traceModal(id);if(V.view==='cronograma')rCron()}
+
+/* ---------------- CRONOGRAMA DE REVALIDAÇÃO ---------------- */
+const REVOPT=[3,6,12,18,24,36];
+const revMeses=s=>+s.revMeses||+S.cfg['rev_'+s.tipo]||12;
+const addM=(d,n)=>{const[y,m,dd]=d.split('-').map(Number),x=new Date(y,m-1+n,1),l=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(dd,l));return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+const dDiff=(a,b)=>Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/864e5);
+const nk=t=>String(t||'').trim().toLowerCase();
+function revEvents(s){const k=nk(instrName(s)),ev=(S.cfg.revEventos||[]).filter(e=>nk(e.instr)===k),i=instrOf(s);if(i&&i.ultCal)ev.push({tipo:'Calibração',data:i.ultCal,instr:k});return ev}
+function revItems(){const av=+S.cfg.rev_aviso||30;return S.studies.filter(s=>!s.revalidadoPor&&s.resultado&&s.resultado.status&&s.resultado.status!=='Incompleto').map(s=>{const base=s.revBase||s.data||today();let due=addM(base,revMeses(s)),motivo='';
+  const e=revEvents(s).filter(e=>e.data>base&&e.data<=today()).sort((a,b)=>b.data.localeCompare(a.data))[0];if(e){due=e.data;motivo=`${e.tipo} do instrumento em ${fdate(e.data)}, após o estudo`}
+  const d=dDiff(due,today());return{s,base,due,d,motivo,st:d<0||motivo?'v':d<=av?'a':'o'}}).sort((a,b)=>a.due.localeCompare(b.due))}
+function updCron(){const e=$('#cntC');if(!e)return;const n=revItems().filter(x=>x.st!=='o').length;e.textContent=n;e.style.display=n?'':'none';e.style.background='var(--bad-bg)';e.style.color='var(--bad)'}
+const VERSAO='v24 · 23/10/2026';
+function revCfgCard(){const c=S.cfg;return `<div class="legend" style="text-align:right;margin-bottom:8px">MSA Pro ${VERSAO}</div><div class="card"><h3><i class="fas fa-calendar-check c-brand"></i>Revalidação periódica (cronograma)</h3><div class="form">${Object.keys(TYPES).map(k=>`<div><label class="l">Periodicidade padrão — ${esc(TYPES[k].n)} (meses)</label><input class="f" data-c="rev_${k}" type="number" min="1" step="1" value="${+c['rev_'+k]||12}"></div>`).join('')}<div><label class="l">E-mail(s) para o resumo (separe por vírgula)</label><input class="f" data-c="rev_email" type="text" value="${esc(c.rev_email||'')}"></div><div><label class="l">Avisar quantos dias antes do vencimento</label><input class="f" data-c="rev_aviso" type="number" min="0" step="1" value="${+c.rev_aviso||30}"></div></div><p class="legend">Cada estudo pode ter periodicidade própria na tela Cronograma.</p></div>`}
+const RVL={v:['Vencido','var(--bad-bg)','var(--bad)'],a:['A vencer','var(--warn-bg)','var(--warn)'],o:['Em dia','var(--ok-bg)','var(--ok)']};
+function rCron(){const all=revItems(),f=V.cf||(V.cf={st:'',tipo:''}),n=k=>all.filter(x=>x.st===k).length;
+  const it=all.filter(x=>(!f.st||x.st===f.st)&&(!f.tipo||x.s.tipo===f.tipo));
+  const ms=[...Array(12)].map((_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+i);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');return{k,l:d.toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),n:all.filter(x=>i?x.due.slice(0,7)===k:x.due.slice(0,7)<=k).length}}),mx=Math.max(1,...ms.map(m=>m.n));
+  const chip=(k,l,c)=>`<button class="chip ${f.st===k?'on':''}" onclick="V.cf.st='${k}';rCron()">${l} (${c})</button>`;
+  const row=x=>{const s=x.s,r=RVL[x.st],i=instrOf(s),txt=x.d<0?`há ${-x.d} dia(s)`:x.d===0?'hoje':`em ${x.d} dia(s)`;
+   return `<tr><td style="white-space:nowrap"><b>${esc(s.codigo)}</b>${s.aprov?'<br><small style="color:var(--ok)">✔ aprovado</small>':''}</td><td>${esc(TYPES[s.tipo]?.n||s.tipo)}</td><td>${esc(s.peca||'—')}<br><small style="color:var(--muted)">${esc(i?i.codigo:s.instrumentoTxt||'—')}</small></td><td>${fdate(x.base)}</td>
+   <td><select class="f" style="padding:6px 8px;width:auto" onchange="cronSet('${s.id}',this.value)">${[...new Set([...REVOPT,revMeses(s)])].sort((a,b)=>a-b).map(m=>`<option value="${m}" ${m===revMeses(s)?'selected':''}>${m} meses</option>`).join('')}</select></td>
+   <td><b>${fdate(x.due)}</b><br><small style="color:var(--muted)">${txt}</small>${x.motivo?`<br><small style="color:var(--bad);font-weight:600">${esc(x.motivo)}</small>`:''}</td><td><span class="tag" style="background:${r[1]};color:${r[2]};white-space:nowrap">${r[0]}</span></td>
+   <td style="white-space:nowrap"><button class="btn sm pri" style="white-space:nowrap" onclick="revalidar('${s.id}')"><i class="fas fa-rotate"></i>Revalidar</button> <button class="btn sm" onclick="traceModal('${s.id}')" title="Rastreabilidade"><i class="fas fa-clock-rotate-left"></i></button> <button class="btn sm" onclick="openStudy('${s.id}')" title="Abrir"><i class="fas fa-pen"></i></button></td></tr>`};
+  $('#main').innerHTML=`<div class="fade"><div class="top"><div><h1>Cronograma de revalidação</h1><div class="sub">Estudos concluídos e a data da próxima revalidação</div></div><div class="row"><button class="btn" onclick="evModal()"><i class="fas fa-screwdriver-wrench"></i>Eventos do instrumento</button><button class="btn" onclick="cronMail()"><i class="fas fa-envelope"></i>Resumo por e-mail</button><button class="btn" onclick="cronCSV()"><i class="fas fa-file-csv"></i>Exportar CSV</button><button class="btn" onclick="cronICS()"><i class="fas fa-calendar-plus"></i>Adicionar ao calendário (.ics)</button></div></div>
+  <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-chart-simple c-brand"></i>Vencimentos nos próximos 12 meses <small style="font-weight:400;color:var(--muted)">(o 1º mês inclui os vencidos)</small></h3><div style="display:flex;gap:8px;align-items:flex-end;height:120px;margin-top:10px">${ms.map((m,i)=>`<div style="flex:1;text-align:center;font-size:11.5px;color:var(--muted)"><div style="font-weight:700;color:var(--text)">${m.n||''}</div><div style="height:${Math.max(4,m.n/mx*80)}px;background:${i===0&&m.n?'var(--bad)':'var(--brand)'};opacity:${m.n?1:.18};border-radius:6px 6px 2px 2px;margin:2px 0"></div>${m.l}</div>`).join('')}</div></div>
+  <div class="chips">${chip('','Todos',all.length)}${chip('v','Vencidos',n('v'))}${chip('a','A vencer',n('a'))}${chip('o','Em dia',n('o'))}<select class="f" style="width:auto;margin-left:auto" onchange="V.cf.tipo=this.value;rCron()"><option value="">Todos os tipos</option>${Object.keys(TYPES).map(k=>`<option value="${k}" ${f.tipo===k?'selected':''}>${esc(TYPES[k].n)}</option>`).join('')}</select></div>
+  <div class="tw" style="overflow-x:auto"><table class="t" style="min-width:980px"><thead><tr><th>Código</th><th>Tipo</th><th>Peça / Instrumento</th><th>Última validação</th><th>Periodicidade</th><th>Próxima revalidação</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${it.map(row).join('')||'<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted)">Nenhum estudo concluído neste filtro. Só estudos com resultado entram no cronograma.</td></tr>'}</tbody></table></div></div>`}
+
+function evModal(){const L=S.cfg.revEventos||[],names=[...new Set(S.studies.map(instrName).filter(x=>x&&x!=='—'))];
+  modal(`<div class="mh"><h3>Eventos do instrumento</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb"><p class="legend">Calibração, reparo ou troca depois da data de um estudo tornam a revalidação necessária na hora, mesmo dentro do prazo.</p>
+  <div class="form"><div><label class="l">Instrumento</label><input class="f" id="evI" list="evL" placeholder="Escolha ou digite"><datalist id="evL">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div><div><label class="l">Evento</label><select class="f" id="evT"><option>Calibração</option><option>Reparo</option><option>Troca</option></select></div><div><label class="l">Data</label><input class="f" id="evD" type="date" value="${today()}"></div></div>
+  <div class="row" style="margin:10px 0"><button class="btn pri" onclick="evAdd()">Registrar evento</button></div>
+  <div class="tw"><table class="t"><thead><tr><th>Data</th><th>Instrumento</th><th>Evento</th><th></th></tr></thead><tbody>${L.slice().sort((a,b)=>b.data.localeCompare(a.data)).map(e=>`<tr><td>${fdate(e.data)}</td><td>${esc(e.instr)}</td><td>${esc(e.tipo)}</td><td><button class="btn ic sm dan" onclick="evDel('${e.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="4" style="color:var(--muted)">Nenhum evento registrado.</td></tr>'}</tbody></table></div></div>`)}
+function evAdd(){const i=$('#evI').value.trim(),d=$('#evD').value;if(!i||!d){toast('Informe instrumento e data','fa-triangle-exclamation');return}(S.cfg.revEventos=S.cfg.revEventos||[]).push({id:uid(),instr:i,tipo:$('#evT').value,data:d});persist();toast('Evento registrado');evModal();rCron();updCron()}
+function evDel(id){S.cfg.revEventos=(S.cfg.revEventos||[]).filter(e=>e.id!==id);persist();evModal();rCron();updCron()}
+function cronMail(){const L=revItems().filter(x=>x.st!=='o');if(!L.length){toast('Nada vencido ou a vencer');return}
+  const b='Revalidações MSA pendentes:\n\n'+L.map(x=>`${x.st==='v'?'[VENCIDO]':'[A VENCER]'} ${x.s.codigo} — ${instrName(x.s)} — ${fdate(x.due)}${x.motivo?' ('+x.motivo+')':''}`).join('\n');
+  location.href='mailto:'+encodeURIComponent(S.cfg.rev_email||'')+'?subject='+encodeURIComponent('Cronograma MSA — '+L.length+' revalidação(ões) pendente(s)')+'&body='+encodeURIComponent(b)}
+function cronBanner(){const m=$('#main .fade');if(!m)return;const L=revItems().filter(x=>x.st!=='o'),v=L.filter(x=>x.st==='v').length;if(!L.length)return;
+  const d=document.createElement('div');d.className='card';d.style.cssText='margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-left:4px solid '+(v?'var(--bad)':'var(--warn)');
+  d.innerHTML=`<i class="fas fa-calendar-check" style="font-size:20px;color:${v?'var(--bad)':'var(--warn)'}"></i><div style="flex:1;min-width:200px"><b>${v?v+' revalidação(ões) vencida(s)':''}${v&&L.length>v?' · ':''}${L.length>v?(L.length-v)+' a vencer':''}</b><div class="legend">Veja o cronograma para revalidar.</div></div><button class="btn pri" onclick="go('cronograma')">Abrir cronograma</button>`;m.insertBefore(d,m.children[1]||null)}
+const _rDash=rDash;rDash=function(){_rDash();cronBanner()};
+function cronSet(id,v){const s=S.studies.find(x=>x.id===id);if(!s)return;s.revMeses=+v;saveStudy(s);rCron();updCron()}
+function revalidar(id){const o=S.studies.find(x=>x.id===id);if(!o)return;confirmBox(`Revalidar <b>${esc(o.codigo)}</b>?<br><small>Cria um novo estudo com os dados atuais (data de hoje) para você atualizar as medições. O estudo anterior sai do cronograma e o novo passa a contar a próxima revalidação.</small>`,()=>{const n=JSON.parse(JSON.stringify(o));n.id=uid();n.codigo=nextCode(n.tipo);n.data=today();n.revBase=today();n.revOrigem=o.id;delete n.revalidadoPor;n.aprov=null;n.hist=[{em:new Date().toISOString(),por:curUser()||'Não identificado',acao:'Revalidação criada a partir de '+o.codigo}];n.criadoPor=curUser()||'Não identificado';n.criadoEm=new Date().toISOString();o.revalidadoPor=n.id;saveStudy(o);saveStudy(n);toast('Revalidação criada — atualize as medições');openStudy(n.id)})}
+function cronCSV(){const L=[['Código','Tipo','Peça','Instrumento','Última validação','Periodicidade (meses)','Próxima revalidação','Dias','Situação']].concat(revItems().map(x=>[x.s.codigo,TYPES[x.s.tipo]?.n||x.s.tipo,x.s.peca||'',(instrOf(x.s)||{}).codigo||x.s.instrumentoTxt||'',x.base,revMeses(x.s),x.due,x.d,RVL[x.st][0]]));download('cronograma_revalidacao.csv','\ufeff'+L.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\r\n'),'text/csv')}
+function cronICS(){const z=d=>d.replace(/-/g,''),ev=revItems().map(x=>['BEGIN:VEVENT','UID:'+x.s.id+'-rev@msapro','DTSTAMP:'+new Date().toISOString().replace(/[-:]|\.\d+/g,''),'DTSTART;VALUE=DATE:'+z(x.due),'DTEND;VALUE=DATE:'+z(addM(x.due,0).replace(/(\d+)-(\d+)-(\d+)/,(m,a,b,c)=>{const d=new Date(+a,+b-1,+c+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})),'SUMMARY:Revalidar MSA '+x.s.codigo+' ('+(TYPES[x.s.tipo]?.n||x.s.tipo)+')','BEGIN:VALARM','TRIGGER:-P'+(+S.cfg.rev_aviso||30)+'D','ACTION:DISPLAY','DESCRIPTION:Revalidação MSA próxima','END:VALARM','END:VEVENT'].join('\r\n'));download('cronograma_revalidacao.ics','BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//MSA Pro//PT\r\n'+ev.join('\r\n')+'\r\nEND:VCALENDAR','text/calendar')}
 
 /* ---------------- exportação / importação ---------------- */
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
@@ -974,7 +1212,7 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
   const ft2=v=>fxd(+v,dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#005A9E';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
-const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
+const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:s.aprov?`<br><b>${esc(s.aprov.por)}</b><br><small>${fdt(s.aprov.em)}</small>`:''}</div></div>`;
 function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
   const rv=adq(m['%GRR (VT)'],C.grrOk,C.grrCond),rt=adq(m['%GRR (Tol)'],C.grrOk,C.grrCond),rn=m.ndc>=C.ndcMin?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
@@ -1094,7 +1332,7 @@ function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div
 
 /* ---------------- início ---------------- */
 load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);render();initCloud();
-setTimeout(()=>{if(!S.cfg.progOfertado&&progMissing().length===PROG.reduce((a,p)=>a+p.est.length,0)){S.cfg.progOfertado=true;persist();askGenProg()}},3000);
+/* pop-up automático de criar os 28 estudos removido; use Procedimento > Criar estudos */
 </script>
 <script>
 (function(){var mode='auto';try{mode=localStorage.getItem('msa-theme')||'auto'}catch(e){}
@@ -1104,7 +1342,7 @@ function apply(re){var t=mode==='auto'?(day()?'light':'dark'):mode,r=document.do
  document.querySelectorAll('.thm .sg button').forEach(function(b){b.classList.toggle('on',b.dataset.m===mode)});
  if(re&&ch&&typeof render==='function'){try{render()}catch(e){}}}
 document.querySelectorAll('.thm .sg button').forEach(function(b){b.onclick=function(){mode=b.dataset.m;try{localStorage.setItem('msa-theme',mode)}catch(e){}apply(true)}});
-setInterval(function(){if(mode==='auto')apply(true)},30000);apply(false)})();
+setInterval(function(){if(mode==='auto')apply(true)},30000);apply(false);showUser()})();
 </script>
 </body>
 </html>
