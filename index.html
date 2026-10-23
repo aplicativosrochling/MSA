@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v28</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v29</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -2095,7 +2095,38 @@ h3 small{font:400 10px 'Segoe UI',Arial;color:#605E5C}
 .estX.e8 thead th.lbl{width:18mm}
 .estK{grid-template-columns:1.05fr 1fr 1.25fr;margin-top:6px;break-inside:avoid;page-break-inside:avoid}
 .estK .ana p{font-size:9.6px}
-.cb.t72 img{height:72mm}`;
+.cb.t72 img{height:72mm}
+/* ---- Linearidade conforme planilha Excel (folha de dados + IC + análise gráfica, sem espaço em branco) ---- */
+.linMain{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1.42fr 1fr;gap:10px;align-items:stretch;margin:2px 0 0}
+.linMain>div{display:flex;flex-direction:column;min-height:0}
+.linMain h3{margin:0 0 3px}
+.linSide{gap:8px}
+.linSide .cal{flex:0 0 auto}
+.linSide .ana{flex:1 1 auto;margin-top:0}
+.linSide .ana p{font-size:9.8px}
+.hyp td.sy{width:22mm;vertical-align:middle}
+.hyp td.vb{text-align:left;white-space:normal;font-weight:400;font-size:9.6px;line-height:1.4}
+.hyp td.vb b{font-weight:700}
+.hyp td.vb.okc{color:#1E7A3C}.hyp td.vb.bgc{color:#C02828}
+.pg.land.fill5{display:flex;flex-direction:column}
+.pg.land.fill5>*{flex:0 0 auto}
+.pg.land.fill5 .linBody{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1.08fr 1fr;gap:10px;align-items:stretch;margin:2px 0 0}
+.pg.land.fill5 .linBody>div{display:flex;flex-direction:column;min-height:0;gap:4px}
+.pg.land.fill5 .linBody h3{margin:2px 0 1px}
+.pg.land.fill5 .linBody .crit{margin-top:auto}
+.linBody .cb{flex:1 1 auto;min-height:0;margin:0;display:flex;flex-direction:column}
+.linBody .cb img{flex:1 1 auto;min-height:0;height:100%}
+.ciT tbody th.lbl{white-space:normal;width:30mm}
+.resG thead th.lbl{white-space:normal}
+.ciT td,.resG td{font-size:10px;padding:3.2px 3px}
+.resG td{padding:4px 3px}
+.ciT td.ok,.resG td.ok{background:#E2F5EB;color:#1E7A3C;font-weight:700}
+.ciT td.nok,.resG td.nok{background:#FDECEB;color:#C02828;font-weight:700}
+.res.sm th{padding:3.5px;font-size:10.5px}.res.sm td{padding:4.5px 8px;font-size:10px;text-align:left;white-space:normal}
+.res.sm td.rb{width:46%}.res.sm td.rb small{color:#605E5C}
+.res.sm td.rv.ok{background:#E7F6EA;color:#1B7D25}.res.sm td.rv.nok{background:#FDECEB;color:#D13438}.res.sm td.rv.cond{background:#FFF4E5;color:#B54708}
+@media screen{.pg.land.fill5{height:210mm}}
+@media print{.pg.land.fill5{height:189.4mm}}`
 
 function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
   if(s.tipo==='est')return`<table class="dt"><tr><th>#</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr>${d.m.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td>${fmt(mean(r.map(num)),decimalPlaces(s))}</td><td>${r.map(num).every(ok)?fmt(rng(r.map(num)),decimalPlaces(s)):''}</td></tr>`).join('')}</table>`;
@@ -2214,7 +2245,62 @@ function reportAtr(s,R,sig){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials
   <div class="ef2"><div><h3 style="margin-top:2px">Eficácia e concordância <small>· conforme planilha de análise de atributos</small></h3>${efT}</div><div><h3 style="margin-top:2px">Matriz de Kappa</h3>${kMat}</div></div>
   ${ana}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   ${sigBlock(s,sig)}</div>`}
-function reportPage(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
+/* ---- Linearidade conforme planilha Excel (folha de dados + intervalos de confiança + análise gráfica) ---- */
+function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces(s),i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+  const f=v=>ok(v)?fxd(v,dp):'',c=v=>esc(v===''?'':v);
+  const fs=v=>ok(v)?fxd(v,Math.max(4,dp)):'—';
+  const r2=R.m['R²'],ta=R.m['t (a)'],tb=R.m['t (b)'],tc=X.tc,pc1=ok(r2)?pct(r2*100,1):'—';
+  const maxB=R.m['Maior |bias|'],pb=R.m['%Bias máx/Tol'];
+  const fa=ta<=tc?'A tendência é igual ao longo da faixa de medição':'A tendência NÃO é igual ao longo da faixa de medição';
+  const fb=tb<=tc?'A tendência é igual a zero':'A tendência NÃO é igual a zero';
+  const vered={Aprovado:'O sistema de medição é adequado quanto à linearidade',Condicional:esc(R.msg||'Estudo condicional — verificar antes de liberar'),Reprovado:'O sistema de medição não é adequado quanto à linearidade'}[R.status]||'';
+  const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Linearidade${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
+  const esp=(s.lie||s.lse)?`${esc(s.lie)} – ${esc(s.lse)} ${un}`:'Conforme valores de referência';
+  const info=`<table class="info"><tr><td>Part nº</td><td>${esc(s.nome)||'—'}</td><td>Nome do equipamento</td><td>${esc(i?i.descricao:(s.instrumentoTxt||'—'))}</td><td>Nº de amostras (referências)</td><td>${g}</td></tr>
+  <tr><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Nº / Tag do equipamento</td><td>${esc(i?i.codigo:'—')}${i&&i.serie?' · S/N '+esc(i.serie):''}</td><td>Nº de medições por amostra</td><td>${m}</td></tr>
+  <tr><td>Especificação</td><td>${esp}</td><td>Capacidade / Resolução</td><td>${esc(i&&i.resolucao?i.resolucao:'—')}</td><td>Erro amostral</td><td>5%</td></tr>
+  <tr><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td><td>Data do estudo</td><td>${fdate(s.data)}</td><td>Tolerância</td><td>${(s.lie||s.lse)?esc(s.lie)+' – '+esc(s.lse)+' '+un:'—'}</td></tr></table>`;
+  const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
+  // folha de dados (como na planilha: linhas = medições, colunas = amostras)
+  const refs=d.refs.map(num);
+  const rows=[`<tr><th class="lbl">Valor de referência</th>${refs.map(r0=>`<td class="rm">${f(r0)}</td>`).join('')}</tr>`];
+  for(let j=0;j<m;j++)rows.push(`<tr><th class="lbl">Medição ${j+1}</th>${d.v.map(r=>`<td>${c(r[j])}</td>`).join('')}</tr>`);
+  rows.push(`<tr><th class="lbl">Média</th>${d.v.map(r=>{const mm=mean(r.map(num).filter(ok));return`<td class="rm">${ok(mm)?f(mm):''}</td>`}).join('')}</tr>`);
+  rows.push(`<tr><th class="lbl">Deslocamento (bias)</th>${d.v.map((r,k)=>{const mm=mean(r.map(num).filter(ok));return`<td class="ra">${ok(mm)&&ok(refs[k])?fs(mm-refs[k]):''}</td>`}).join('')}</tr>`);
+  const cls=g<=8?'':g<=10?' e9':' e8';
+  const sheet=`<table class="dt estX${cls}"><thead><tr><th class="lbl">AMOSTRA →</th>${Array.from({length:g},(_,k)=>`<th>${k+1}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  const cr2=(a,b)=>`<tr><td class="sy">${a}</td><td class="vl">${b}</td></tr>`;
+  const kt=`<table class="cal"><thead><tr><th colspan="2">Regressão — bias = b + a·x</th></tr></thead><tbody>${cr2('a — inclinação',fs(X.a))}${cr2('b — intercepto',fs(X.b))}${cr2('s — erro padrão da regressão',fs(X.sres))}${cr2('R²',pc1)}${cr2('N — pontos válidos',X.N)}${cr2('x̄ — média das referências',fs(X.xm))}${cr2('t crítico (95%)',fs(tc))}</tbody></table>`;
+  const hyp=`<table class="cal hyp"><thead><tr><th colspan="2">Teste de hipóteses — t de Student (95%)</th></tr></thead><tbody>
+  <tr><td class="sy">H<sub>0</sub>: a = 0</td><td class="vb ${ta<=tc?'okc':'bgc'}"><b>|t| = ${fs(ta)} ${ta<=tc?'≤':'>'} t crítico = ${fs(tc)}</b> — ${ta<=tc?'não rejeita H<sub>0</sub>':'rejeita H<sub>0</sub>'}<br>${fa}</td></tr>
+  <tr><td class="sy">H<sub>0</sub>: b = 0</td><td class="vb ${tb<=tc?'okc':'bgc'}"><b>|t| = ${fs(tb)} ${tb<=tc?'≤':'>'} t crítico = ${fs(tc)}</b> — ${tb<=tc?'não rejeita H<sub>0</sub>':'rejeita H<sub>0</sub>'}<br>${fb}</td></tr>
+  </tbody></table>`;
+  const ana=`<div class="ana"><div class="at">ANÁLISE DE LINEARIDADE</div><p>Regressão do deslocamento (bias = leitura − referência) sobre o valor de referência com ${X.N} pontos válidos em ${X.biasMeans.length} referências distintas, intervalo de confiança de 95% da reta ajustada e testes t da inclinação e do intercepto, conforme AIAG MSA 4ª edição.</p><p>Maior |bias| observado: <b>${ok(maxB)?fs(maxB)+' '+un:'—'}</b>${ok(pb)?` · ${pct(pb,1)} da tolerância`:''} · R² = ${pc1}.</p><p><span class="verd ${R.status}">${vered}</span></p></div>`;
+  // intervalos de confiança por peça (como na planilha)
+  const ci=X.biasMeans.map(p=>{const r0=p[0],bs=p[1],pred=X.a*r0+X.b,hw=X.tc*X.sres*Math.sqrt(1/X.N+(r0-X.xm)**2/X.Sxx);return{r0,bs,pred,hw,lo:pred-hw,hi:pred+hw,okA:pred-hw<=0&&pred+hw>=0}});
+  const ciT=ci.length?`<table class="dt estX ciT"><thead><tr><th class="lbl">PEÇA →</th>${ci.map((_,k)=>`<th>P${k+1}</th>`).join('')}</tr></thead><tbody>
+  <tr><th class="lbl">Valor de referência</th>${ci.map(x=>`<td class="rm">${fs(x.r0)}</td>`).join('')}</tr>
+  <tr><th class="lbl">Média de tendência</th>${ci.map(x=>`<td>${fs(x.bs)}</td>`).join('')}</tr>
+  <tr><th class="lbl">Regressão (b + a·x)</th>${ci.map(x=>`<td>${fs(x.pred)}</td>`).join('')}</tr>
+  <tr><th class="lbl">Deslocamento (±)</th>${ci.map(x=>`<td class="ra">${fs(x.hw)}</td>`).join('')}</tr>
+  <tr><th class="lbl">Intervalo de confiança +</th>${ci.map(x=>`<td>${fs(x.hi)}</td>`).join('')}</tr>
+  <tr><th class="lbl">Intervalo de confiança −</th>${ci.map(x=>`<td>${fs(x.lo)}</td>`).join('')}</tr></tbody></table>
+  <div class="kn">Deslocamento = t·s·√(1/N + (x − x̄)²/S<sub>xx</sub>) — meia-largura do IC 95% da reta ajustada (b + a·x).</div>`:'';
+  const resG=ci.length?`<table class="dt estX resG"><thead><tr><th class="lbl">1 — Análise gráfica (IC) · PEÇA →</th>${ci.map((_,k)=>`<th>P${k+1}</th>`).join('')}</tr></thead><tbody><tr><th class="lbl">Zero dentro do IC</th>${ci.map(x=>`<td class="${x.okA?'ok':'nok'}">${x.okA?'Aprovado':'Reprovado'}</td>`).join('')}</tr></tbody></table>`:'';
+  const resT=`<table class="res sm"><thead><tr><th colspan="2">2 — Teste de hipóteses (análise numérica)</th></tr></thead><tbody>
+  <tr><td class="rb">H<sub>0</sub>: a = 0 <small>· |t| = ${fs(ta)} · t crítico = ${fs(tc)}</small></td><td class="rv ${ta<=tc?'ok':'nok'}">${ta<=tc?'APROVADO':'REPROVADO'}</td></tr>
+  <tr><td class="rb">H<sub>0</sub>: b = 0 <small>· |t| = ${fs(tb)} · t crítico = ${fs(tc)}</small></td><td class="rv ${tb<=tc?'ok':'nok'}">${tb<=tc?'APROVADO':'REPROVADO'}</td></tr>
+  <tr><td class="rb">Resultado do estudo</td><td class="rv ${R.status==='Aprovado'?'ok':R.status==='Condicional'?'cond':'nok'}">${R.status.toUpperCase()}</td></tr></tbody></table>`;
+  const cbG=(t,cfg)=>{cfg.options=cfg.options||{};cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:40,left:6,right:10});cfg.plugins=[...(cfg.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c:cfg},760,560,14)}" alt="${esc(t)}"></div>`};
+  const ccL=chartCfgs(s,R);
+  return`<div class="pg land fill">${hd('')}${info}${ban}
+  <div class="linMain"><div><h3>Folha de dados <small>· ${g} amostras × ${m} medições · ${dp} ${dp===1?'casa decimal':'casas decimais'} · deslocamento = média − referência</small></h3><div class="fillT">${sheet}</div></div>
+  <div class="linSide">${kt}${hyp}${ana}</div></div></div>
+  <div class="pg land fill5">${hd(' — intervalos de confiança e análise gráfica')}${info}${ban}
+  <div class="linBody"><div>${ciT?`<h3>Intervalos de confiança</h3>${ciT}`:''}${resG}${resT}<div class="crit">${criteria('lin')}</div></div>
+  <div>${ccL.length?cbG('LINEARIDADE — ANÁLISE GRÁFICA (bias × referência)',ccL[0].c):''}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}</div></div>
+  ${sigBlock(s,sig)}</div>`}
+function reportPage(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
   return`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· '+esc(i.resolucao):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr></table>
   ${(s.historico||[]).length?`<table class="info"><tr><td colspan="6"><b>Rastreabilidade</b> — ${(s.historico||[]).length} evento(s) registrado(s). Últimos: ${(s.historico||[]).slice(-4).map(h=>fdate(String(h.ts).slice(0,10))+' '+esc(h.acao)+' ('+esc(h.por)+')').join(' · ')}</td></tr></table>`:''}
