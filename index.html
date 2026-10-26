@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v39</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v42</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -606,16 +606,28 @@ function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s
 function delStudy(id){S.studies=S.studies.filter(x=>x.id!==id);persist();cloudDel('msapro_estudos',id)}
 function saveInstr(x){x.atualizadoEm=new Date().toISOString();const i=S.instruments.findIndex(y=>y.id===x.id);if(i>=0)S.instruments[i]=x;else S.instruments.push(x);persist();cloudSet('msapro_instrumentos',x)}
 function delInstr(id){S.instruments=S.instruments.filter(x=>x.id!==id);persist();cloudDel('msapro_instrumentos',id)}
-const instrOf=s=>{if(!s)return null;const lc=String(s.instrumentoCod||'').trim().toLowerCase();
-  const b=S.instruments.find(i=>i.id===s.instrumentoId)||(lc?S.instruments.find(i=>String(i.codigo||'').trim().toLowerCase()===lc):null);
-  const v=lc?S.inv.find(x=>String(x.eqid||'').trim().toLowerCase()===lc):null;
-  const res=String(s.resolucao||'').trim().replace(',','.')||(b&&b.resolucao?String(b.resolucao).replace(',','.'):'')||(v&&v.resolucao?String(v.resolucao).replace(',','.'):'');
-  if(!b&&!v&&!lc&&!res&&!s.instrumentoTxt)return null;
-  return Object.assign({},v?{codigo:v.eqid,descricao:v.desc,area:v.local,tipo:v.tipo}:{},b||{},{
-    codigo:(b&&b.codigo)||(v&&v.eqid)||String(s.instrumentoCod||'').trim().toUpperCase()||'—',
-    descricao:(b&&b.descricao)||(v&&v.desc)||s.instrumentoTxt||'',
-    resolucao:res,serie:(b&&b.serie)||(v&&v.serie)||'',fabricante:(b&&b.fabricante)||(v&&v.fabricante)||''})};
-const instrName=s=>{const f=famOf(s);if(f)return `${f.cod} · ${f.nome} (família)`;const i=instrOf(s);if(i&&i.codigo&&i.codigo!=='—')return `${i.codigo}${i.descricao?' — '+i.descricao:''}`;if(s.instrumentoCod)return `${s.instrumentoCod}${s.instrumentoTxt?' — '+s.instrumentoTxt:''}`;return s.instrumentoTxt||'—'};
+const instrOf=s=>S.instruments.find(i=>i.id===s.instrumentoId);
+/* v40: resolvedor de instrumento PARA EXIBIÇÃO — liga estudos antigos (preenchidos só com
+   instrumentoCod/instrumentoTxt) ao instrumento cadastrado, para puxar TAG, resolução e série
+   em formulários e relatórios. O motor de cálculo continua usando instrOf (estrito, por id). */
+const instrDisp=s=>{if(!s)return null;if(s.instrumentoId){const i=S.instruments.find(x=>x.id===s.instrumentoId);if(i)return i}
+  const cd=String(s.instrumentoCod||'').toUpperCase().trim();
+  if(cd){const i=S.instruments.find(x=>String(x.codigo||'').toUpperCase()===cd);if(i)return i}
+  const t=String(s.instrumentoTxt||'').toUpperCase().trim();
+  if(t&&!t.startsWith('FAM')){const hit=S.instruments.find(x=>{const c=String(x.codigo||'').toUpperCase(),ds=String(x.descricao||'').toUpperCase();return t===c||t===ds||t===c+' — '+ds||t.startsWith(c+' —')||t.startsWith(c+' ')});if(hit)return hit}
+  /* v41: SEM instrumento cadastrado — monta um instrumento VIRTUAL com o que foi
+     digitado à mão no próprio estudo (TAG, descrição, resolução, nº de série).
+     Assim TAG, Res. e série saem nos relatórios impressos mesmo sem Inventário.
+     Textos de família continuam como antes (família não tem resolução única). */
+  const codM=String(s.instrumentoCod||'').trim(),txtM=String(s.instrumentoTxt||'').trim();
+  const resM=String(s.instrumentoRes||'').trim(),serM=String(s.instrumentoSerie||'').trim();
+  if(!codM&&!txtM&&!resM&&!serM)return null;
+  if(txtM.startsWith('FAM'))return null;
+  return{codigo:codM,descricao:txtM,resolucao:resM,serie:serM,unidade:s.unidade||'mm',manual:true}};
+const insChipHTML=()=>'';
+const instrName=s=>{const f=famOf(s);if(f)return `${f.cod} · ${f.nome} (família)`;const i=instrDisp(s);if(i)return i.manual?([i.codigo,i.descricao].filter(Boolean).join(' — ')||'—'):`${i.codigo} — ${i.descricao}`;if(s.instrumentoCod)return `${s.instrumentoCod}${s.instrumentoTxt?' — '+s.instrumentoTxt:''}`;return s.instrumentoTxt||'—'};
+/* v41: rótulo "Nome do equipamento" dos relatórios — serve para instrumento cadastrado OU digitado à mão */
+const insLabel=s=>{const i=instrDisp(s);if(!i)return s.instrumentoTxt||'—';return [i.codigo,i.descricao].filter(Boolean).join(' — ')||'—'};
 /* ================= v24 · FAMÍLIAS DE INSTRUMENTOS (AIAG MSA 4ª ed.) ================= */
 function famOf(s){return s&&s.familiaId?S.fams.find(x=>x.id===s.familiaId)||null:null}
 function famCovList(fid){const f=S.fams.find(x=>x.id===fid);if(!f)return[];
@@ -670,7 +682,7 @@ const ivN=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLow
 /* ---------------- modelos de estudo ---------------- */
 function nextCode(t){const pre={est:'EST',bias:'TEN',lin:'LIN',rr:'GRR',atr:'ATR'}[t];const n=S.studies.filter(s=>s.tipo===t).length+1;return `${pre}-${new Date().getFullYear()}-${String(n).padStart(3,'0')}`}
 function newStudy(t){
-  const base={id:uid(),tipo:t,codigo:nextCode(t),nome:'',instrumentoId:'',instrumentoCod:'',instrumentoTxt:'',familiaId:'',peca:'',caracteristica:'',unidade:'mm',lie:'',lse:'',responsavel:'',area:'',data:today(),obs:'',freqMeses:0,proxima:'',ciclo:1,criadoPor:'',atualizadoPor:'',aprovadoPor:'',aprovadoEm:'',revalObr:null,historico:[],decimais:decimalPlaces(),criadoEm:new Date().toISOString()};
+  const base={id:uid(),tipo:t,codigo:nextCode(t),nome:'',instrumentoId:'',instrumentoCod:'',instrumentoTxt:'',instrumentoRes:'',instrumentoSerie:'',familiaId:'',peca:'',caracteristica:'',unidade:'mm',lie:'',lse:'',responsavel:'',area:'',data:today(),obs:'',freqMeses:0,proxima:'',ciclo:1,criadoPor:'',atualizadoPor:'',aprovadoPor:'',aprovadoEm:'',revalObr:null,historico:[],decimais:decimalPlaces(),criadoEm:new Date().toISOString()};
   const D={est:{n:5,g:20,ref:'',m:mtx(20,5),dts:Array(20).fill(''),hrs:Array(20).fill('')},bias:{ref:'',n:15,v:Array(15).fill('')},lin:{g:5,m:10,refs:Array(5).fill(''),v:mtx(5,10)},
     rr:{ops:3,parts:10,trials:3,opNames:['A','B','C'],v:[mtx(3,10),mtx(3,10),mtx(3,10)]},
     atr:{ops:3,parts:50,trials:3,opNames:['Avaliador 1','Avaliador 2','Avaliador 3'],ref:Array(50).fill(''),v:[mtx(3,50),mtx(3,50),mtx(3,50)]}};
@@ -896,6 +908,17 @@ function migrateAll(report){const r=migrateProg();
   if(r.removed||r.fixed){persist();if(report||r.removed)toast(`${r.removed} duplicado(s) removido(s) · ${r.fixed} estudo(s) vinculado(s) ao programa`,'fa-broom')}
   else if(report)toast('Nenhuma duplicidade encontrada','fa-circle-info');
   return r}
+/* v40: estudos SIMULADOS criados por versões antigas podiam sair com valores implausíveis
+   (ex.: R&R com medições quase idênticas → %GRR<1% e ndc>100). No boot, estudos marcados
+   como simulado são recalculados e, se implausíveis, REGENERADOS com o gerador corrigido
+   (com registro no histórico de rastreabilidade). Estudos reais nunca são alterados. */
+function repairSim(){let n=0;const fix=[];
+  S.studies.forEach(s=>{if(!s.simulado||s.tipo!=='rr')return;let R=null;try{R=calc(s)}catch(e){return}
+    if(!R||!R.m||R.status==='Incompleto')return;
+    const g=+R.m['%GRR (VT)'],ndc=+R.m.ndc;
+    if((ok(ndc)&&ndc>40)||(ok(g)&&(g<2||g>28))){simApprove(s,'good');logHist(s,'Regenerado (v40)',`dados simulados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(g)?pct(g,2):'—'}) recriados com o gerador corrigido`);saveStudy(s);n++;fix.push(s.codigo)}});
+  if(n)setTimeout(()=>toast(`${n} estudo(s) R&R simulado(s) com valores fora da realidade foram regenerados automaticamente: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
+  return n}
 function askGenProg(){const n=progMissing().length;if(!n){toast('Todos os estudos do programa já existem','fa-circle-info');return}
   confirmBox(`Criar <b>${n}</b> estudo(s) em branco com base na tabela do procedimento <b>${PROC_ID}</b>?<br><small>Estudos já gerados não são duplicados. Depois é só abrir cada um e atualizar os campos de identificação.</small>`,()=>{genProg();if(V.view==='procedimento')rProc();else refresh()})}
 function procPrint(){openWin('Procedimento '+PROC_ID,`<style>${PROC_CSS}</style><div class="proc">${PROC_HTML}</div>`)}
@@ -1836,6 +1859,10 @@ function openNew(t,fam){if(!t){modal(`<div class="mh"><h3>Novo estudo MSA${fam?'
 
 /* ---------------- EDITOR ---------------- */
 function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tipo];
+  /* v40: adoção automática — se o estudo só tem texto/código do instrumento mas ele existe no
+     Inventário, vincula o id ao abrir o editor (TAG/resolução passam a puxar em tudo; a mudança
+     fica registrada no histórico de diffs ao salvar). Estudos de família não são afetados. */
+  if(!s.instrumentoId){const di=instrDisp(s);if(di&&di.id){s.instrumentoId=di.id;if(!s.instrumentoCod)s.instrumentoCod=di.codigo}}
   $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="go('estudos')"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
    <div class="dd" id="ddSim"><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
    <button class="btn" onclick="importCSV()"><i class="fas fa-file-import"></i>Importar CSV</button>
@@ -1844,36 +1871,48 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    <button class="btn" onclick="saveEdit(true)"><i class="fas fa-print"></i>Salvar e imprimir</button>
    <button class="btn pri" onclick="saveEdit()"><i class="fas fa-floppy-disk"></i>Salvar <small style="opacity:.7">Ctrl+S</small></button></div>
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-circle-info c-brand"></i>Identificação</h3><div class="form" id="info"></div></div>
-   ${s.revalObr?`<div class="card reval-banner" style="margin-bottom:16px"><h3><i class="fas fa-rotate c-bad"></i>Revalidação obrigatória</h3><p class="legend">Instrumento <b>${esc(s.revalObr.instrumento||'')}</b> — ${esc(s.revalObr.motivo)} em <b>${fdate(s.revalObr.em)}</b>. Registre um recálculo (novo ciclo) para liberar a revalidação.</p><div class="row"><button class="btn sm" onclick="openCycle('${s.id}')"><i class="fas fa-rotate"></i>Registrar recálculo</button><button class="btn sm dan" onclick="clearReval('${s.id}')"><i class="fas fa-xmark"></i>Remover marcação</button></div></div>`:''}<div class="card" style="margin-bottom:16px"><h3><i class="fas fa-table c-brand"></i>Dados de medição<span class="hint">Cálculo automático enquanto você digita · Tab/Enter navegam · cole do Excel · importe CSV da CMM</span></h3><div class="row" id="params" style="margin-bottom:12px"></div><div class="tw" id="grid" style="padding:0"></div></div>
+   ${s.revalObr?`<div class="card reval-banner" style="margin-bottom:16px"><h3><i class="fas fa-rotate c-bad"></i>Revalidação obrigatória</h3><p class="legend">Instrumento <b>${esc(s.revalObr.instrumento||'')}</b> — ${esc(s.revalObr.motivo)} em <b>${fdate(s.revalObr.em)}</b>. Registre um recálculo (novo ciclo) para liberar a revalidação.</p><div class="row"><button class="btn sm" onclick="openCycle('${s.id}')"><i class="fas fa-rotate"></i>Registrar recálculo</button><button class="btn sm dan" onclick="clearReval('${s.id}')"><i class="fas fa-xmark"></i>Remover marcação</button></div></div>`:''}<div class="card" style="margin-bottom:16px"><h3><i class="fas fa-table c-brand"></i>Dados de medição</h3><div class="row" id="params" style="margin-bottom:12px"></div><div class="tw" id="grid" style="padding:0"></div></div>
    ${(s.historico||[]).length?`<div class="card" style="margin-bottom:16px"><h3><i class="fas fa-clock-rotate-left c-brand"></i>Rastreabilidade (auditoria)</h3><table class="t" style="font-size:12.5px"><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>${[...(s.historico||[])].slice(-10).reverse().map(h=>`<tr><td>${new Date(h.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(h.por||'—')}</td><td>${esc(h.acao)}</td><td>${esc(h.det||'')}</td></tr>`).join('')}</tbody></table><small class="legend">Últimos ${Math.min(10,(s.historico||[]).length)} de ${(s.historico||[]).length} eventos · criado por <b>${esc(s.criadoPor||'—')}</b> · aprovação: ${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''} · o histórico viaja com o estudo na nuvem.</small></div>`:''}<div class="grid g3"><div class="card"><h3><i class="fas fa-chart-area c-brand"></i>Gráficos</h3><div id="chs"></div></div><div class="card"><h3><i class="fas fa-calculator c-brand"></i>Resultado</h3><div id="res"></div></div></div></div>`;
   const inp=(k,l,t='text',ex='')=>`<div><label class="l">${l}</label><input class="f" data-f="${k}" type="${t}" value="${esc(s[k])}" ${ex}></div>`;
   const dlCod=[...S.inv.map(x=>({c:String(x.eqid||'').trim(),d:x.desc||''})),...S.instruments.map(i=>({c:String(i.codigo||'').trim(),d:i.descricao||''}))].filter(x=>x.c);
   $('#info').innerHTML=inp('codigo','Código do estudo')+inp('data','Data do estudo','date')+
-   `<div><label class="l">Família de instrumentos</label><select class="f" data-f="familiaId"><option value="">— instrumento individual —</option>${S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(fm=>`<option value="${fm.id}" ${s.familiaId===fm.id?'selected':''}>${esc(fm.cod)} · ${esc(fm.nome)}</option>`).join('')}</select><small class="legend">Estudo por família cobre todos os instrumentos similares — AIAG MSA 4ª ed.</small></div>`+
-   `<div><label class="l">Código do instrumento</label><input class="f" data-f="instrumentoCod" list="dlCod" value="${esc(s.instrumentoCod||'')}" placeholder="ex.: PAQ-001" style="text-transform:uppercase" autocomplete="off"><datalist id="dlCod">${dlCod.map(x=>`<option value="${esc(x.c)}">${esc(x.d||'')}</option>`).join('')}</datalist><small class="legend">Código do sistema de calibração — seleciona descrição e família automaticamente</small></div>`+
-   inp('instrumentoTxt','Instrumento — descrição (unidade representativa)')+inp('padrao','Padrão de referência')+
+   `<div><label class="l">Família de instrumentos</label><select class="f" data-f="familiaId"><option value="">— instrumento individual —</option>${S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(fm=>`<option value="${fm.id}" ${s.familiaId===fm.id?'selected':''}>${esc(fm.cod)} · ${esc(fm.nome)}</option>`).join('')}</select></div>`+
+   `<div><label class="l">Código do instrumento</label><input class="f" data-f="instrumentoCod" list="dlCod" value="${esc(s.instrumentoCod||'')}" style="text-transform:uppercase" autocomplete="off"><datalist id="dlCod">${dlCod.map(x=>`<option value="${esc(x.c)}">${esc(x.d||'')}</option>`).join('')}</datalist></div>`+
+   inp('instrumentoTxt','Instrumento — descrição ')+
+   `<div><label class="l">Resolução do instrumento</label><input class="f" data-f="instrumentoRes" value="${esc(s.instrumentoRes||'')}" inputmode="decimal" autocomplete="off"></div><div><label class="l">Nº de série do instrumento</label><input class="f" data-f="instrumentoSerie" value="${esc(s.instrumentoSerie||'')}" autocomplete="off"></div>`+
+   inp('padrao','Padrão de referência')+
    inp('nome','Peça / Descrição')+inp('caracteristica','Característica')+
    inp('unidade','Unidade')+
-   `<div><label class="l">Casas decimais deste estudo</label><select class="f" data-f="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${decimalPlaces(s)===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select><small class="legend">Aplica-se aos resultados, relatórios e dados simulados. Medições já digitadas não são arredondadas.</small></div>`+
-   inp('resolucao','Resolução do instrumento (ex.: 0,01)','text','inputmode="decimal"')+inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+
+   `<div><label class="l">Casas decimais deste estudo</label><select class="f" data-f="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${decimalPlaces(s)===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select></div>`+
+   inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+
    `<div><label class="l">Área / Setor</label><input class="f" data-f="area" list="dlArea" value="${esc(s.area)}"><datalist id="dlArea">${areas().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>`+inp('responsavel','Responsável')+
    inp('freq','Frequência (meses / evento)')+
-   `<div><label class="l">Periodicidade do recálculo (meses)</label><input class="f" data-f="freqMeses" type="number" min="0" max="120" step="1" value="${+s.freqMeses||0}"><small class="legend">Meses entre recálculos · 0 = sem recorrência. Alimenta o Cronograma.</small></div>`+inp('proxima','Próximo recálculo','date')+inp('aprovadoPor','Aprovado por (auditoria)')+
+   `<div><label class="l">Periodicidade do recálculo</label><input class="f" data-f="freqMeses" type="number" min="0" max="120" step="1" value="${+s.freqMeses||0}"></div>`+inp('proxima','Próximo recálculo','date')+inp('aprovadoPor','Aprovado por (auditoria)')+
    `<div><label class="l">Data da aprovação</label><div class="row" style="gap:8px;align-items:center"><input class="f" data-f="aprovadoEm" type="date" value="${esc(s.aprovadoEm||'')}" style="flex:1"><button class="btn sm" onclick="aprovNow()" title="Registra a aprovação de hoje com o usuário local"><i class="fas fa-user-check"></i>Hoje</button></div></div>`+
    `<div style="grid-column:1/-1"><label class="l">Observações / Ações</label><textarea class="f" data-f="obs" rows="2">${esc(s.obs)}</textarea></div>`;
-  $$('#info [data-f]').forEach(e=>{const update=()=>{s[e.dataset.f]=(e.dataset.f==='decimais'||e.dataset.f==='freqMeses')?+e.value:e.value;markDirty();if(['lie','lse','decimais','resolucao','instrumentoCod'].includes(e.dataset.f))recalc()};if(e.tagName==='SELECT')e.onchange=update;else e.oninput=update});
+  $$('#info [data-f]').forEach(e=>{const update=()=>{s[e.dataset.f]=(e.dataset.f==='decimais'||e.dataset.f==='freqMeses')?+e.value:e.value;markDirty();if(['lie','lse','decimais'].includes(e.dataset.f))recalc()};if(e.tagName==='SELECT')e.onchange=update;else e.oninput=update});
+  /* v42: o select "Instrumento cadastrado — TAG" foi removido (era redundante com o código).
+     O campo "Código do instrumento" agora faz tudo: ao confirmar um código que existe no
+     Inventário de instrumentos, vincula o instrumento (id) e preenche descrição, família,
+     resolução, série e unidade automaticamente. Código sem correspondência = manual (desvincula). */
   const codInp=$('#info [data-f="instrumentoCod"]');
-  if(codInp)codInp.addEventListener('change',()=>{const c=(codInp.value||'').trim();if(!c)return;const lc=c.toLowerCase();
-    const hit=S.inv.find(x=>String(x.eqid||'').trim().toLowerCase()===lc)||S.instruments.find(i=>String(i.codigo||'').trim().toLowerCase()===lc);
-    if(!hit){return}
+  if(codInp)codInp.addEventListener('change',()=>{const c=(codInp.value||'').trim();const lc=c.toLowerCase();
+    const ii=c?S.instruments.find(i=>String(i.codigo||'').trim().toLowerCase()===lc):null;
+    const hit=ii||(c?S.inv.find(x=>String(x.eqid||'').trim().toLowerCase()===lc):null);
+    if(!hit){if(s.instrumentoId){s.instrumentoId='';markDirty()}return}
     const desc=(hit.desc||hit.descricao||'').trim(),fid=(hit.famId&&S.fams.some(f=>f.id===hit.famId))?hit.famId:'';
-    if(desc)s.instrumentoTxt=desc;
-    if(hit.codigo&&hit.id)s.instrumentoId=hit.id;
-    if(hit.resolucao&&!String(s.resolucao||'').trim()){s.resolucao=String(hit.resolucao);const ri=$('#info [data-f="resolucao"]');if(ri)ri.value=s.resolucao}
+    if(ii){s.instrumentoId=ii.id;s.instrumentoCod=ii.codigo||c.toUpperCase();
+      s.instrumentoTxt=[ii.codigo,ii.descricao].filter(Boolean).join(' — ')||c.toUpperCase();
+      if(!s.unidade&&ii.unidade){s.unidade=ii.unidade;const uin=$('#info [data-f="unidade"]');if(uin)uin.value=s.unidade}
+      s.instrumentoRes=ii.resolucao||'';s.instrumentoSerie=ii.serie||'';
+      const rin=$('#info [data-f="instrumentoRes"]');if(rin)rin.value=s.instrumentoRes;
+      const srin=$('#info [data-f="instrumentoSerie"]');if(srin)srin.value=s.instrumentoSerie;
+      toast(`Instrumento ${s.instrumentoCod.toUpperCase()} vinculado${ii.descricao?' — '+ii.descricao.slice(0,40):''}${ii.resolucao?' · res. '+ii.resolucao+' '+(ii.unidade||'mm'):''}`,'fa-link')}
+    else{if(desc)s.instrumentoTxt=desc;toast(`Equipamento ${c.toUpperCase()} vinculado${desc?' — '+desc.slice(0,40):''}`,'fa-link')}
     if(fid&&!s.familiaId)s.familiaId=fid;
     const tin=$('#info [data-f="instrumentoTxt"]');if(tin)tin.value=s.instrumentoTxt||'';
     const fsel=$('#info [data-f="familiaId"]');if(fsel)fsel.value=s.familiaId||'';
-    markDirty();toast(`Instrumento ${c.toUpperCase()} vinculado${desc?' — '+desc.slice(0,40):''}${fid&&!S.studies.some(x=>x.id===s.id&&x.familiaId)?' · família preenchida':''}`,'fa-link')});
+    markDirty();recalc()});
   rParams();rGrid();recalc();
 }
  function markDirty(){V.dirty=true;const d=$('#dirty');if(d)d.innerHTML='· <b class="c-warn">alterações não salvas</b>'}
@@ -1882,11 +1921,11 @@ function rParams(){const s=V.edit,d=s.dados;const ni=(k,l,mn,mx)=>`<label class=
   if(s.tipo==='bias')h=`<label class="row" style="gap:6px"><span class="l" style="margin:0">Valor de referência</span><input class="f" style="width:120px" inputmode="decimal" value="${esc(d.ref)}" oninput="V.edit.dados.ref=this.value;markDirty();recalc()"></label>`+ni('n','Nº leituras (mín. 10)',10,100);
   if(s.tipo==='lin')h=ni('g','Nº peças de referência',5,10)+ni('m','Leituras por peça (mín. 10)',10,20);
   if(s.tipo==='rr')h=ni('ops','Operadores',2,3)+ni('parts','Peças',2,10)+ni('trials','Ciclos',2,3);
-  if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5)+`<span class="legend">Clique nas células para alternar: <b class="c-ok">A = Aceito</b> · <b class="c-bad">R = Reprovado</b> · vazio</span>`;
+  if(s.tipo==='atr')h=ni('ops','Avaliadores',2,5)+ni('parts','Peças',5,100)+ni('trials','Ciclos',2,5);
   $('#params').innerHTML=h}
 function cell(path,val){return`<td><input data-p="${path}" value="${esc(val)}" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false"></td>`}
 function rGrid(){const s=V.edit,d=s.dados;let h='';
-  if(s.tipo==='est'){h=`<table class="dg"><thead><tr><th>Subgrupo</th><th>Data</th><th>Hora</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr></thead><tbody>${d.m.map((r,i)=>`<tr><td class="h">${i+1}</td><td><input data-p="dts.${i}" value="${esc((d.dts||[])[i]||'')}" placeholder="dd/mm/aa"></td><td><input data-p="hrs.${i}" value="${esc((d.hrs||[])[i]||'')}" placeholder="hh:mm"></td>${r.map((v,j)=>cell(`m.${i}.${j}`,v)).join('')}<td class="c" id="cx${i}"></td><td class="c" id="cr${i}"></td></tr>`).join('')}</tbody></table>`}
+  if(s.tipo==='est'){h=`<table class="dg"><thead><tr><th>Subgrupo</th><th>Data</th><th>Hora</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr></thead><tbody>${d.m.map((r,i)=>`<tr><td class="h">${i+1}</td><td><input data-p="dts.${i}" value="${esc((d.dts||[])[i]||'')}"></td><td><input data-p="hrs.${i}" value="${esc((d.hrs||[])[i]||'')}"></td>${r.map((v,j)=>cell(`m.${i}.${j}`,v)).join('')}<td class="c" id="cx${i}"></td><td class="c" id="cr${i}"></td></tr>`).join('')}</tbody></table>`}
   if(s.tipo==='bias'){h=`<table class="dg"><thead><tr><th>Leitura</th>${d.v.map((_,i)=>`<th>${i+1}</th>`).join('')}</tr></thead><tbody><tr><td class="h">Valor</td>${d.v.map((v,i)=>cell(`v.${i}`,v)).join('')}</tr><tr><td class="h">Bias</td>${d.v.map((_,i)=>`<td class="c" id="bb${i}"></td>`).join('')}</tr></tbody></table>`}
   if(s.tipo==='lin'){h=`<table class="dg"><thead><tr><th>Peça</th><th>Referência</th>${Array.from({length:d.m},(_,j)=>`<th>L${j+1}</th>`).join('')}<th>Bias médio</th></tr></thead><tbody>${d.v.map((r,i)=>`<tr><td class="h">${i+1}</td>${cell(`refs.${i}`,d.refs[i]).replace('<td>','<td style="background:var(--brand-t)">')}${r.map((v,j)=>cell(`v.${i}.${j}`,v)).join('')}<td class="c" id="lb${i}"></td></tr>`).join('')}</tbody></table>`}
   if(s.tipo==='rr'){h=`<table class="dg"><thead><tr><th style="position:sticky;left:0;z-index:6;min-width:84px">Operador</th><th style="position:sticky;left:84px;z-index:6">Ciclo</th>${Array.from({length:d.parts},(_,p)=>`<th>Peça ${p+1}</th>`).join('')}<th>Média</th></tr></thead><tbody>`;
@@ -1896,7 +1935,7 @@ function rGrid(){const s=V.edit,d=s.dados;let h='';
   if(s.tipo==='atr'){const oph=d.v.map((o,oi)=>`<th colspan="${d.trials}"><input data-op="${oi}" value="${esc(d.opNames[oi])}" title="Nome do avaliador"></th>`).join('');
     const trh=d.v.map(o=>o.map((_,t)=>`<th>${t+1}</th>`).join('')).join('');
     h=`<table class="dg"><thead><tr><th rowspan="2">Peça</th>${oph}<th rowspan="2">Ref.</th><th rowspan="2">Conc.</th></tr><tr>${trh}</tr></thead><tbody>${d.ref.map((rv2,p)=>`<tr><td class="h">${p+1}</td>${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}${tg('ref.'+p,rv2)}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
-    <div class="row" style="padding:10px;gap:10px"><button class="btn sm" onclick="fillCol('A')"><i class="fas fa-check c-ok"></i> Referência: tudo A</button><button class="btn sm" onclick="fillCol('R')"><i class="fas fa-xmark c-bad"></i> Referência: tudo R</button><span class="legend">Células: clique para alternar <b class="c-ok">A</b> → <b class="c-bad">R</b> → vazio · A = Aceito (passa) · R = Reprovado (não passa)</span></div>`}
+    <div class="row" style="padding:10px;gap:10px"><button class="btn sm" onclick="fillCol('A')"><i class="fas fa-check c-ok"></i> Referência: tudo A</button><button class="btn sm" onclick="fillCol('R')"><i class="fas fa-xmark c-bad"></i> Referência: tudo R</button></div>`}
   $('#grid').innerHTML=h;
   $$('#grid input[data-p]').forEach(e=>{e.oninput=()=>{setPath(V.edit.dados,e.dataset.p,e.value);markDirty();recalcSoon()};e.onkeydown=navKey;e.onpaste=pasteGrid});
   $$('#grid input[data-op]').forEach(e=>e.onchange=()=>{V.edit.dados.opNames[+e.dataset.op]=e.value||String.fromCharCode(65+ +e.dataset.op);markDirty();if(s.tipo==='atr')rGrid();recalc()});
@@ -1937,7 +1976,7 @@ function chartCfgs(s,R){const X=R.ser;if(!X)return[];const dp=decimalPlaces(s),f
    if(s.tipo==='est'){const lb=X.xb.map((_,i)=>i+1),options={...base,scales:{y:{ticks:{callback:ft}}}};return[
      {t:'Carta X̄',c:{type:'line',data:{labels:lb,datasets:[{label:'X̄',data:X.xb,borderColor:'#2F8DFC',pointBackgroundColor:X.xb.map((_,i)=>X.outX.includes(i)?'#C02828':'#2F8DFC'),pointRadius:4,tension:0},lc(lb.map(()=>X.ucl),'#D0414B',{label:'LSC'}),lc(lb.map(()=>X.X),'#288225',{label:'Média',borderDash:[]}),lc(lb.map(()=>X.lcl),'#D0414B',{label:'LIC'})]},options}},
      {t:'Carta R',c:{type:'line',data:{labels:lb,datasets:[{label:'R',data:X.rr,borderColor:'#E26A3E',pointBackgroundColor:X.rr.map((_,i)=>X.outR.includes(i)?'#C02828':'#E26A3E'),pointRadius:4},lc(lb.map(()=>X.uclR),'#D0414B',{label:'LSC'}),lc(lb.map(()=>X.R),'#288225',{label:'R̄',borderDash:[]}),lc(lb.map(()=>X.lclR),'#D0414B',{label:'LIC'})]},options}}]}
-  if(s.tipo==='bias'){const v=X.v,ins=instrOf(s),rI=ins?num(ins.resolucao):NaN,stp=ok(rI)&&rI>0?rI:10**-dp,sd2=Math.max(dp,(String(stp).split('.')[1]||'').length),fb=x=>fxd(x,sd2),anc=Math.min(...v),idx=v.map(x=>Math.round((x-anc)/stp)),rIdx=Math.round((X.ref-anc)/stp),kLo=Math.min(0,rIdx),kHi=Math.max(Math.max(...idx),rIdx),nb=kHi-kLo+1,disc=nb>=3&&nb<=25;
+  if(s.tipo==='bias'){const v=X.v,ins=(typeof instrDisp==='function')?(instrOf(s)||instrDisp(s)):instrOf(s),rI=ins?num(ins.resolucao):NaN,stp=ok(rI)&&rI>0?rI:10**-dp,sd2=Math.max(dp,(String(stp).split('.')[1]||'').length),fb=x=>fxd(x,sd2),anc=Math.min(...v),idx=v.map(x=>Math.round((x-anc)/stp)),rIdx=Math.round((X.ref-anc)/stp),kLo=Math.min(0,rIdx),kHi=Math.max(Math.max(...idx),rIdx),nb=kHi-kLo+1,disc=nb>=3&&nb<=25;
     let cnt,labs;
     if(disc){cnt=Array(nb).fill(0);idx.forEach(i=>cnt[i-kLo]++);labs=cnt.map((_,i)=>fb(anc+(i+kLo)*stp))}
     else{const mn=Math.min(...v,X.ref),mx=Math.max(...v,X.ref),bins=Math.max(5,Math.min(12,Math.ceil(Math.sqrt(v.length))+2)),w=(mx-mn)/bins||1;cnt=Array(bins).fill(0);v.forEach(x=>cnt[Math.min(bins-1,Math.floor((x-mn)/w))]++);labs=cnt.map((_,i)=>fxd(mn+w*(i+.5),dp+2))}
@@ -1960,17 +1999,16 @@ function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o c�
   if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){toast('Já existe um estudo com este código','fa-triangle-exclamation');return}
   if(!s.proxima&&+s.freqMeses>0)s.proxima=addMonthsISO(s.data,+s.freqMeses);const _prev=S.studies.find(x=>x.id===s.id);s.atualizadoPor=userName();
   if(V.isNew){s.criadoPor=(s.criadoPor&&s.criadoPor!=='—')?s.criadoPor:userName();logHist(s,'Estudo criado','tipo '+(TYPES[s.tipo]?.n||s.tipo))}
-  else{const dif=['codigo','nome','caracteristica','instrumentoTxt','unidade','lie','lse','responsavel','padrao','freq','area','data','freqMeses','proxima','aprovadoPor','aprovadoEm'].filter(k=>String((_prev||{})[k]??'')!==String(s[k]??''));
+  else{const dif=['codigo','nome','caracteristica','instrumentoId','instrumentoCod','instrumentoTxt','instrumentoRes','instrumentoSerie','unidade','lie','lse','responsavel','padrao','freq','area','data','freqMeses','proxima','aprovadoPor','aprovadoEm'].filter(k=>String((_prev||{})[k]??'')!==String(s[k]??''));
    const _cnt=o=>{try{const d=o.dados;if(!d)return 0;const a=(o.tipo==='rr'||o.tipo==='atr')?d.v.flat(2):(o.tipo==='est'?d.m:(o.tipo==='lin'?d.v:d.v));return a.flat().filter(x=>String(x??'').trim()!=='').length}catch(e){return 0}};
    const n0=_cnt(_prev||{}),n1=_cnt(s);logHist(s,'Alteração',(dif.length?'campos: '+dif.join(', '):'identificação sem mudanças')+(n0!==n1?` · medições ${n0}→${n1}`:''))}
   saveStudy(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast('Estudo salvo · '+s.resultado.status);$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
  function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
- function fillDemo(q){q=q||'good';if(!simApprove(V.edit,q))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);const R=V.edit.resultado||calc(V.edit);const rot={good:'processo capaz — Aprovado com folga',mid:'cenário limítrofe — Aprovado junto ao limite',bad:'conservador — Aprovado com folga máxima'};const lbl=(R&&R.status!=='Aprovado')?('RESULTADO: '+R.status.toUpperCase()+(R.msg?' — '+String(R.msg).slice(0,120):'')):rot[q];toast(`Simulação realista · ${lbl} · ${dp} ${dp===1?'casa decimal':'casas decimais'} — dados fictícios marcados como SIMULADOS no relatório`,'fa-flask')}
+ function fillDemo(q){q=q||'good';if(!simApprove(V.edit,q))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);const R=V.edit.resultado||calc(V.edit);const rot={good:'processo capaz — Aprovado com folga',mid:'cenário limítrofe — Aprovado junto ao limite',bad:'conservador — Aprovado com folga máxima'};const lbl=(R&&R.status!=='Aprovado')?('RESULTADO: '+R.status.toUpperCase()+(R.msg?' — '+String(R.msg).slice(0,120):'')):rot[q];toast(`Simulação realista · ${lbl} · ${dp} ${dp===1?'casa decimal':'casas decimais'}`,'fa-flask')}
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&V.view==='editor'){e.preventDefault();saveEdit()}if(e.key==='Escape')closeModal()});
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
 /* ---------------- simulação de dados ---------------- */
- function erfinvA(x){x=Math.max(-.999999,Math.min(.999999,x));const a=.147,l=Math.log(1-x*x),q=2/(Math.PI*a)+l/2;return Math.sign(x)*Math.sqrt(Math.sqrt(q*q-l/a)-q)}
  function simulate(s,q='good',att=0){
    normalize(s);const d=s.dados,lo=num(s.lie),hi=num(s.lse),T=tol(s),mid=ok(T)?(lo+hi)/2:NaN;
     const digits=decimalPlaces(s),resolution=10**-digits;
@@ -1989,7 +2027,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(+d.g<20){d.g=20;normalize(s)}
      // CHÃO DE FÁBRICA: leitura quantizada no degrau do instrumento, repetibilidade σ ≈ 1,0–1,6 degraus (limitada a
      // 9% da tolerância), deriva lenta (desgaste/temperatura) e oscilação entre subgrupos com AR(1); coleta semanal com data/hora.
-     const ins=(typeof instrOf==='function')?instrOf(s):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
      let sigma=step*(q==='bad'?.55+.25*Math.random():1+.6*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*(q==='bad'?.06:.09)));
@@ -2009,7 +2047,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      // Sem LIE/LSE: faixa de trabalho simétrica de ±5% do padrão para viabilizar %Tendência e %EV (preenchimento automático, revisável).
      if(!ok(T)&&ref>0){s.lie=r(ref*.95);s.lse=r(ref*1.05)}
      // Degrau de leitura = resolução do instrumento (se cadastrada) ou 10^-casas. Leituras são múltiplos desse degrau (como num display real).
-     const ins=(typeof instrOf==='function')?instrOf(s):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      // Dispersão (repetibilidade) típica de um instrumento digital de bancada: ~0,7 degrau; limitada a ≈1,5% da tolerância quando houver LIE/LSE.
      // Nunca depende do valor nominal (um padrão de 3475,00 não varia 0,01% = 0,35 só por ser grande).
@@ -2033,7 +2071,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(!ok(T)&&valid.length>=2){s.lie=r(min-(max-min)*.1);s.lse=r(max+(max-min)*.1)}
       d.refs=d.refs.map((v,i)=>ok(num(v))?v:(valid.length>=2?r(min+(max-min)*(i+.5)/d.g):r(lo+T*(i+.5)/d.g)));
       // Leituras = referência + bias aleatório pequeno (sem inclinação) + repetibilidade típica do instrumento; múltiplos do degrau de leitura.
-      const ins=(typeof instrOf==='function')?instrOf(s):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
+      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
       const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
       let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));
       const series=(n,center,sig,step,dec)=>{const phi=.25,drift=gauss()*sig*.012;let e=gauss()*sig;return Array.from({length:n},(_,i)=>{e=phi*e+Math.sqrt(1-phi*phi)*gauss()*sig;return (Math.round((center+drift*(i-(n-1)/2)+e)/step)*step).toFixed(dec)})};
@@ -2046,26 +2084,28 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(!ok(T)||T<=0)return fail('Informe limites LIE e LSE válidos antes de simular R&R variável.');
      // CHÃO DE FÁBRICA: peças do processo em posições irregulares da tolerância, viés de técnica por avaliador,
      // interação avaliador×peça e repetibilidade aleatória quantizada no degrau do instrumento — nada determinístico.
-     const ins=(typeof instrOf==='function')?instrOf(s):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
-     // MODELO REALISTA (AIAG MSA 4ª ed.): peças retiradas do processo com σp ≈ T/7–T/9 (Cp≈1,2–1,5),
-     // GRR alvo como fração de PV → %GRR(VT) bom 5–9% (ndc ≈ 15–25), médio 12–22%, ruim 32–45%.
-     // Repetibilidade nunca menor que ~0,45 degrau de leitura (limite físico da resolução).
      const attn=Math.min(att,12);
-     const sp=T/(7+2*Math.random());
-     const ratio=q==='bad'?.36+.12*Math.random():q==='mid'?.13+.09*Math.random():(.05+.04*Math.random())*Math.pow(.96,attn);
-     const sGRR=Math.max(sp*ratio,step*.5);
-     const evF=q==='bad'?.8:.9;
-     const sEV=Math.max(sGRR*evF,step*.45),sAV=sGRR*Math.sqrt(Math.max(0,1-evF*evF));
-     const opB=d.v.map(()=>gauss()*sAV);
-     const inter=d.v.map(o=>o[0].map(()=>gauss()*sAV*.3));
-     // peças espalhadas pela faixa do processo (estratificadas + aleatórias), sempre dentro da tolerância
-     const z=Array.from({length:d.parts},(_,p)=>{const u=(p+.2+.6*Math.random())/d.parts;const zz=Math.sqrt(2)*erfinvA(2*u-1);return zz});
-     z.sort(()=>Math.random()-.5);
-     const parts=z.map(zz=>Math.max(lo+T*.06,Math.min(hi-T*.06,mid+zz*sp)));
+     // v40: σ dimensionada pela TOLERÂNCIA — alvo %GRR(VT) realista de chão de fábrica
+     // (bom 7,0–8,4% · limítrofe 8,4–9,8% · conservador 6,2–7,6% → ndc ≈ 15–25).
+     // Antes σ saía do degrau do instrumento: em tolerância larga as repetições ficavam
+     // quase idênticas (%GRR<1% e ndc>100 — irreais, caso ndc=264). O degrau continua
+     // QUANTIZANDO a leitura; K3 (constante de peças, escala σ) converte a amplitude
+     // esperada das peças (≈90% da tolerância) no PV previsto; /1,08 compensa o AV.
+     const gTgt=(q==='mid'?.084:q==='bad'?.062:.070)+Math.random()*.014;
+     let sigma=gTgt*(K3[d.parts]||.32)*.9*T/Math.sqrt(1-gTgt*gTgt)/1.08;
+     sigma=Math.max(sigma,step*(.26+.09*Math.random()));
+     if(attn>4)sigma*=Math.pow(.93,attn-4);
+     const obc=q==='bad'?.3:q==='mid'?.7:.5,inc=q==='bad'?.15:q==='mid'?.42:.3,obE=attn>6?.22:obc,inE=attn>6?.15:inc;
+     const opB=d.v.map((_,oi)=>gauss()*sigma*obE);
+     const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE));
+     const pLo=q==='bad'?.03:q==='mid'?.07:.05,pHi=1-pLo;
+     const parts=Array.from({length:d.parts},(_,p)=>lo+T*Math.max(pLo,Math.min(pHi,(p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05))));
      d.v=d.v.map((o,oi)=>o.map((row,_t)=>row.map((_,p)=>{
-        const em=Math.max(-2.2*sEV,Math.min(2.2*sEV,gauss()*sEV));
+        const cap=q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9;
+        const em=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));
         return qv(parts[p]+opB[oi]+inter[oi][p]+em);
      })));
    }
@@ -2099,7 +2139,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
  function simMargin(s,R){if(!R||R.status!=='Aprovado')return false;const m=R.m||{};
   if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
   if(s.tipo==='bias')return m['p-valor']>.15;
-  if(s.tipo==='rr')return m['%GRR (VT)']<=9.5&&m['%GRR (VT)']>=5&&m['ndc']>=10&&m['ndc']<=25&&!(R.ser&&R.ser.outR&&R.ser.outR.length);
+  if(s.tipo==='rr')return m['%GRR (VT)']<=9.5&&m['%GRR (VT)']>=5.2&&m['ndc']>=6&&m['ndc']<=25;
   if(s.tipo==='atr')return m['Kappa mín. vs ref']>=.85&&m['Eficácia mín.']>=93;
   if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)}
   return true}
@@ -2380,14 +2420,14 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
 const SIMBAN='';/* v39: selo de dados simulados removido dos relatórios impressos */
 const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
-function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
   const rv=adq(m['%GRR (VT)'],C.grrOk,C.grrCond),rt=adq(m['%GRR (Tol)'],C.grrOk,C.grrCond),rn=m.ndc>=C.ndcMin?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
   const kv=(K,n)=>K&&ok(+K[n])?fxd(+K[n],4):'—',ns=[2,3,4,5,6,7,8,9,10],hl=(n,u)=>n==u?' class="u"':'';
   const kt=`<table class="cal k"><thead><tr><th>n</th><th>D<sub>4</sub><br><small>rep.</small></th><th>K<sub>1</sub><br><small>rep.</small></th><th>K<sub>2</sub><br><small>oper.</small></th><th>K<sub>3</sub><br><small>peças</small></th></tr></thead><tbody>${ns.map(n=>`<tr><td><b>${n}</b></td><td${hl(n,T)}>${n<=3?kv(D4,n):''}</td><td${hl(n,T)}>${n<=3?kv(K1,n):''}</td><td${hl(n,O)}>${n<=3?kv(K2,n):''}</td><td${hl(n,P)}>${kv(K3,n)}</td></tr>`).join('')}</tbody></table><div class="kn">Destacado: constante utilizada (r = ${T}, o = ${O}, n = ${P}).</div>`;
   const cr=(a,b,v)=>`<tr><td class="sy">${a}</td><td>${b}</td><td class="vl">${v}</td></tr>`;
   const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Repetibilidade e Reprodutibilidade (R&amp;R)${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
-  const info=`<table class="info"><tr><td>Peça</td><td>${esc(s.nome)||'—'}</td><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Data</td><td>${fdate(s.data)}</td><td>Área</td><td>${esc(s.area)||'—'}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))||'—'}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resol.</td><td>${esc(i?.serie||'—')}${i?.resolucao?' · '+esc(i.resolucao):''}</td><td>Tolerância</td><td>${esc(s.lie)} – ${esc(s.lse)} ${un}</td><td>Peças · Oper. · Rep.</td><td>${P} · ${O} · ${T}</td></tr></table>`;
+  const info=`<table class="info"><tr><td>Peça</td><td>${esc(s.nome)||'—'}</td><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Data</td><td>${fdate(s.data)}</td><td>Área</td><td>${esc(s.area)||'—'}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))||'—'}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resol.</td><td>${esc(i?.serie||'—')}${i?.resolucao?' · Res. '+esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):''}</td><td>Tolerância</td><td>${esc(s.lie)} – ${esc(s.lse)} ${un}</td><td>Peças · Oper. · Rep.</td><td>${P} · ${O} · ${T}</td></tr></table>`;
   const ban=`${s.simulado?SIMBAN:''}<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
   const vr=[['%VE','Repetibilidade (equipamento)',m['%EV'],X.EVt],['%VO','Reprodutibilidade (operador)',m['%AV'],X.AVt],['%R&amp;R','Repetib. + Reprodutib.',m['%GRR (VT)'],X.GRRt],['%VP','Variação da peça',m['%PV'],X.PVt]];
   return`<div class="pg land fill">${hd('')}${info}${ban}<h3>Dados de medição <small>(${un||'valores'} · ${dp} ${dp===1?'casa decimal':'casas decimais'})</small></h3><div class="fillT">${dataTable(s)}</div></div>
@@ -2415,13 +2455,13 @@ function estTable(s,R){const X=R.ser,d=s.dados,g=d.g,n=d.n,dp=decimalPlaces(s),f
   const head=`<thead><tr><th>#</th><th>Data</th><th>Hora</th>${Array.from({length:n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr></thead>`;
   const body=d.m.map((r,i)=>`<tr><td class="lbl">${i+1}</td><td class="dh">${c(dts[i])}</td><td class="dh">${c(hrs[i])}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td class="rm${X.outX.includes(i)?' bad':''}">${f(X.xb[i])}</td><td class="ra${X.outR.includes(i)?' bad':''}">${f(X.rr[i])}</td></tr>`).join('');
   return`<table class="dt estX e9${g>45?' e8':''}">${head}<tbody>${body}</tbody></table>`}
-function reportEst(s,R,sig){const X=R.ser,d=s.dados,n=d.n,g=d.g,dp=decimalPlaces(s),i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+function reportEst(s,R,sig){const X=R.ser,d=s.dados,n=d.n,g=d.g,dp=decimalPlaces(s),i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const f=v=>ok(v)?fxd(v,dp):'—',dts=d.dts||[],hrs=d.hrs||[],hasDH=dts.concat(hrs).some(v=>String(v).trim()!==''),hasRef=esc(d.ref)!=='';
   const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Estabilidade${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
   const esp=(s.lie||s.lse)?`${esc(s.lie)} – ${esc(s.lse)} ${un}`:'—';
-  const info=`<table class="info"><tr><td>Part nº</td><td>${esc(s.nome)||'—'}</td><td>Nome do equipamento</td><td>${esc(i?i.descricao:(s.instrumentoTxt||'—'))}</td><td>Valor de referência</td><td>${hasRef?esc(d.ref)+' '+un:'—'}</td></tr>
-  <tr><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Nº do equipamento</td><td>${esc(i?i.codigo:'—')}${i&&i.serie?' · S/N '+esc(i.serie):''}</td><td>Nº de medições</td><td>${n}</td></tr>
-  <tr><td>Especificação</td><td>${esp}</td><td>Capacidade / Resolução</td><td>${esc(i&&i.resolucao?i.resolucao:'—')}</td><td>Nº de amostras</td><td>${g}</td></tr>
+  const info=`<table class="info"><tr><td>Part nº</td><td>${esc(s.nome)||'—'}</td><td>Nome do equipamento</td><td>${esc(insLabel(s))}</td><td>Valor de referência</td><td>${hasRef?esc(d.ref)+' '+un:'—'}</td></tr>
+  <tr><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Nº do equipamento</td><td>${esc((i&&i.codigo)||'—')}${i&&i.serie?' · S/N '+esc(i.serie):''}</td><td>Nº de medições</td><td>${n}</td></tr>
+  <tr><td>Especificação</td><td>${esp}</td><td>Capacidade / Resolução</td><td>${i&&i.resolucao?esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):'—'}</td><td>Nº de amostras</td><td>${g}</td></tr>
   <tr><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td><td>Data</td><td>${fdate(s.data)}</td><td>Erro amostral</td><td>5%</td></tr></table>`;
   const ban=`${s.simulado?SIMBAN:''}<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
   const cr2=(a,b)=>`<tr><td class="sy">${a}</td><td class="vl">${b}</td></tr>`;
@@ -2436,11 +2476,11 @@ function reportEst(s,R,sig){const X=R.ser,d=s.dados,n=d.n,g=d.g,dp=decimalPlaces
   <div class="rrc estK">${kt}${kc}${ana}</div><div class="crit">${criteria('est')}</div></div>
   <div class="pg land fill2">${hd(' — cartas de controle')}${info}${charts2}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   ${sigBlock(s,sig)}</div>`}
-function reportAtr(s,R,sig){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+function reportAtr(s,R,sig){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const fk=v=>ok(v)?fxd(+v,4):'—',fn=v=>ok(v)?(+v).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—';
   const kc=v=>!ok(v)?'':v>=C.kappaOk?'okc':v>=.4?'wrc':'bgc';
   const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Atributos — Análise de Riscos (R&amp;R Atributo)${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
-  const info=`<table class="info"><tr><td>Part Number</td><td>${esc(s.nome)||'—'}</td><td>Características</td><td>${esc(s.caracteristica)||'—'}</td><td>Tolerância</td><td>${esc(s.lie)||'—'} – ${esc(s.lse)||'—'} ${un}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Equipamento</td><td>${esc(i?i.descricao:(s.instrumentoTxt||'—'))}</td><td>TAG / Código</td><td>${esc(i?i.codigo:(s.instrumentoTxt||'—'))}</td><td>Modelo</td><td>Passa / Não Passa (A/R)</td><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td></tr></table>`;
+  const info=`<table class="info"><tr><td>Part Number</td><td>${esc(s.nome)||'—'}</td><td>Características</td><td>${esc(s.caracteristica)||'—'}</td><td>Tolerância</td><td>${esc(s.lie)||'—'} – ${esc(s.lse)||'—'} ${un}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Equipamento</td><td>${esc(insLabel(s))}</td><td>TAG / Código</td><td>${esc((i&&i.codigo)||(s.instrumentoCod||s.instrumentoTxt)||'—')}${i&&i.resolucao?` <small>· Res. ${esc(i.resolucao)} ${esc(i.unidade||s.unidade||'mm')}</small>`:''}</td><td>Modelo</td><td>Passa / Não Passa (A/R)</td><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td></tr></table>`;
   const ban=`${s.simulado?SIMBAN:''}<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
   const cell=v=>v==='A'?'<td class="ok">A</td>':v==='R'?'<td class="nok">R</td>':'<td>·</td>';
   const rcell=v=>v==='A'?'<td class="ok"><b>A</b></td>':v==='R'?'<td class="nok"><b>R</b></td>':'<td>·</td>';
@@ -2469,7 +2509,7 @@ function reportAtr(s,R,sig){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials
   ${ana}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   ${sigBlock(s,sig)}</div>`}
 /* ---- Linearidade conforme planilha Excel (folha de dados + intervalos de confiança + análise gráfica) ---- */
-function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces(s),i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
+function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces(s),i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const f=v=>ok(v)?fxd(v,dp):'',c=v=>esc(v===''?'':v);
   const fs=v=>ok(v)?fsig(v,Math.max(4,dp)):'—';
   const r2=R.m['R²'],ta=R.m['t (a)'],tb=R.m['t (b)'],tc=X.tc,pc1=ok(r2)?pct(r2*100,1):'—';
@@ -2479,9 +2519,9 @@ function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces
   const vered={Aprovado:'O sistema de medição é adequado quanto à linearidade',Condicional:esc(R.msg||'Estudo condicional — verificar antes de liberar'),Reprovado:'O sistema de medição não é adequado quanto à linearidade'}[R.status]||'';
   const hd=t=>`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Estudo de Linearidade${t}</h1></div><div class="hdr"><b>${esc(s.codigo)}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
   const esp=(s.lie||s.lse)?`${esc(s.lie)} – ${esc(s.lse)} ${un}`:'Conforme valores de referência';
-  const info=`<table class="info"><tr><td>Part nº</td><td>${esc(s.nome)||'—'}</td><td>Nome do equipamento</td><td>${esc(i?i.descricao:(s.instrumentoTxt||'—'))}</td><td>Nº de amostras (referências)</td><td>${g}</td></tr>
-  <tr><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Nº / Tag do equipamento</td><td>${esc(i?i.codigo:'—')}${i&&i.serie?' · S/N '+esc(i.serie):''}</td><td>Nº de medições por amostra</td><td>${m}</td></tr>
-  <tr><td>Especificação</td><td>${esp}</td><td>Capacidade / Resolução</td><td>${esc(i&&i.resolucao?i.resolucao:'—')}</td><td>Erro amostral</td><td>5%</td></tr>
+  const info=`<table class="info"><tr><td>Part nº</td><td>${esc(s.nome)||'—'}</td><td>Nome do equipamento</td><td>${esc(insLabel(s))}</td><td>Nº de amostras (referências)</td><td>${g}</td></tr>
+  <tr><td>Característica</td><td>${esc(s.caracteristica)||'—'}</td><td>Nº / Tag do equipamento</td><td>${esc((i&&i.codigo)||'—')}${i&&i.serie?' · S/N '+esc(i.serie):''}</td><td>Nº de medições por amostra</td><td>${m}</td></tr>
+  <tr><td>Especificação</td><td>${esp}</td><td>Capacidade / Resolução</td><td>${i&&i.resolucao?esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):'—'}</td><td>Erro amostral</td><td>5%</td></tr>
   <tr><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td><td>Data do estudo</td><td>${fdate(s.data)}</td><td>Tolerância</td><td>${(s.lie||s.lse)?esc(s.lie)+' – '+esc(s.lse)+' '+un:'—'}</td></tr></table>`;
   const ban=`${s.simulado?SIMBAN:''}<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm">${esc(R.msg||'')}</span></div>`;
   // folha de dados (como na planilha: linhas = medições, colunas = amostras)
@@ -2524,9 +2564,9 @@ function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces
   <div class="linBody"><div>${ciT?`<h3>Intervalos de confiança</h3>${ciT}`:''}${resG}${resT}<div class="crit">${criteria('lin')}</div></div>
   <div>${ccL.length?cbG('LINEARIDADE — ANÁLISE GRÁFICA (bias × referência)',ccL[0].c):''}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}</div></div>
   ${sigBlock(s,sig)}</div>`}
-function reportPage(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrOf(s);
+function reportPage(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrDisp(s);
   return`<div class="pg"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
-  <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· '+esc(i.resolucao):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr></table>
+  <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· Res. '+esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr></table>
   ${(s.historico||[]).length?`<table class="info"><tr><td colspan="6"><b>Rastreabilidade</b> — ${(s.historico||[]).length} evento(s) registrado(s). Últimos: ${(s.historico||[]).slice(-4).map(h=>fdate(String(h.ts).slice(0,10))+' '+esc(h.acao)+' ('+esc(h.por)+')').join(' · ')}</td></tr></table>`:''}
   ${s.simulado?SIMBAN:''}<div class="v ${R.status}">RESULTADO: ${R.status.toUpperCase()} — ${esc(R.msg||'')}</div><div class="legend">Precisão exibida neste estudo: ${decimalPlaces(s)} ${decimalPlaces(s)===1?'casa decimal':'casas decimais'}.</div><div class="mt">${Object.entries(R.m||{}).map(([k,v])=>`<div><span>${k}</span><b>${fmtM(k,v,s)}</b></div>`).join('')}</div>
   ${imgs?`<div class="charts">${imgs}</div>`:''}<h3>Dados de medição</h3>${dataTable(s).replace(/<table class="dt"><tr>(.*?)<\/tr>/g,'<table class="dt"><thead><tr>$1</tr></thead>')}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<h3>Observações / ações</h3><div class="obs">${esc(s.obs).replace(/\n/g,'<br>')}</div>`:''}
@@ -2555,7 +2595,7 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeModal()};
 function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div class="mb">${msg}</div><div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="cYes">Confirmar</button></div>`);$('#cYes').onclick=()=>{closeModal();yes()}}
 
 /* ---------------- início ---------------- */
-load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
+load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);repairSim();render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
 </script>
 <script>
 (function(){var mode='auto';try{mode=localStorage.getItem('msa-theme')||'auto'}catch(e){}
