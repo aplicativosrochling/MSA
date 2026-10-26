@@ -447,7 +447,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v38</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v39</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -606,8 +606,16 @@ function saveStudy(s){s.atualizadoEm=new Date().toISOString();s.resultado=calc(s
 function delStudy(id){S.studies=S.studies.filter(x=>x.id!==id);persist();cloudDel('msapro_estudos',id)}
 function saveInstr(x){x.atualizadoEm=new Date().toISOString();const i=S.instruments.findIndex(y=>y.id===x.id);if(i>=0)S.instruments[i]=x;else S.instruments.push(x);persist();cloudSet('msapro_instrumentos',x)}
 function delInstr(id){S.instruments=S.instruments.filter(x=>x.id!==id);persist();cloudDel('msapro_instrumentos',id)}
-const instrOf=s=>S.instruments.find(i=>i.id===s.instrumentoId);
-const instrName=s=>{const f=famOf(s);if(f)return `${f.cod} · ${f.nome} (família)`;const i=instrOf(s);if(i)return `${i.codigo} — ${i.descricao}`;if(s.instrumentoCod)return `${s.instrumentoCod}${s.instrumentoTxt?' — '+s.instrumentoTxt:''}`;return s.instrumentoTxt||'—'};
+const instrOf=s=>{if(!s)return null;const lc=String(s.instrumentoCod||'').trim().toLowerCase();
+  const b=S.instruments.find(i=>i.id===s.instrumentoId)||(lc?S.instruments.find(i=>String(i.codigo||'').trim().toLowerCase()===lc):null);
+  const v=lc?S.inv.find(x=>String(x.eqid||'').trim().toLowerCase()===lc):null;
+  const res=String(s.resolucao||'').trim().replace(',','.')||(b&&b.resolucao?String(b.resolucao).replace(',','.'):'')||(v&&v.resolucao?String(v.resolucao).replace(',','.'):'');
+  if(!b&&!v&&!lc&&!res&&!s.instrumentoTxt)return null;
+  return Object.assign({},v?{codigo:v.eqid,descricao:v.desc,area:v.local,tipo:v.tipo}:{},b||{},{
+    codigo:(b&&b.codigo)||(v&&v.eqid)||String(s.instrumentoCod||'').trim().toUpperCase()||'—',
+    descricao:(b&&b.descricao)||(v&&v.desc)||s.instrumentoTxt||'',
+    resolucao:res,serie:(b&&b.serie)||(v&&v.serie)||'',fabricante:(b&&b.fabricante)||(v&&v.fabricante)||''})};
+const instrName=s=>{const f=famOf(s);if(f)return `${f.cod} · ${f.nome} (família)`;const i=instrOf(s);if(i&&i.codigo&&i.codigo!=='—')return `${i.codigo}${i.descricao?' — '+i.descricao:''}`;if(s.instrumentoCod)return `${s.instrumentoCod}${s.instrumentoTxt?' — '+s.instrumentoTxt:''}`;return s.instrumentoTxt||'—'};
 /* ================= v24 · FAMÍLIAS DE INSTRUMENTOS (AIAG MSA 4ª ed.) ================= */
 function famOf(s){return s&&s.familiaId?S.fams.find(x=>x.id===s.familiaId)||null:null}
 function famCovList(fid){const f=S.fams.find(x=>x.id===fid);if(!f)return[];
@@ -1847,19 +1855,21 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    inp('nome','Peça / Descrição')+inp('caracteristica','Característica')+
    inp('unidade','Unidade')+
    `<div><label class="l">Casas decimais deste estudo</label><select class="f" data-f="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${decimalPlaces(s)===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select><small class="legend">Aplica-se aos resultados, relatórios e dados simulados. Medições já digitadas não são arredondadas.</small></div>`+
-   inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+
+   inp('resolucao','Resolução do instrumento (ex.: 0,01)','text','inputmode="decimal"')+inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"')+
    `<div><label class="l">Área / Setor</label><input class="f" data-f="area" list="dlArea" value="${esc(s.area)}"><datalist id="dlArea">${areas().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>`+inp('responsavel','Responsável')+
    inp('freq','Frequência (meses / evento)')+
    `<div><label class="l">Periodicidade do recálculo (meses)</label><input class="f" data-f="freqMeses" type="number" min="0" max="120" step="1" value="${+s.freqMeses||0}"><small class="legend">Meses entre recálculos · 0 = sem recorrência. Alimenta o Cronograma.</small></div>`+inp('proxima','Próximo recálculo','date')+inp('aprovadoPor','Aprovado por (auditoria)')+
    `<div><label class="l">Data da aprovação</label><div class="row" style="gap:8px;align-items:center"><input class="f" data-f="aprovadoEm" type="date" value="${esc(s.aprovadoEm||'')}" style="flex:1"><button class="btn sm" onclick="aprovNow()" title="Registra a aprovação de hoje com o usuário local"><i class="fas fa-user-check"></i>Hoje</button></div></div>`+
    `<div style="grid-column:1/-1"><label class="l">Observações / Ações</label><textarea class="f" data-f="obs" rows="2">${esc(s.obs)}</textarea></div>`;
-  $$('#info [data-f]').forEach(e=>{const update=()=>{s[e.dataset.f]=(e.dataset.f==='decimais'||e.dataset.f==='freqMeses')?+e.value:e.value;markDirty();if(['lie','lse','decimais'].includes(e.dataset.f))recalc()};if(e.tagName==='SELECT')e.onchange=update;else e.oninput=update});
+  $$('#info [data-f]').forEach(e=>{const update=()=>{s[e.dataset.f]=(e.dataset.f==='decimais'||e.dataset.f==='freqMeses')?+e.value:e.value;markDirty();if(['lie','lse','decimais','resolucao','instrumentoCod'].includes(e.dataset.f))recalc()};if(e.tagName==='SELECT')e.onchange=update;else e.oninput=update});
   const codInp=$('#info [data-f="instrumentoCod"]');
   if(codInp)codInp.addEventListener('change',()=>{const c=(codInp.value||'').trim();if(!c)return;const lc=c.toLowerCase();
     const hit=S.inv.find(x=>String(x.eqid||'').trim().toLowerCase()===lc)||S.instruments.find(i=>String(i.codigo||'').trim().toLowerCase()===lc);
     if(!hit){return}
     const desc=(hit.desc||hit.descricao||'').trim(),fid=(hit.famId&&S.fams.some(f=>f.id===hit.famId))?hit.famId:'';
     if(desc)s.instrumentoTxt=desc;
+    if(hit.codigo&&hit.id)s.instrumentoId=hit.id;
+    if(hit.resolucao&&!String(s.resolucao||'').trim()){s.resolucao=String(hit.resolucao);const ri=$('#info [data-f="resolucao"]');if(ri)ri.value=s.resolucao}
     if(fid&&!s.familiaId)s.familiaId=fid;
     const tin=$('#info [data-f="instrumentoTxt"]');if(tin)tin.value=s.instrumentoTxt||'';
     const fsel=$('#info [data-f="familiaId"]');if(fsel)fsel.value=s.familiaId||'';
@@ -1919,7 +1929,7 @@ function recalc(){const s=V.edit,R=calc(s);s.resultado=R;const d=s.dados;
   const vc={Aprovado:['bg-ok c-ok','fa-circle-check'],Condicional:['bg-warn c-warn','fa-triangle-exclamation'],Reprovado:['bg-bad c-bad','fa-circle-xmark'],Incompleto:['bg-inc','fa-hourglass-half']}[R.status];
    let extra='';if(s.tipo==='atr'&&R.ser){extra=`<table class="t" style="margin-top:12px;font-size:12.5px"><thead><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>F. alarme</th><th>Kappa vs ref.</th></tr></thead><tbody>${R.ser.per.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td class="${p.eff>=S.cfg.effOk?'c-ok':p.eff>=S.cfg.effCond?'c-warn':'c-bad'}">${pct(p.eff,decimalPlaces(s))}</td><td class="${p.miss<=S.cfg.missOk?'c-ok':'c-bad'}">${pct(p.miss,decimalPlaces(s))}</td><td class="${p.fa<=S.cfg.faOk?'c-ok':'c-bad'}">${pct(p.fa,decimalPlaces(s))}</td><td class="${p.k>=S.cfg.kappaOk?'c-ok':p.k>=.4?'c-warn':'c-bad'}">${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</tbody></table>`;
    if(R.ser.pairs&&R.ser.pairs.length)extra+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 4px">Kappa entre avaliadores (tabulação cruzada)</div><table class="t" style="font-size:12.5px"><thead><tr><th></th>${R.ser.per.map(p=>`<th>${esc(p.nome)}</th>`).join('')}</tr></thead><tbody>${R.ser.per.map((a,i2)=>`<tr><td><b>${esc(a.nome)}</b></td>${R.ser.per.map((b,j2)=>{const kk=pairK(R.ser,i2,j2);return`<td class="${i2===j2?'':kk>=S.cfg.kappaOk?'c-ok':kk>=.4?'c-warn':'c-bad'}">${i2===j2?'—':fmt(kk,decimalPlaces(s))}</td>`}).join('')}</tr>`).join('')}</tbody></table>`}
-   $('#res').innerHTML=`${s.simulado?'<div class="legend" style="color:#C02828;font-weight:700;margin:0 0 8px">DADOS SIMULADOS — não válido como registro de MSA</div>':''}<div class="verdict ${vc[0]}"><i class="fas ${vc[1]}"></i><div><b>${R.status}</b><small>${esc(R.msg||'')}</small></div></div><div class="res">${Object.entries(R.m||{}).map(([k,v])=>`<div class="m"><div class="k">${k}</div><div class="x">${fmtM(k,v,s)}</div></div>`).join('')}</div>${extra}<div class="legend" style="margin-top:12px">${criteria(s.tipo)}</div>`;
+   $('#res').innerHTML=`<div class="verdict ${vc[0]}"><i class="fas ${vc[1]}"></i><div><b>${R.status}</b><small>${esc(R.msg||'')}</small></div></div><div class="res">${Object.entries(R.m||{}).map(([k,v])=>`<div class="m"><div class="k">${k}</div><div class="x">${fmtM(k,v,s)}</div></div>`).join('')}</div>${extra}<div class="legend" style="margin-top:12px">${criteria(s.tipo)}</div>`;
   drawCharts(s,R,'#chs');
 }
 function criteria(t){const c=S.cfg;return{est:'Critério: todos os subgrupos completos; 20 ou mais recomendados para avaliar estabilidade; nenhum ponto fora dos limites X̄/R e regra de 7 pontos.',bias:`Critério (AIAG MSA 4ª ed. — amostra independente): n ≥ 10 leituras; t = bias/(s/√n), ν = n−1; zero deve estar dentro do IC 95%; %Tendência = |bias|/tolerância deve ser < ${c.biasMax}% (procedimento P08_05WI 25A); resolução ≤ 1/10 da tolerância e %EV ≤ ${c.grrCond}%.`,lin:`Critério (AIAG MSA 4ª ed.): ≥ 5 referências distintas na faixa de operação e ≥ 10 leituras por referência; testes t da inclinação (a) e do intercepto (b) a 5%; linha bias = 0 dentro das bandas de confiança 95%; %Linearidade (100·|a|) e %Bias máx/Tol < ${c.biasMax}%; resolução ≤ 1/10 da tolerância e %EV ≤ ${c.grrCond}%.`,rr:`Critério local: %GRR ≤ ${c.grrOk}% aceitável · ${c.grrOk}–${c.grrCond}% condicional · > ${c.grrCond}% reprovado · ndc ≥ ${c.ndcMin}. Base: ${c.base==='tol'?'tolerância':'variação total'} (${c.k}σ); amplitude(s) fora do LSC impedem a classificação \u201cAprovado\u201d e exigem investigação antes de liberar (o %GRR decide a reprovação).`,atr:`Critérios (AIAG MSA 4ª ed. — análise de atributos por tabulação cruzada): eficácia ≥ ${c.effOk}%, taxa de perda ≤ ${c.missOk}%, falso alarme ≤ ${c.faOk}% e Kappa de Cohen ≥ ${c.kappaOk} contra a referência e entre avaliadores; referência com peças boas (A) e ruins (R).`}[t]}
@@ -1960,6 +1970,7 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLower
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
 /* ---------------- simulação de dados ---------------- */
+ function erfinvA(x){x=Math.max(-.999999,Math.min(.999999,x));const a=.147,l=Math.log(1-x*x),q=2/(Math.PI*a)+l/2;return Math.sign(x)*Math.sqrt(Math.sqrt(q*q-l/a)-q)}
  function simulate(s,q='good',att=0){
    normalize(s);const d=s.dados,lo=num(s.lie),hi=num(s.lse),T=tol(s),mid=ok(T)?(lo+hi)/2:NaN;
     const digits=decimalPlaces(s),resolution=10**-digits;
@@ -2038,17 +2049,23 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      const ins=(typeof instrOf==='function')?instrOf(s):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
-     let sigma=Math.min(step*(.35+.5*Math.random()),T*.02);
+     // MODELO REALISTA (AIAG MSA 4ª ed.): peças retiradas do processo com σp ≈ T/7–T/9 (Cp≈1,2–1,5),
+     // GRR alvo como fração de PV → %GRR(VT) bom 5–9% (ndc ≈ 15–25), médio 12–22%, ruim 32–45%.
+     // Repetibilidade nunca menor que ~0,45 degrau de leitura (limite físico da resolução).
      const attn=Math.min(att,12);
-     if(q==='mid')sigma*=1.15;if(q==='bad')sigma*=.7;if(attn>4)sigma*=Math.pow(.9,attn-4);
-     const obc=q==='bad'?.3:q==='mid'?.7:.5,inc=q==='bad'?.15:q==='mid'?.42:.3,obE=attn>6?.22:obc,inE=attn>6?.15:inc;
-     const opB=d.v.map((_,oi)=>gauss()*sigma*obE);
-     const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE));
-     const pLo=q==='bad'?.03:q==='mid'?.07:.05,pHi=1-pLo;
-     const parts=Array.from({length:d.parts},(_,p)=>lo+T*Math.max(pLo,Math.min(pHi,(p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05))));
+     const sp=T/(7+2*Math.random());
+     const ratio=q==='bad'?.36+.12*Math.random():q==='mid'?.13+.09*Math.random():(.05+.04*Math.random())*Math.pow(.96,attn);
+     const sGRR=Math.max(sp*ratio,step*.5);
+     const evF=q==='bad'?.8:.9;
+     const sEV=Math.max(sGRR*evF,step*.45),sAV=sGRR*Math.sqrt(Math.max(0,1-evF*evF));
+     const opB=d.v.map(()=>gauss()*sAV);
+     const inter=d.v.map(o=>o[0].map(()=>gauss()*sAV*.3));
+     // peças espalhadas pela faixa do processo (estratificadas + aleatórias), sempre dentro da tolerância
+     const z=Array.from({length:d.parts},(_,p)=>{const u=(p+.2+.6*Math.random())/d.parts;const zz=Math.sqrt(2)*erfinvA(2*u-1);return zz});
+     z.sort(()=>Math.random()-.5);
+     const parts=z.map(zz=>Math.max(lo+T*.06,Math.min(hi-T*.06,mid+zz*sp)));
      d.v=d.v.map((o,oi)=>o.map((row,_t)=>row.map((_,p)=>{
-        const cap=q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9;
-        const em=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));
+        const em=Math.max(-2.2*sEV,Math.min(2.2*sEV,gauss()*sEV));
         return qv(parts[p]+opB[oi]+inter[oi][p]+em);
      })));
    }
@@ -2082,7 +2099,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
  function simMargin(s,R){if(!R||R.status!=='Aprovado')return false;const m=R.m||{};
   if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
   if(s.tipo==='bias')return m['p-valor']>.15;
-  if(s.tipo==='rr')return m['%GRR (VT)']<=9.5&&m['ndc']>=6;
+  if(s.tipo==='rr')return m['%GRR (VT)']<=9.5&&m['%GRR (VT)']>=5&&m['ndc']>=10&&m['ndc']<=25&&!(R.ser&&R.ser.outR&&R.ser.outR.length);
   if(s.tipo==='atr')return m['Kappa mín. vs ref']>=.85&&m['Eficácia mín.']>=93;
   if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)}
   return true}
@@ -2183,7 +2200,7 @@ h3{font-size:13px;margin:14px 0 4px;color:#165A9C;break-after:avoid;page-break-a
 .pg.land.fill2 .rch2 .cb{display:flex;flex-direction:column;height:100%;min-height:0}
 .pg.land.fill2 .rch2 .cb img{flex:1 1 auto;min-height:0;height:100%}
 @media screen{.pg.land.fill2{height:210mm}}
-@media print{.pg.land.fill2{height:189.4mm}}
+@media print{.pg.land.fill2{height:auto;min-height:186.5mm}}
 /* ---- R&R variável: página de gráficos preenchendo a área útil (sem espaço em branco) ---- */
 .pg.land.fill3{display:flex;flex-direction:column}
 .pg.land.fill3 .hd,.pg.land.fill3 .info{flex:0 0 auto}
@@ -2193,7 +2210,7 @@ h3{font-size:13px;margin:14px 0 4px;color:#165A9C;break-after:avoid;page-break-a
 .pg.land.fill3 .cb.wide{flex:58 1 0;margin-bottom:0}
 .pg.land.fill3 .cb img{flex:1 1 auto;min-height:0;height:100%}
 @media screen{.pg.land.fill3{height:210mm}}
-@media print{.pg.land.fill3{height:189.4mm}}
+@media print{.pg.land.fill3{height:auto;min-height:186.5mm}}
 /* ---- R&R variável: página de cálculos/resultado preenchendo a área útil ---- */
 .pg.land.fill4{display:flex;flex-direction:column}
 .pg.land.fill4>*{flex:0 0 auto}
@@ -2205,7 +2222,7 @@ h3{font-size:13px;margin:14px 0 4px;color:#165A9C;break-after:avoid;page-break-a
 .pg.land.fill4 .cal.k td{font-size:11px}
 .pg.land.fill4 .res{margin-top:8px}.pg.land.fill4 .res th{padding:8px;font-size:13px}.pg.land.fill4 .res td{padding:11px 8px;font-size:13px}
 @media screen{.pg.land.fill4{height:210mm}}
-@media print{.pg.land.fill4{height:189.4mm}}
+@media print{.pg.land.fill4{height:auto;min-height:186.5mm}}
 h3 small{font:400 10px 'Segoe UI',Arial;color:#605E5C}
 .rr{table-layout:fixed;margin-top:4px}.rr td{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}.rr th.opn0{width:30px}.rr thead tr:first-child th:nth-child(2){width:62px}.rr thead tr:first-child th:last-child{width:92px}.rr .mc{text-align:right}
 .rrc{display:grid;grid-template-columns:1.5fr .85fr 1.15fr;gap:10px;align-items:start}.rrc table{margin:0 0 6px}
@@ -2261,7 +2278,7 @@ h3 small{font:400 10px 'Segoe UI',Arial;color:#605E5C}
 .dt.a.f10 td{font-size:10.5px}.dt.a.f9 td{font-size:10px}.dt.a.f8 td{font-size:9.5px}.dt.a.f7 td{font-size:9px}.dt.a.f6 td{font-size:8.6px}
 .dt.a.f10 th,.dt.a.f9 th{font-size:9.2px}.dt.a.f8 th,.dt.a.f7 th{font-size:9px}.dt.a.f6 th{font-size:8.5px}
 @media screen{.pg.land.fill{height:210mm}}
-@media print{.pg.land.fill{height:189.4mm}}
+@media print{.pg.land.fill{height:auto;min-height:186.5mm}}
 /* ---- R&R variável: tabela preenchendo a página + linhas/fonte maiores (sem espaço em branco) ---- */
 .pg.land.fill .fillT{flex:1 1 auto;min-height:0}
 .pg.land.fill .fillT>table{height:100%;margin:2px 0 0}
@@ -2320,7 +2337,18 @@ h3 small{font:400 10px 'Segoe UI',Arial;color:#605E5C}
 .res.sm td.rb{width:46%}.res.sm td.rb small{color:#605E5C}
 .res.sm td.rv.ok{background:#E7F6EA;color:#1B7D25}.res.sm td.rv.nok{background:#FDECEB;color:#D13438}.res.sm td.rv.cond{background:#FFF4E5;color:#B54708}
 @media screen{.pg.land.fill5{height:210mm}}
-@media print{.pg.land.fill5{height:189.4mm}}`
+@media print{.pg.land.fill5{height:auto;min-height:186.5mm}}
+/* ---- v39: impressão robusta — a página cresce com o conteúdo (nunca mais folha em branco) ---- */
+.meas{padding:0!important;min-height:0!important;height:auto!important;width:279mm!important;margin:0!important;box-shadow:none!important}
+@media print{
+.pg.land.fill .fillT,.pg.land.fill .dgA,.pg.land.fill4>.rrc,.pg.land.fill4 .rrc>div,.pg.land.fill5 .linBody,.pg.land.fill5 .linBody>div{min-height:auto}
+.pg.land.fill5 .linBody .cb img{max-height:96mm}
+.pg.land .sig{margin-top:12px}
+.pg.pf1 .dt td,.pg.pf1 .dt th{padding:2.2px 3px!important}.pg.pf1 .cal td{padding:2px 5px!important}.pg.pf1 .cb img{height:54mm!important}.pg.pf1 .sig{margin-top:8px!important}.pg.pf1 .ana p{font-size:9.2px!important}.pg.pf1 .crit{font-size:9.4px!important}.pg.pf1 h3{font-size:11px!important;margin:6px 0 2px!important}
+.pg.pf2 .dt td,.pg.pf2 .dt th{font-size:9.2px!important;padding:2px 2.5px!important}.pg.pf2 .cal td{font-size:9.2px!important;padding:2px 5px!important}.pg.pf2 .cb img{height:47mm!important}.pg.pf2 .res td{padding:3px 6px!important}.pg.pf2 .info td{padding:1.5px 4px!important}.pg.pf2 .ana p{font-size:8.8px!important}.pg.pf2 h3{font-size:10.5px!important;margin:5px 0 2px!important}
+.pg.pf3 .dt td,.pg.pf3 .dt th{font-size:8.6px!important;padding:1.6px 2px!important}.pg.pf3 .cal td{font-size:8.6px!important;padding:1.6px 4px!important}.pg.pf3 .cb img{height:41mm!important}.pg.pf3 .info td{font-size:9px!important;padding:1.2px 3px!important}.pg.pf3 .ana p{font-size:8.4px!important}.pg.pf3 .crit{font-size:8.8px!important}.pg.pf3 h3{font-size:10px!important;margin:4px 0 2px!important}.pg.pf3 .res td{padding:2.5px 5px!important;font-size:9.5px!important}
+.pg.pf4 .dt td,.pg.pf4 .dt th{font-size:8px!important;padding:1.2px 1.6px!important}.pg.pf4 .cal td{font-size:8px!important;padding:1.2px 3px!important}.pg.pf4 .cb img{height:36mm!important}.pg.pf4 .info td{font-size:8.4px!important;padding:1px 3px!important}.pg.pf4 .ana p{font-size:8px!important}.pg.pf4 .crit{font-size:8.4px!important}.pg.pf4 h3{font-size:9.5px!important;margin:3px 0 1px!important}.pg.pf4 .sig{margin-top:5px!important}.pg.pf4 .sig div{min-height:22px!important}.pg.pf4 .hd{margin-bottom:4px!important;padding-bottom:3px!important}
+}`
 
 function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
   if(s.tipo==='est')return`<table class="dt"><tr><th>#</th>${Array.from({length:d.n},(_,j)=>`<th>x${j+1}</th>`).join('')}<th>X̄</th><th>R</th></tr>${d.m.map((r,i)=>`<tr><td>${i+1}</td>${r.map(c).join('<td>').replace(/^/,'<td>')}<td>${fmt(mean(r.map(num)),decimalPlaces(s))}</td><td>${r.map(num).every(ok)?fmt(rng(r.map(num)),decimalPlaces(s)):''}</td></tr>`).join('')}</table>`;
@@ -2350,7 +2378,7 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
   const ft2=v=>fxd(+v,dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
-const SIMBAN='<div class="v Reprovado" style="margin-bottom:4px">DADOS SIMULADOS — NÃO VÁLIDO COMO REGISTRO DE MSA</div>';
+const SIMBAN='';/* v39: selo de dados simulados removido dos relatórios impressos */
 const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
 function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrOf(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
@@ -2504,7 +2532,7 @@ function reportPage(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser
   ${imgs?`<div class="charts">${imgs}</div>`:''}<h3>Dados de medição</h3>${dataTable(s).replace(/<table class="dt"><tr>(.*?)<\/tr>/g,'<table class="dt"><thead><tr>$1</tr></thead>')}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<h3>Observações / ações</h3><div class="obs">${esc(s.obs).replace(/\n/g,'<br>')}</div>`:''}
   ${sigBlock(s,sig)}<div class="ft">MSA Pro · Metodologia AIAG MSA 4ª edição</div></div>`}
 function openWin(title,body){const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir','fa-triangle-exclamation');return}
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>print(),400))}<\/script></body></html>`);w.document.close()}
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>function fitPages(){try{var L=710,pgs=document.querySelectorAll("div.pg.land");for(var i=0;i<pgs.length;i++){var pg=pgs[i];if(/\bfill2\b|\bfill3\b/.test(pg.className))continue;var lv=0;pg.classList.add("meas");var h=pg.scrollHeight;pg.classList.remove("meas");while(h>L&&lv<4){lv++;pg.classList.add("pf"+lv);pg.classList.add("meas");h=pg.scrollHeight;pg.classList.remove("meas")}}}catch(e){}}<\/script><script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{fitPages();print()},400))}<\/script></body></html>`);w.document.close()}
 function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
   modal(`<div class="mh"><h3>Assinaturas do relatório</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
   <label class="l">Verificado por</label><input class="f" id="sigV" value="${esc(S.cfg.verificadoPor||'')}" placeholder="Nome de quem verificou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
