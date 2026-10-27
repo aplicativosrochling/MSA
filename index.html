@@ -1914,106 +1914,96 @@ table{width:100%;border-collapse:collapse;margin:6px 0}td,th{border:1px solid #C
 td.c,th.c{text-align:center;width:18px}.hd2 td{border:0;padding:2px 14px 2px 0;font-size:11px}
 .legend{color:#605E5C;font-size:9.5px;margin-top:8px}`
 
-/* ================= VALIDAÇÃO ANUAL DO SISTEMA DE MEDIÇÃO · v49 (filtro por exercício · v61) ================= */
+/* ================= VALIDAÇÃO ANUAL DO SISTEMA DE MEDIÇÃO · v49 · filtro por exercício + modos realizados/vigentes (v61) ================= */
 const ANL_ORD={est:0,bias:1,lin:2,rr:3,atr:4};
 const ANL_COL={CONFORME:'#12B76A','ATENÇÃO':'#F79009','NÃO CONFORME':'#F04438',VENCIDO:'#F04438',PENDENTE:'#8A8886'};
 const ANL_IC={CONFORME:'fa-circle-check','ATENÇÃO':'fa-triangle-exclamation','NÃO CONFORME':'fa-circle-xmark',VENCIDO:'fa-hourglass-end',PENDENTE:'fa-circle-question'};
-/* v61 · A validação anual considera SOMENTE o exercício escolhido.
-   Modo 'real' = estudos realizados dentro do ano (01/01 a 31/12).
-   Modo 'vig'  = também estudos feitos antes que ainda valiam em algum momento do ano (auditoria);
-                 ciclos antigos substituídos por um estudo mais novo do mesmo instrumento/característica ficam de fora.
-   A situação (vencido/conforme) é apurada em 31/12 do exercício para anos passados e na data de hoje para o ano corrente. */
-const anlD=s=>String(s&&s.data||'').slice(0,10);
-const anlY=s=>{const d=anlD(s);return /^\d{4}/.test(d)?+d.slice(0,4):null};
-function anualRef(y){const t=today(),cy=+t.slice(0,4);return (+y<cy)?`${y}-12-31`:t}
-function anualRevalEm(s){return s&&s.revalObr?String(s.revalObr.em||'').slice(0,10):''}
-function anualVigencia(s,ref){ref=ref||today();if(s.revalObr){const em=anualRevalEm(s);if(!em||em<=ref)return em||schedProx(s)||addMonthsISO(anlD(s),12)}const p=schedProx(s);return p||addMonthsISO(anlD(s),12)}
+function anualVigencia(s){if(s.revalObr&&s.revalObr.em)return s.revalObr.em;const p=schedProx(s);return p||addMonthsISO(s.data,12)}
 function anualCalc(s){let R=s.resultado;if(!R||!R.status||R.status==='Incompleto'){try{R=calc(s)}catch(e){R=null}}return R&&R.status&&R.status!=='Incompleto'?R:null}
-function anualVerdict(s,ref){ref=ref||today();const past=ref<today();const R=anualCalc(s),vig=anualVigencia(s,ref),em=anualRevalEm(s),rv=!!s.revalObr&&(!em||em<=ref),venc=rv||(!!vig&&vig<ref);let k,why;
- const quando=past?' (situação em '+fdate(ref)+')':'';
+/* v61 — data de apuração: exercícios encerrados são avaliados em 31/12; exercício corrente (e futuros), hoje */
+function anualApura(y){const cur=new Date().getFullYear();y=+y||cur;return y<cur?y+'-12-31':today()}
+/* v61 — o estudo esteve vigente em algum momento do exercício y? (janela [data do estudo, vigência] intersecta o ano) */
+function anualVigente(s,y){y=+y;const vig=anualVigencia(s);if(!vig||vig<y+'-01-01')return false;const d=String(s.data||'').slice(0,10);return !d||d<=y+'-12-31'}
+/* v61 — veredito avaliado na data de apuração (apura), e não obrigatoriamente hoje */
+function anualVerdict(s,apura){apura=apura||today();const R=anualCalc(s),vig=anualVigencia(s),reval=!!s.revalObr&&(!s.revalObr.em||s.revalObr.em<=apura),venc=!!reval||(!!vig&&vig<apura);let k,why;
  if(!R){k='PENDENTE';why='Estudo sem dados suficientes para cálculo — preencha as medições'}
- else if(rv){k='VENCIDO';why='Revalidação obrigatória'+(s.revalObr.motivo?' — '+s.revalObr.motivo+' do instrumento':'')+(em?' em '+fdate(em):'')+quando+' — realize novo estudo'}
- else if(venc){k='VENCIDO';why='Vigência expirada em '+fdate(vig)+quando+' — realize novo estudo/revalidação'}
- else if(R.status==='Aprovado'){k='CONFORME';why='Atende aos critérios do manual · válido até '+fdate(vig)+quando}
+ else if(venc){k='VENCIDO';why=(reval&&vig&&vig>=apura?'Revalidação obrigatória em '+fdate(s.revalObr.em||apura)+' — estudo suspenso':'Vigência expirada em '+fdate(vig))+(apura!==today()?' · situação apurada em '+fdate(apura):'')+' — realize novo estudo/revalidação'}
+ else if(R.status==='Aprovado'){k='CONFORME';why='Atende aos critérios do manual · válido até '+fdate(vig)}
  else if(R.status==='Condicional'){k='ATENÇÃO';why=(R.msg||'Aceitável com justificativa')+' — plano de ação recomendado'}
  else{k='NÃO CONFORME';why=R.msg||'Não atende aos critérios do manual — ação corretiva necessária'}
- return{k,vig,venc,st:R?R.status:'Incompleto',why}}
-/* chave da "cadeia" de ciclos de um mesmo estudo (mesmo tipo + instrumento/família + característica + peça) */
-function anualChain(s){const ins=s.instrumentoId||s.instrumentoCod||'',fam=s.familiaId||'';if(!ins&&!fam)return'';return [s.tipo,ins,fam,String(s.caracteristica||'').trim().toLowerCase(),String(s.peca||'').trim().toLowerCase()].join('|')}
-function anualSel(y,mode){y=+y;const ref=anualRef(y),ini=`${y}-01-01`,fim=`${y}-12-31`;
- const real=S.studies.filter(s=>{const d=anlD(s);return d>=ini&&d<=fim});
- if(mode!=='vig')return{list:real,real:real.length,ant:0,sup:0,ref,y,mode:'real'};
- let sup=0;const ant=S.studies.filter(s=>{const d=anlD(s);if(!d||d>=ini)return false;
-   const v=anualVigencia(s,ref);if(!v||v<ini)return false;
-   const ch=anualChain(s);if(ch&&S.studies.some(t=>t!==s&&anualChain(t)===ch&&anlD(t)>d&&anlD(t)<=ref)){sup++;return false}
-   return true});
- return{list:real.concat(ant),real:real.length,ant:ant.length,sup,ref,y,mode:'vig'}}
-function anualRows(y,mode){const sel=anualSel(y==null?(V.anualY||new Date().getFullYear()):y,mode||V.anualM||'real');
- const rows=sel.list.map(s=>({s,r:anualVerdict(s,sel.ref),ant:anlD(s)<`${sel.y}-01-01`})).sort((a,b)=>((ANL_ORD[a.s.tipo]??9)-(ANL_ORD[b.s.tipo]??9))||String(a.s.codigo).localeCompare(String(b.s.codigo)));
- rows.sel=sel;return rows}
-const anualModeTxt=(m,y)=>m==='vig'?`Vigentes em ${y}`:`Realizados em ${y}`;
-const anualEmptyTxt=(m,y)=>m==='vig'?`Nenhum estudo vigente no exercício ${y}`:`Nenhum estudo realizado no exercício ${y}`;
+ return{k,vig,venc,st:R?R.status:'Incompleto',why,apura}}
+/* v61 — linhas SEMPRE filtradas pelo exercício (V.anualY) e pelo modo: 'realizados' no ano | 'vigentes' no ano (auditoria) */
+function anualRows(y,mode){y=+y||V.anualY||new Date().getFullYear();mode=mode||V.anualMode||'realizados';
+ return S.studies.filter(s=>mode==='vigentes'?anualVigente(s,y):String(s.data||'').slice(0,4)===String(y))
+  .map(s=>({s,r:anualVerdict(s,anualApura(y))}))
+  .sort((a,b)=>(ANL_ORD[a.s.tipo]-ANL_ORD[b.s.tipo])||String(a.s.codigo).localeCompare(String(b.s.codigo)))}
+/* v61 — contagem por exercício para o seletor (segue o modo ativo) */
+function anualCount(y,mode){y=+y;mode=mode||V.anualMode||'realizados';return mode==='vigentes'?S.studies.filter(s=>anualVigente(s,y)).length:S.studies.filter(s=>String(s.data||'').slice(0,4)===String(y)).length}
 function anualOverall(rows,emptyTxt){const c={CONFORME:0,'ATENÇÃO':0,'NÃO CONFORME':0,VENCIDO:0,PENDENTE:0};rows.forEach(x=>c[x.r.k]++);
- if(!rows.length)return Object.assign(c,{k:'Incompleto',txt:emptyTxt||'Nenhum estudo no exercício escolhido'});
+ if(!rows.length)return Object.assign(c,{k:'Incompleto',txt:emptyTxt||'Nenhum estudo cadastrado no sistema'});
  if(c['NÃO CONFORME']+c.VENCIDO>0)return Object.assign(c,{k:'Reprovado',txt:(c['NÃO CONFORME']+c.VENCIDO)+' estudo(s) reprovado(s)/vencido(s) exigem ação'});
  if(c['ATENÇÃO']+c.PENDENTE>0)return Object.assign(c,{k:'Condicional',txt:c['ATENÇÃO']+' com ressalva(s) · '+c.PENDENTE+' pendente(s) de preenchimento'});
  return Object.assign(c,{k:'Aprovado',txt:'Todos os estudos atendem aos critérios do manual'})}
-function anualYears(){const cy=new Date().getFullYear(),set=new Set();for(let y=cy;y>=cy-6;y--)set.add(y);S.studies.forEach(s=>{const y=anlY(s);if(y&&y>1900&&y<=cy+1)set.add(y)});return [...set].sort((a,b)=>b-a)}
-const nEst=n=>n+(n===1?' estudo':' estudos');
 const anlChip=k=>`<span class="due" style="background:transparent;color:${ANL_COL[k]};font-size:12px"><i class="fas ${ANL_IC[k]}"></i> ${k}</span>`;
-function rAnual(){const t=new Date();if(!V.anualY)V.anualY=t.getFullYear();if(!V.anualM)V.anualM='real';
- const Y=V.anualY,M=V.anualM,rows=anualRows(Y,M),sel=rows.sel,O=anualOverall(rows,anualEmptyTxt(M,Y));
- const past=sel.ref<today();
- const ys=anualYears();
+function rAnual(){const t=new Date(),cur=t.getFullYear();if(!V.anualY)V.anualY=cur;if(!V.anualMode)V.anualMode='realizados';
+ const y=+V.anualY,mode=V.anualMode,apura=anualApura(y),passado=y<cur,rows=anualRows(y,mode),O=anualOverall(rows,mode==='vigentes'?`Nenhum estudo vigente no exercício ${y}`:`Nenhum estudo realizado no exercício ${y}`);
+ /* v61 — anos do seletor: janela padrão de 7 exercícios + qualquer ano com estudo realizado ou vigência */
+ const yset=new Set();for(let i=cur-6;i<=cur;i++)yset.add(i);
+ S.studies.forEach(s=>{const dy=String(s.data||'').slice(0,4);if(/^\d{4}$/.test(dy))yset.add(+dy);const vy=String(anualVigencia(s)||'').slice(0,4);if(/^\d{4}$/.test(vy))yset.add(+vy)});
+ const ys=[...yset].filter(v=>v>1990&&v<2200).sort((a,b)=>b-a);
+ const cntLb=n=>`${n} ${n===1?'estudo':'estudos'}`;
  const stat=(lb,v,sub,ic,cls)=>`<div class="card kpi"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
- const bc={Aprovado:['#E7F6EA','#1B7D25','SISTEMA ADEQUADO','fa-circle-check'],Condicional:['#FEF0E6','#B54708','ADEQUADO COM RESSALVAS','fa-triangle-exclamation'],Reprovado:['#FDECEB','#D13438','NÃO ADEQUADO','fa-circle-xmark'],Incompleto:['#E9EBF5','#8A8886','SEM ESTUDOS NO EXERCÍCIO','fa-circle-question']}[O.k];
- const nReal=anualSel(Y,'real').list.length,nVig=anualSel(Y,'vig').list.length;
+ const bc={Aprovado:['#E7F6EA','#1B7D25','SISTEMA ADEQUADO','fa-circle-check'],Condicional:['#FEF0E6','#B54708','ADEQUADO COM RESSALVAS','fa-triangle-exclamation'],Reprovado:['#FDECEB','#D13438','NÃO ADEQUADO','fa-circle-xmark'],Incompleto:['#E9EBF5','#8A8886','SEM ESTUDOS PARA VALIDAR','fa-circle-question']}[O.k];
  const row=x=>{const s=x.s,r=x.r;
-  return `<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico ${r.k==='CONFORME'?'bg-ok c-ok':(r.k==='ATENÇÃO'||r.k==='PENDENTE')?'bg-warn c-warn':'bg-bad c-bad'}"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · estudo em ${fdate(anlD(s))}${x.ant?` <b style="color:var(--muted)">(exercício anterior, vigente em ${Y})</b>`:''} · válido até ${fdate(r.vig)}</small><small style="display:block;color:${ANL_COL[r.k]}">${esc(r.why)}</small></div>${anlChip(r.k)}${badge(s)}</div>`};
- /* aviso quando o exercício está vazio: quantos estudos existem em outros anos */
+  return `<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico ${r.k==='CONFORME'?'bg-ok c-ok':(r.k==='ATENÇÃO'||r.k==='PENDENTE')?'bg-warn c-warn':'bg-bad c-bad'}"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${esc(instrName(s))} · estudo em ${fdate(s.data)} · válido até ${fdate(r.vig)}</small><small style="display:block;color:${ANL_COL[r.k]}">${esc(r.why)}</small></div>${anlChip(r.k)}${badge(s)}</div>`};
+ /* v61 — estado vazio: avisa que o exercício não tem estudos e informa quantos existem de outros exercícios */
  const outros=S.studies.length-rows.length;
- const porAno={};S.studies.forEach(s=>{if(rows.some(x=>x.s===s))return;const y=anlY(s);const k=y?String(y):'sem data';porAno[k]=(porAno[k]||0)+1});
- const anoLinks=Object.keys(porAno).sort((a,b)=>b.localeCompare(a)).map(k=>/^\d{4}$/.test(k)?`<a style="cursor:pointer;color:var(--brand);font-weight:700" onclick="V.anualY=${k};rAnual()">${k} (${porAno[k]})</a>`:`${k} (${porAno[k]})`).join(' · ');
- const vazio=`<div class="empty" style="padding:24px 10px"><i class="fas fa-clipboard-check"></i><b style="display:block;font-size:14px;color:var(--text);margin-bottom:4px">${anualEmptyTxt(M,Y)}</b>${S.studies.length?`${outros===1?'1 estudo cadastrado é':outros+' estudos cadastrados são'} de outros exercícios${anoLinks?': '+anoLinks:''}.${M==='real'&&nVig?` <a style="cursor:pointer;color:var(--brand);font-weight:700" onclick="V.anualM='vig';rAnual()">Ver os ${nVig} vigente(s) em ${Y} →</a>`:''}`:'Nenhum estudo cadastrado no sistema — crie estudos para iniciar a validação anual.'}</div>`;
- const subEst=M==='vig'?`${sel.real} realizado(s) em ${Y} + ${sel.ant} anterior(es) vigente(s)`:`realizados em ${Y}`;
+ const anosCom=ys.filter(v=>anualCount(v,mode)>0);
+ const vazioMsg=mode==='vigentes'?`Nenhum estudo vigente no exercício ${y}`:`Nenhum estudo realizado no exercício ${y}`;
+ const emptyBox=outros>0?`<div class="empty" style="padding:26px 10px"><i class="fas fa-clipboard-check"></i><b style="font-size:14px">${vazioMsg}</b><p class="legend" style="margin:8px auto 12px;max-width:580px">Há ${cntLb(outros)} de outros exercícios no sistema — selecione o ano no seletor${mode==='realizados'&&passado?` ou ative “Vigentes” para incluir estudos anteriores que ainda valiam durante ${y} (visão de auditoria)`:''}.</p><div class="row" style="justify-content:center">${anosCom.map(v=>`<button class="chip" onclick="V.anualY=${v};rAnual()">Exercício ${v} (${cntLb(anualCount(v,mode))})</button>`).join('')}</div></div>`
+  :`<div class="empty" style="padding:26px 10px"><i class="fas fa-clipboard-check"></i>${vazioMsg}</div>`;
  $('#main').innerHTML=`<div class="fade">
-  <div class="top"><div><h1>Validação anual</h1><div class="sub">Auditoria do sistema de medição · critérios do manual (AIAG MSA 4ª ed.) · exercício ${Y} · situação apurada em ${fdate(sel.ref)}${past?' (31/12 do exercício)':' (hoje)'}</div></div><div class="sp"></div>
-  <select class="f" style="width:auto" onchange="V.anualY=+this.value;rAnual()">${ys.map(y=>`<option value="${y}"${y===Y?' selected':''}>Exercício ${y} (${nEst(anualSel(y,M).list.length)})</option>`).join('')}</select>
+  <div class="top"><div><h1>Validação anual</h1><div class="sub">Auditoria do sistema de medição · critérios do manual (AIAG MSA 4ª ed.) · exercício ${y} · ${mode==='vigentes'?'estudos vigentes':'estudos realizados'}</div></div><div class="sp"></div>
+  <select class="f" style="width:auto" onchange="V.anualY=+this.value;rAnual()">${ys.map(v=>`<option value="${v}"${v===y?' selected':''}>Exercício ${v} (${cntLb(anualCount(v,mode))})</option>`).join('')}</select>
   <button class="btn pri" onclick="printAnual()"><i class="fas fa-certificate"></i>Relatório anual</button></div>
- <div class="tabs"><div class="tab ${M==='real'?'on':''}" onclick="V.anualM='real';rAnual()" title="Somente estudos feitos entre 01/01 e 31/12/${Y}"><i class="fas fa-calendar-check"></i> Realizados em ${Y} (${nReal})</div><div class="tab ${M==='vig'?'on':''}" onclick="V.anualM='vig';rAnual()" title="Inclui estudos feitos antes de ${Y} que ainda valiam durante o ano — útil para auditoria"><i class="fas fa-calendar-days"></i> Vigentes em ${Y} (${nVig})</div></div>
+ <div class="chips" style="margin-bottom:14px">
+  <button class="chip${mode==='realizados'?' on':''}" onclick="V.anualMode='realizados';rAnual()" title="Estudos com data de realização dentro do exercício ${y}"><i class="fas fa-calendar-plus" style="margin-right:7px"></i>Realizados em ${y}</button>
+  <button class="chip${mode==='vigentes'?' on':''}" onclick="V.anualMode='vigentes';rAnual()" title="Inclui estudos anteriores que ainda estavam válidos durante ${y} — visão de auditoria"><i class="fas fa-shield-halved" style="margin-right:7px"></i>Vigentes em ${y}</button>
+  <span class="legend" style="margin:0 0 0 6px">Situação apurada em <b>${fdate(apura)}</b>${passado?' — 31/dez do exercício':' — hoje'}</span></div>
  <div class="grid kpis" style="margin-bottom:14px">
-  ${stat('Estudos',rows.length,subEst,'fa-clipboard-list','brand')}
-  ${stat('Conformes',O.CONFORME,'atendem ao manual em '+fdate(sel.ref),'fa-circle-check','ok')}
+  ${stat(mode==='vigentes'?'Estudos vigentes':'Estudos do exercício',rows.length,mode==='vigentes'?`vigentes durante ${y} (auditoria)`:`realizados em ${y}`,'fa-clipboard-list','brand')}
+  ${stat('Conformes',O.CONFORME,'atendem ao manual','fa-circle-check','ok')}
   ${stat('Atenção / Pendentes',O['ATENÇÃO']+O.PENDENTE,'exigem acompanhamento','fa-triangle-exclamation','warn')}
   ${stat('Não conformes / Vencidos',O['NÃO CONFORME']+O.VENCIDO,'exigem ação imediata','fa-circle-xmark','bad')}
  </div>
- <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;font-weight:800;font-size:15px;border:1px solid ${bc[1]};background:${bc[0]};color:${bc[1]}"><span><i class="fas ${bc[3]}"></i> VALIDAÇÃO ANUAL ${Y}: ${bc[2]}</span><span style="font-size:12px">${esc(O.txt)}</span></div>
- <div class="card" style="margin-top:14px"><h3><i class="fas fa-list-check c-brand"></i>${anualModeTxt(M,Y)}${M==='vig'&&sel.sup?` <small style="font-weight:500;color:var(--muted);margin-left:6px">· ${sel.sup} ciclo(s) anterior(es) substituído(s) por estudo mais recente não entram</small>`:''}<a class="hint" style="cursor:pointer;color:var(--brand)" onclick="printAnual()">gerar relatório →</a></h3>
-  ${rows.length?rows.map(row).join(''):vazio}</div>
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;font-weight:800;font-size:15px;border:1px solid ${bc[1]};background:${bc[0]};color:${bc[1]}"><span><i class="fas ${bc[3]}"></i> VALIDAÇÃO ANUAL: ${bc[2]}</span><span style="font-size:12px">${esc(O.txt)}</span></div>
+ <div class="card" style="margin-top:14px"><h3><i class="fas fa-list-check c-brand"></i>${mode==='vigentes'?`Estudos vigentes no exercício ${y}`:`Estudos realizados no exercício ${y}`}<a class="hint" style="cursor:pointer;color:var(--brand)" onclick="printAnual()">gerar relatório →</a></h3>
+  ${rows.length?rows.map(row).join(''):emptyBox}</div>
  <div class="card" style="margin-top:14px"><h3><i class="fas fa-book c-brand"></i>Critérios do manual aplicados (AIAG MSA 4ª edição)</h3>
-  ${['est','bias','lin','rr','atr'].map(t=>`<p style="margin:7px 0;font-size:12.5px;color:var(--muted)"><b style="color:var(--text)">${TYPES[t].n}:</b> ${criteria(t)}</p>`).join('')}</div>
+  ${['est','bias','lin','rr','atr'].map(tp=>`<p style="margin:7px 0;font-size:12.5px;color:var(--muted)"><b style="color:var(--text)">${TYPES[tp].n}:</b> ${criteria(tp)}</p>`).join('')}</div>
  </div>`}
-function printAnual(){const y=V.anualY||new Date().getFullYear(),m=V.anualM||'real',sel=anualSel(y,m);
+function printAnual(){const y=V.anualY||new Date().getFullYear();
  modal(`<div class="mh"><h3>Relatório de validação anual — exercício ${y}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
- <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px"><b style="color:var(--text)">${anualModeTxt(m,y)}</b> · ${nEst(sel.list.length)} · situação apurada em ${fdate(sel.ref)}${sel.list.length?'':' — o relatório sairá sem estudos'}</div>
  <label class="l">Verificado por</label><input class="f" id="agV" value="${esc(S.cfg.verificadoPor||'')}">
  <label class="l" style="margin-top:10px">Aprovado por</label><input class="f" id="agA" value="${esc(S.cfg.aprovadoPor||'')}">
  <small class="legend" style="display:block;margin-top:10px">Os nomes entram no bloco de assinaturas e ficam salvos para as próximas impressões. Deixe em branco para imprimir somente as linhas.</small></div>
  <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="agGo"><i class="fas fa-print"></i>Gerar relatório</button></div>`);
- $('#agGo').onclick=()=>{S.cfg.verificadoPor=$('#agV').value.trim();S.cfg.aprovadoPor=$('#agA').value.trim();persist();const sig={v:S.cfg.verificadoPor,a:S.cfg.aprovadoPor};closeModal();toast('Gerando relatório anual...','fa-certificate');setTimeout(()=>openWin('Validação anual '+y,reportAnual(y,sig,m)),30)}}
-function reportAnual(y,sig,mode){mode=mode||V.anualM||'real';const rows=anualRows(y,mode),sel=rows.sel,O=anualOverall(rows,anualEmptyTxt(mode,y)),C=S.cfg;const past=sel.ref<today();
- const hd=`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Validação anual do sistema de medição</h1></div><div class="hdr"><b>Exercício ${y}</b><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
- const info=`<table class="info"><tr><td>Empresa</td><td>${esc(C.empresa)||'—'}</td><td>Exercício</td><td>${y} (01/01/${y} a 31/12/${y})</td><td>Referência</td><td>AIAG MSA 4ª edição</td></tr>
- <tr><td>Critério de seleção</td><td>${anualModeTxt(mode,y)}${mode==='vig'?` — ${sel.real} realizado(s) no ano + ${sel.ant} anterior(es) ainda vigente(s)`:''}</td><td>Estudos avaliados</td><td>${rows.length}</td><td>Situação apurada em</td><td><b>${fdate(sel.ref)}</b>${past?' (31/12 do exercício)':' (data de emissão)'}</td></tr>
- <tr><td>Responsável</td><td>${esc(userName())}</td><td>Emitido em</td><td>${fdate(today())}</td><td>Próxima validação anual</td><td>${past?'Exercício '+(+y+1):fdate(addMonthsISO(today(),12))}</td></tr></table>`;
- const verd={Aprovado:'O SISTEMA DE MEDIÇÃO ESTÁ ADEQUADO',Condicional:'SISTEMA ADEQUADO COM RESSALVAS',Reprovado:'O SISTEMA DE MEDIÇÃO NÃO ESTÁ ADEQUADO',Incompleto:'SEM ESTUDOS NO EXERCÍCIO '+y}[O.k];
- const ban=`<div class="v ${O.k}"><span>VALIDAÇÃO ANUAL ${y}: ${verd}</span><span class="vm">${esc(O.txt)}</span></div>`;
+ $('#agGo').onclick=()=>{S.cfg.verificadoPor=$('#agV').value.trim();S.cfg.aprovadoPor=$('#agA').value.trim();persist();const sig={v:S.cfg.verificadoPor,a:S.cfg.aprovadoPor};closeModal();toast('Gerando relatório anual...','fa-certificate');setTimeout(()=>openWin('Validação anual '+y,reportAnual(y,sig)),30)}}
+/* v61 — relatório segue o MESMO filtro do ecrã (exercício + modo) e mostra a data em que a situação foi apurada */
+function reportAnual(y,sig){y=+y||V.anualY||new Date().getFullYear();const mode=V.anualMode||'realizados',apura=anualApura(y),passado=apura!==today(),rows=anualRows(y,mode),O=anualOverall(rows,mode==='vigentes'?`Nenhum estudo vigente no exercício ${y}`:`Nenhum estudo realizado no exercício ${y}`),C=S.cfg;
+ const escopo=mode==='vigentes'?'Estudos vigentes no exercício, incluindo realizados em exercícios anteriores que seguiam válidos (auditoria)':'Estudos realizados dentro do exercício';
+ const hd=`<div class="hd"><div><small>${esc(C.empresa)}</small><h1>Validação anual do sistema de medição</h1></div><div class="hdr"><b>Exercício ${y}</b><small style="display:block">Situação apurada em ${fdate(apura)}</small><small style="display:block">Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>`;
+ const info=`<table class="info"><tr><td>Empresa</td><td>${esc(C.empresa)||'—'}</td><td>Estudos avaliados</td><td>${rows.length}</td><td>Referência</td><td>AIAG MSA 4ª edição</td></tr>
+ <tr><td>Abrangência</td><td colspan="3">${escopo}</td><td>Situação apurada em</td><td>${fdate(apura)}${passado?' (31/dez do exercício)':' (data de emissão)'}</td></tr>
+ <tr><td>Responsável</td><td>${esc(userName())}</td><td>Próxima validação anual</td><td>${fdate(addMonthsISO(apura,12))}</td><td>Modo</td><td>${mode==='vigentes'?'Vigentes no exercício':'Realizados no exercício'}</td></tr></table>`;
+ const verd={Aprovado:passado?'O SISTEMA DE MEDIÇÃO ESTAVA ADEQUADO':'O SISTEMA DE MEDIÇÃO ESTÁ ADEQUADO',Condicional:'SISTEMA ADEQUADO COM RESSALVAS',Reprovado:passado?'O SISTEMA DE MEDIÇÃO NÃO ESTAVA ADEQUADO':'O SISTEMA DE MEDIÇÃO NÃO ESTÁ ADEQUADO',Incompleto:'SEM ESTUDOS SUFICIENTES PARA VALIDAÇÃO'}[O.k];
+ const ban=`<div class="v ${O.k}"><span>VALIDAÇÃO ANUAL: ${verd}</span><span class="vm">${esc(O.txt)}</span></div>`;
  const kpis=`<table class="info"><tr><td>Conformes</td><td>${O.CONFORME}</td><td>Atenção / Pendentes</td><td>${O['ATENÇÃO']+O.PENDENTE}</td><td>Não conformes / Vencidos</td><td>${O['NÃO CONFORME']+O.VENCIDO}</td></tr></table>`;
- const tr=x=>{const s=x.s,r=x.r;return `<tr><td><b>${esc(s.codigo)}</b></td><td style="text-align:left">${esc(s.nome||s.caracteristica||'—')}</td><td style="text-align:left">${TYPES[s.tipo].n}</td><td style="text-align:left">${esc(instrName(s))}</td><td>${fdate(anlD(s))}${x.ant?'<br><small>(anterior, vigente)</small>':''}</td><td>${fdate(r.vig)}</td><td style="color:${SCOL[r.st]||'#8A8886'};font-weight:700">${r.st}</td><td style="color:${ANL_COL[r.k]};font-weight:700">${r.k}</td></tr>`};
- const tbl=`<table class="dt"><thead><tr><th>Código</th><th>Estudo / peça</th><th>Tipo</th><th>Instrumento</th><th>Data do estudo</th><th>Válido até</th><th>Resultado</th><th>Veredito em ${fdate(sel.ref)}</th></tr></thead><tbody>${rows.map(tr).join('')||`<tr><td colspan="8">— ${anualEmptyTxt(mode,y).toLowerCase()} —</td></tr>`}</tbody></table>`;
- const tipos=['est','bias','lin','rr','atr'].filter(t=>rows.some(x=>x.s.tipo===t));
- const crit=tipos.length?`<h3>Critérios de aceitação aplicados (AIAG MSA 4ª edição)</h3>${tipos.map(t=>`<div class="crit"><b>${TYPES[t].n}:</b> ${criteria(t)}</div>`).join('')}`:'';
- const leg=`<div class="legend">Este relatório considera somente o exercício ${y}: ${mode==='vig'?`estudos realizados entre 01/01/${y} e 31/12/${y} e estudos anteriores que ainda estavam dentro da vigência durante o ano (ciclos substituídos por estudo mais recente não entram${sel.sup?` — ${sel.sup} neste exercício`:''})`:`estudos realizados entre 01/01/${y} e 31/12/${y}`}. A situação de cada estudo (conforme, vencido etc.) foi apurada em ${fdate(sel.ref)}${past?', último dia do exercício, e não na data de emissão':''}. A validação anual confirma que os estudos estão dentro da vigência (12 meses ou periodicidade agendada) e atendem aos critérios de aceitação do manual. Estudos vencidos, reprovados ou incompletos exigem novo estudo/revalidação antes da liberação. Os relatórios individuais de cada estudo permanecem como evidência.</div>`;
+ const tr=x=>{const s=x.s,r=x.r;return `<tr><td><b>${esc(s.codigo)}</b></td><td style="text-align:left">${esc(s.nome||s.caracteristica||'—')}</td><td style="text-align:left">${TYPES[s.tipo].n}</td><td style="text-align:left">${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${fdate(r.vig)}</td><td style="color:${SCOL[r.st]||'#8A8886'};font-weight:700">${r.st}</td><td style="color:${ANL_COL[r.k]};font-weight:700">${r.k}</td></tr>`};
+ const tbl=`<table class="dt"><thead><tr><th>Código</th><th>Estudo / peça</th><th>Tipo</th><th>Instrumento</th><th>Data do estudo</th><th>Válido até</th><th>Resultado</th><th>Veredito anual</th></tr></thead><tbody>${rows.map(tr).join('')||`<tr><td colspan="8">— nenhum estudo ${mode==='vigentes'?'vigente':'realizado'} no exercício ${y} —</td></tr>`}</tbody></table>`;
+ const tipos=['est','bias','lin','rr','atr'].filter(tp=>rows.some(x=>x.s.tipo===tp));
+ const crit=tipos.length?`<h3>Critérios de aceitação aplicados (AIAG MSA 4ª edição)</h3>${tipos.map(tp=>`<div class="crit"><b>${TYPES[tp].n}:</b> ${criteria(tp)}</div>`).join('')}`:'';
+ const leg=`<div class="legend">Abrangência: ${escopo.charAt(0).toLowerCase()+escopo.slice(1)}. A situação de vigência e conformidade foi apurada em ${fdate(apura)}${passado?' — data de fechamento do exercício':''}. A validação anual confirma que os estudos do sistema de medição estão dentro da vigência (12 meses ou periodicidade agendada) e atendem aos critérios de aceitação do manual. Estudos vencidos, reprovados ou incompletos exigem novo estudo/revalidação antes da liberação. Este relatório resume os vereditos — os relatórios individuais de cada estudo permanecem como evidência.</div>`;
  const sg=`<div class="sig"><div>Responsável pela validação<br><small>${esc(userName())}</small></div><div>Verificado por<br><small>${esc(sig.v||'')}</small></div><div>Aprovado por<br><small>${esc(sig.a||'')}</small></div></div>`;
  return `<div class="pg land">${hd}${info}${ban}${kpis}${tbl}${crit}${leg}${sg}</div>`}
 /* ================= v21 · RASTREABILIDADE, REVALIDAÇÃO E AVISOS ================= */
