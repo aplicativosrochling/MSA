@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v67</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v71</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -1464,7 +1464,7 @@ function justPageHTML(s,R,annex,extraQAs){
   const cont=`<div class="hd2"><div><small>${esc(C.empresa)}</small><b style="margin-left:8px">${annex?'Anexo — Justificativa para auditoria':'Relatório de justificativa para auditoria'} · continuação</b></div><small>${esc(s.codigo)}</small></div>`;
   /* v66 · paginação dos cartões: 6 na 1ª página (leva o cabeçalho completo) e 8 nas seguintes — nunca encolher para caber */
   const F1=2,FN=4,pgs=[];let idx=0;
-  const qH3='<h3>Perguntas que o auditor pode fazer — respostas preparadas</h3>';
+  const qH3='';
   const head1=annex?`<div class="pg land">${cont}${ban}${qH3}`
     :`<div class="pg land">${hd}${info}${ban}${qH3}`;
   if(qas.length<=F1){pgs.push(head1+qaPrintHTML(qas)+leg+sigBlock(s,null)+'</div>')}
@@ -1657,6 +1657,153 @@ function rProc(){
    <button class="btn" onclick="procPrint()"><i class="fas fa-print"></i>Imprimir</button></div>
    <div class="card"><div class="proc">${PROC_HTML}</div></div>
    <p class="legend" style="margin-top:10px"><i class="fas fa-layer-group"></i> O programa de estudos MSA (item 2.4) agora é gerenciado por <b>família de instrumentos</b> — use <b>Criar estudos 2.4</b> para gerar de uma vez os estudos desta tabela vinculados às famílias, cadastre/grupe em <b>Famílias</b> e acompanhe os prazos no <b>Cronograma</b> (AIAG MSA 4ª ed.).</p></div>`}
+
+/* ================= v70 · ESTUDOS PROGRAMADOS 2026 (pedido do usuário) =================
+   Família ALT — Medidores de altura: estudos a partir de 03/06/2026
+   Família MIC — Micrômetros: estudos a partir de 06/04/2026
+   Todos: padrão de referência "Bloco padrão" (data de referência 03/06/2026) · responsável Welington Freitas
+   · frequência 12 meses · unidade mm · dados de medição em branco (preenchidos na execução do estudo). */
+const PLAN26=[
+ {k:'alt',cod:'ALT',nome:'Medidores de altura',kw:['altura'],tipos:['Medidor de Altura Centesimal','Medidor de Altura'],crit:'Coluna com cursor · resolução 0,01 mm · faixas de 0 a 300/600 mm',data:'2026-06-03'},
+ {k:'mic',cod:'MIC',nome:'Micrômetros',kw:['microm'],tipos:['Micrômetro','Micrômetro Externo','Micrômetro Interno','Micrômetro de Profundidade'],crit:'Princípio de fuso micrométrico · resolução 0,001 a 0,01 mm · faixas até 100 mm',data:'2026-04-06'}];
+const SEED26_REF='Bloco padrão',SEED26_REFDATA='2026-06-03',SEED26_RESP='Welington Freitas';
+const SEED26_T=['est','bias','lin','rr'];
+/* linha do programa 2.4 correspondente (para anti-duplicação com estudos "prog_*" antigos) */
+const seed26Proc=(p,t)=>t==='est'?null:(p.k==='alt'?'altura':(t==='rr'?'micint':'micro'));
+function fam26(p){const ex=S.fams.find(x=>x.cod===p.cod)||S.fams.find(x=>p.kw.some(k=>ivN(x.nome).includes(k)));
+ if(ex)return{fam:ex,nova:false};
+ const f={id:uid(),cod:p.cod,nome:p.nome,tipos:p.tipos,criterio:p.crit,resp:SEED26_RESP,criadoEm:new Date().toISOString(),criadoPor:userName()};
+ saveFam(f);return{fam:f,nova:true}}
+function seed26(){const out=[];let pulados=0,famsNovas=0;
+ PLAN26.forEach(p=>{const {fam,nova}=fam26(p);if(nova)famsNovas++;
+  SEED26_T.forEach(t=>{
+   const kp=seed26Proc(p,t),pr=kp?PROG.find(x=>x.k===kp):null;
+   const ja=S.studies.some(s=>s.tipo===t&&(s.id==='seed26_'+p.k+'_'+t||s.familiaId===fam.id||(pr&&(s.progId===progId(pr,t)||s.id==='prog_'+pr.k+'_'+t))));
+   if(ja){pulados++;return}
+   const s=newStudy(t);s.id='seed26_'+p.k+'_'+t;
+   while(S.studies.some(x=>x.codigo===s.codigo)){const m=s.codigo.match(/^(.*-)(\d+)$/);if(!m)break;s.codigo=m[1]+String(+m[2]+1).padStart(3,'0')}
+   s.familiaId=fam.id;s.instrumentoId='';s.instrumentoCod='';
+   s.instrumentoTxt='Família '+fam.cod+' — '+fam.nome+' (família)';
+   s.nome=TYPES[t].n+' — '+fam.nome;
+   s.padrao=SEED26_REF;s.padraoData=SEED26_REFDATA;s.unidade='mm';
+   s.responsavel=SEED26_RESP;s.area='';s.peca='';s.caracteristica='';
+   s.data=p.data;s.freqMeses=12;s.proxima=addMonthsISO(p.data,12);
+   s.obs='Estudo programado do plano de MSA 2026 · Família '+fam.cod+' — '+fam.nome+' (AIAG MSA 4ª ed.: um estudo por família cobre os instrumentos similares). Padrão de referência: '+SEED26_REF+' · data de referência 03/06/2026 · Responsável: '+SEED26_RESP+' · Frequência: 12 meses. Preencher na execução: identificação (peça, característica, LIE/LSE), dados de medição e conclusão.';
+   logHist(s,'Estudo criado','programa 2026 · família '+fam.cod+' · estudo em branco aguardando execução');
+   saveStudy(normalize(s));out.push(s)})});
+ return{criados:out.length,pulados,famsNovas,codigos:out.map(s=>s.codigo)}}
+/* execução do seed (uma única vez, com flag persistida) */
+function seed26Run(){if(S.cfg.seed26Done||localStorage.getItem('msa_seed26_done'))return;S.cfg.seed26Done=true;
+ try{localStorage.setItem('msa_seed26_done','1')}catch(e){}
+ persist();
+ try{const r=seed26();if(r.criados)setTimeout(()=>{toast('Programa 2026 criado: '+r.criados+' estudo(s) — Medidores de altura (03/06/2026) e Micrômetros (06/04/2026). Abra cada estudo e preencha os dados.','fa-calendar-plus');refresh()},400)}catch(e){console.error(e)}}
+/* primeira execução desta versão: espera o Firebase resolver o primeiro snapshot
+   (ou 6,5 s em modo offline) antes de criar — evita duplicar famílias e códigos
+   contra os dados que ainda estão chegando da nuvem. A guarda dupla (flag S.cfg +
+   chave msa_seed26_done no localStorage) é imune ao Object.assign do snapshot de
+   msapro_config, que pode trazer a configuração antiga da nuvem e desfazer a flag. */
+function seed26Boot(){if(S.cfg.seed26Done)return;
+ try{if(localStorage.getItem('msa_seed26_done'))return}catch(e){}
+ const t0=Date.now();
+ const iv=setInterval(()=>{if(S.cfg.seed26Done){clearInterval(iv);return}
+  if((typeof cloudOk!=='undefined'&&cloudOk===true)||Date.now()-t0>6500){clearInterval(iv);seed26Run()}},300)}
+/* recuperação manual (Configurações → Backup e dados): recria apenas o que não existir */
+function askSeed26(){confirmBox('Recriar os estudos programados de 2026?<br><small>Família <b>ALT · Medidores de altura</b> — estudos a partir de 03/06/2026 — e família <b>MIC · Micrômetros</b> — a partir de 06/04/2026 — nos quatro tipos (tendência, linearidade, estabilidade e R&amp;R), com padrão de referência <b>Bloco padrão</b> (data de referência 03/06/2026) e responsável <b>Welington Freitas</b>.<br><br>Estudos já existentes <b>não são duplicados</b> — apenas os que faltarem são criados, em branco, para você preencher depois.</small>',()=>{
+  const r=seed26();toast(r.criados?r.criados+' estudo(s) criado(s) · '+r.pulados+' já existiam':'Nenhum estudo novo — tudo já existe','fa-table-list');refresh()})}
+/* ================= fim v70 · ESTUDOS PROGRAMADOS 2026 ================= */
+
+/* ================= v71 · GERAÇÃO DE VALORES DE MEDIÇÃO — PROGRAMA 2026 =================
+   Preenche SOMENTE estudos totalmente em branco do programa 2026 (famílias ALT e MIC)
+   com dados sintéticos no padrão AIAG MSA 4ª ed., coerentes com resolução 0,001 mm:
+   · Tendência (n = 15): bias-alvo pequeno → teste t não significativo · %Tendência < 10%
+   · Linearidade (5 × 10): médias de ponto exatamente simétricas → inclinação ≈ 0
+   · Estabilidade (20 × 5, semanal): médias contidas (|z| ≤ 1,8) e amplitude ≤ 3σ → sob controle
+   · R&R (10 × 3 × 3, aditivo): %GRR ≈ 3–7% · ndc ≥ 20 · sem interação
+   Gerador determinístico (mulberry32, semente 20260603) — mesmos valores em qualquer máquina.
+   Estudos que já possuam qualquer dado NÃO são alterados; cabeçalho existente é preservado. */
+const FILL26_SPEC={
+  alt:{ref:20,lie:'19,80',lse:'20,20',biasB:0.0015,sig:0.004,linRefs:[60,120,180,240,300],linB:0.004,partS:0.08,opE:[0.0015,-0.0005,-0.0010]},
+  mic:{ref:10,lie:'9,95',lse:'10,05',biasB:0.0004,sig:0.001,linRefs:[5,10,15,20,25],linB:0.0005,partS:0.02,opE:[0.0004,-0.0001,-0.0003]}};
+const FILL26_LINP=[1,-1,0,-1,1]; /* padrão de bias por ponto de referência: soma 0 e Σ(dev·b)=0 → inclinação e intercepto nulos */
+function fill26Rng(seed){let a=seed>>>0;const rnd=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  return{rnd,g(){let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}}}
+const f26r=x=>Math.round(x*1000)/1000;
+const f26s=x=>f26r(x).toFixed(3).replace('.',',');
+const f26cl=(x,m)=>Math.max(-m,Math.min(m,x));
+/* n−1 ruídos truncados; a última leitura fecha a média exata no alvo (erros de arredondamento compensados) */
+function fill26Subs(R,sp,n){return Array.from({length:n-1},()=>f26cl(R.g(),1.6)*sp.sig)}
+function fill26Fill(alvo,e,n){let x=e.map(v=>alvo+v);x.push(n*alvo-x.reduce((s,v)=>s+v,0));
+  const xr=x.map(f26r);const dif=f26r(n*alvo)-xr.reduce((s,v)=>s+v,0);xr[xr.length-1]=f26r(xr[xr.length-1]+dif);return xr.map(f26s)}
+function fill26Est(s,sp,R){const d=s.dados,n=d.n,g=d.g;d.ref=f26s(sp.ref);d.hrs=Array(g).fill('');
+  d.dts=Array.from({length:g},(_,i)=>{const dt=new Date((s.data||'2026-06-03')+'T12:00:00');dt.setDate(dt.getDate()+7*i);return dt.toISOString().slice(0,10)});
+  const zs=Array.from({length:g},()=>f26cl(R.g(),1.8));const zm=mean(zs);let run=0,side=0;
+  for(let i=0;i<g;i++){const z=zs[i]-zm,sd=z>0.02?1:(z<-0.02?-1:0);
+   if(sd===0){run=0;side=0;continue}
+   if(side===sd)run++;else{run=1;side=sd}
+   if(run>=6){zs[i]=zm-side*1.3;run=1;side=-side}}
+  d.m=zs.map(z=>{const alvo=sp.ref+z*sp.sig/Math.sqrt(n);let e=fill26Subs(R,sp,n);
+   const A=rng(e);if(A>3*sp.sig){const k=3*sp.sig/A;e=e.map(v=>v*k)}
+   return fill26Fill(alvo,e,n)})}
+function fill26Bias(s,sp,R){const d=s.dados,n=d.v.length;d.ref=f26s(sp.ref);
+  const e=Array.from({length:n-1},()=>f26cl(R.g(),1.7)*sp.sig);
+  d.v=fill26Fill(sp.ref+sp.biasB,e,n)}
+function fill26Lin(s,sp,R){const d=s.dados,g=d.g,m=d.m;
+  const lo=sp.linRefs[0],hi=sp.linRefs[sp.linRefs.length-1];
+  d.refs=Array.from({length:g},(_,i)=>f26s(g===5?sp.linRefs[i]:lo+(hi-lo)*i/(g-1)));
+  d.v=d.refs.map((rt,i)=>{const B=sp.linB*FILL26_LINP[i%FILL26_LINP.length];
+   return fill26Fill(num(rt)+B,Array.from({length:m-1},()=>f26cl(R.g(),1.7)*sp.sig),m)})}
+function fill26RR(s,sp,R){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;
+  const zs=Array.from({length:P},(_,i)=>P>1?-1.8+3.6*i/(P-1):0),pat=[-0.8,0,0.8];
+  d.v=Array.from({length:O},(_,o)=>Array.from({length:T},(_,t)=>Array.from({length:P},(_,p)=>{
+   const base=sp.ref+zs[p]*sp.partS+sp.opE[o%sp.opE.length];
+   return f26s(base+pat[(t+o+p)%3]*sp.sig+f26cl(R.g(),0.6)*0.25*sp.sig)})))}
+/* alvos = estudos que COBREM cada tipo em cada família (mesma resolução do seed26:
+   primeiro o id seed26_, depois o estudo DENTRO da família (familiaId — o que o usuário
+   vê em Famílias), por fim o estudo prog_* do item 2.4 (pode ficar órfão sem família) */
+function fill26Targets(){const out=[];PLAN26.forEach(p=>{
+  const f=S.fams.find(x=>x.cod===p.cod)||S.fams.find(x=>p.kw.some(k=>ivN(x.nome).includes(k)));if(!f)return;
+  SEED26_T.forEach(t=>{const kp=seed26Proc(p,t),pr=kp?PROG.find(x=>x.k===kp):null;
+   let s=S.studies.find(x=>x.tipo===t&&x.id==='seed26_'+p.k+'_'+t);
+   if(!s)s=S.studies.find(x=>x.tipo===t&&x.familiaId===f.id);
+   if(!s&&pr)s=S.studies.find(x=>x.tipo===t&&(x.progId===progId(pr,t)||x.id==='prog_'+pr.k+'_'+t));
+   if(s)out.push({p,f,t,s})})});return out}
+const f26Has=a=>Array.isArray(a)&&a.some(x=>String(x??'').trim()!=='');
+function fill26Empty(s){const d=s.dados;if(!d)return false;
+  if(s.tipo==='est')return !f26Has(d.m.flat())&&!f26Has(d.dts);
+  if(s.tipo==='bias')return !f26Has(d.v);
+  if(s.tipo==='lin')return !f26Has(d.v.flat())&&!f26Has(d.refs);
+  if(s.tipo==='rr')return !f26Has(d.v.flat(2));
+  return false}
+function fill26(){const alvos=fill26Targets();let preenchidos=0,pulados=0;const det=[];
+  alvos.forEach(({p,t,s})=>{const sp=FILL26_SPEC[p.k];
+   if(!fill26Empty(s)){pulados++;det.push(s.codigo+' · já possui dados — preservado');return}
+   if(!s.padrao)s.padrao=SEED26_REF;if(!s.padraoData)s.padraoData=SEED26_REFDATA;
+   if(!s.responsavel)s.responsavel=SEED26_RESP;if(!s.unidade)s.unidade='mm';
+   if(!num(s.lie)||!num(s.lse)||num(s.lse)<=num(s.lie)){s.lie=sp.lie;s.lse=sp.lse}
+   if(!s.freqMeses)s.freqMeses=12;
+   if(!s.proxima&&s.freqMeses)s.proxima=addMonthsISO(s.data,s.freqMeses);
+   const R=fill26Rng(20260603);
+   if(t==='est')fill26Est(s,sp,R);else if(t==='bias')fill26Bias(s,sp,R);else if(t==='lin')fill26Lin(s,sp,R);else if(t==='rr')fill26RR(s,sp,R);
+   if(!/gerados pelo sistema/i.test(s.obs||''))s.obs=(s.obs?s.obs+' · ':'')+'Valores de medição gerados pelo sistema (AIAG MSA 4ª ed.) em '+today()+', para execução do programa 2026 — revise e confirme.';
+   logHist(s,'Valores gerados','medições geradas pelo sistema (determinístico · semente 20260603 · AIAG MSA 4ª ed.) — cabeçalho preservado');
+   saveStudy(normalize(s));preenchidos++;det.push(s.codigo+' · valores gerados')});
+  return{alvos:alvos.length,preenchidos,pulados,det}}
+/* execução única (flag dupla S.cfg + localStorage, imune ao Object.assign do snapshot de config) */
+function fill26Run(forcar){if(!forcar&&(S.cfg.fill26Done||localStorage.getItem('msa_fill26_done')))return null;
+  try{seed26Run()}catch(e){}
+  let r=null;try{r=fill26()}catch(e){console.error(e)}
+  if(!forcar){S.cfg.fill26Done=true;try{localStorage.setItem('msa_fill26_done','1')}catch(e){}persist()}
+  if(r&&r.preenchidos)setTimeout(()=>{toast('Valores de medição gerados em '+r.preenchidos+' estudo(s) do programa 2026 (AIAG MSA 4ª ed.) — revise e confirme.','fa-pen-ruler');refresh()},400);
+  return r}
+/* primeira execução desta versão: espera o Firebase resolver o primeiro snapshot
+   (ou 6,5 s offline) — mesma estratégia do seed26Boot — antes de preencher. */
+function fill26Boot(){if(S.cfg.fill26Done)return;try{if(localStorage.getItem('msa_fill26_done'))return}catch(e){}
+  const t0=Date.now();const iv=setInterval(()=>{if(S.cfg.fill26Done){clearInterval(iv);return}
+   if((typeof cloudOk!=='undefined'&&cloudOk===true)||Date.now()-t0>6500){clearInterval(iv);fill26Run()}},300)}
+/* recuperação manual (Configurações → Backup e dados): preenche somente o que estiver em branco */
+function askFill26(){confirmBox('Gerar valores de medição para os estudos do programa 2026?<br><small>Preenche <b>somente estudos totalmente em branco</b> das famílias <b>ALT · Medidores de altura</b> e <b>MIC · Micrômetros</b> com dados sintéticos no padrão <b>AIAG MSA 4ª ed.</b>: tendência n=15 · linearidade 5×10 · estabilidade 20 subgrupos × 5 · R&amp;R 10×3×3 — dispersão coerente com resolução 0,001&nbsp;mm, gerados de forma determinística (mesmos valores sempre). Estudos que já possuem dados <b>não são alterados</b>.</small>',()=>{
+  const r=fill26Run(true);toast(r&&r.preenchidos?r.preenchidos+' estudo(s) preenchido(s) · '+r.pulados+' já tinham dados':'Nenhum estudo em branco — nada foi alterado','fa-pen-ruler');refresh()})}
+/* ================= fim v71 · GERAÇÃO DE VALORES ================= */
 
 /* ---------------- CRONOGRAMA DE RECÁLCULOS MSA ---------------- */
 const FREQ_LBL={0:'Sem recorrência',1:'Mensal',2:'Bimestral',3:'Trimestral',4:'Quadrimestral',6:'Semestral',12:'Anual',24:'Bienal'};
@@ -2052,13 +2199,10 @@ function rAnual(){const t=new Date(),cur=t.getFullYear();if(!V.anualY)V.anualY=c
  <div class="card" style="margin-top:14px"><h3><i class="fas fa-book c-brand"></i>Critérios do manual aplicados (AIAG MSA 4ª edição)</h3>
   ${['est','bias','lin','rr','atr'].map(tp=>`<p style="margin:7px 0;font-size:12.5px;color:var(--muted)"><b style="color:var(--text)">${TYPES[tp].n}:</b> ${criteria(tp)}</p>`).join('')}</div>
  </div>`}
+/* v68 — o relatório anual não grava nada por padrão: os nomes valem na sessão (V.sig) e só são
+   gravados nas configurações se o usuário marcar "Lembrar estes nomes" no próprio diálogo */
 function printAnual(){const y=V.anualY||new Date().getFullYear();
- modal(`<div class="mh"><h3>Relatório de validação anual — exercício ${y}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
- <label class="l">Verificado por</label><input class="f" id="agV" value="${esc(S.cfg.verificadoPor||'')}">
- <label class="l" style="margin-top:10px">Aprovado por</label><input class="f" id="agA" value="${esc(S.cfg.aprovadoPor||'')}">
- <small class="legend" style="display:block;margin-top:10px">Os nomes entram no bloco de assinaturas e ficam salvos para as próximas impressões. Deixe em branco para imprimir somente as linhas.</small></div>
- <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="agGo"><i class="fas fa-print"></i>Gerar relatório</button></div>`);
- $('#agGo').onclick=()=>{S.cfg.verificadoPor=$('#agV').value.trim();S.cfg.aprovadoPor=$('#agA').value.trim();persist();const sig={v:S.cfg.verificadoPor,a:S.cfg.aprovadoPor};closeModal();toast('Gerando relatório anual...','fa-certificate');setTimeout(()=>openWin('Validação anual '+y,reportAnual(y,sig)),30)}}
+ sigAsk(sig=>{toast('Gerando relatório anual...','fa-certificate');setTimeout(()=>openWin('Validação anual '+y,reportAnual(y,sig)),30)},'Relatório de validação anual — exercício '+y,'Gerar relatório')}
 /* v61 — relatório segue o MESMO filtro do ecrã (exercício + modo) e mostra a data em que a situação foi apurada */
 function reportAnual(y,sig){y=+y||V.anualY||new Date().getFullYear();const mode=V.anualMode||'realizados',apura=anualApura(y),passado=apura!==today(),rows=anualRows(y,mode),O=anualOverall(rows,mode==='vigentes'?`Nenhum estudo vigente no exercício ${y}`:`Nenhum estudo realizado no exercício ${y}`),C=S.cfg;
  const escopo=mode==='vigentes'?'Estudos vigentes no exercício, incluindo realizados em exercícios anteriores que seguiam válidos (auditoria)':'Estudos realizados dentro do exercício';
@@ -2642,7 +2786,7 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
    <button class="btn" onclick="printJustStudy()" title="Relatório de perguntas e respostas preparadas para o auditor"><i class="fas fa-clipboard-question"></i>Justificativa</button>
    ${V.isNew?'':`<button class="btn" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i>Duplicar</button><button class="btn dan" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button>`}
-   <button class="btn" onclick="saveEdit(true)"><i class="fas fa-print"></i>Imprimir</button>
+   <button class="btn" onclick="printEditor()"><i class="fas fa-print"></i>Imprimir</button>
    <button class="btn pri" onclick="saveEdit()"><i class="fas fa-floppy-disk"></i>Salvar <small style="opacity:.7">Ctrl+S</small></button></div>
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-circle-info c-brand"></i>Identificação</h3><div class="form" id="info"></div></div>
    ${s.revalObr?`<div class="card reval-banner" style="margin-bottom:16px"><h3><i class="fas fa-rotate c-bad"></i>Revalidação obrigatória</h3><p class="legend">Instrumento <b>${esc(s.revalObr.instrumento||'')}</b> — ${esc(s.revalObr.motivo)} em <b>${fdate(s.revalObr.em)}</b>. Registre um recálculo (novo ciclo) para liberar a revalidação.</p><div class="row"><button class="btn sm" onclick="openCycle('${s.id}')"><i class="fas fa-rotate"></i>Registrar recálculo</button><button class="btn sm dan" onclick="clearReval('${s.id}')"><i class="fas fa-xmark"></i>Remover marcação</button></div></div>`:''}<div class="card" style="margin-bottom:16px"><h3><i class="fas fa-table c-brand"></i>Dados de medição</h3><div class="row" id="params" style="margin-bottom:12px"></div><div class="row" style="margin-bottom:10px"><button class="btn sm" onclick="pasteModal()" title="Cole um bloco do Excel, PDF ou Word"><i class="fas fa-paste"></i>Colar em bloco</button><small class="legend">Ou cole direto (Ctrl+V) numa célula: o bloco é encaixado na grade e a orientação é ajustada sozinha.</small></div><div class="tw" id="grid" style="padding:0"></div></div>
@@ -2998,7 +3142,7 @@ function rCfg(){const c=S.cfg,dec=Number.isInteger(+c.decimais)?Math.max(0,Math.
   <div class="card"><h3><i class="fas fa-user-shield c-brand"></i>Rastreabilidade e avisos</h3><div class="form">${f('usuario','Usuário local (quem cria/altera/aprova)','text')}${f('emailAvisos','Avisos por e-mail para (separe com vírgula)','text')}<div><label class="l">Envio automático — dispara sozinho quando há estudo vencido</label><div class="row"><button class="btn ${c.emailAuto?'dan':'pri'}" onclick="toggleAutoMail()"><i class="fas ${c.emailAuto?'fa-bell-slash':'fa-paper-plane'}"></i>${c.emailAuto?'Desativar envio automático':'Ativar envio automático'}</button>${c.emailAuto?'<span class="tag" style="color:var(--ok);background:var(--ok-bg)"><i class="fas fa-circle-check"></i> automático ativo</span>':''}</div>${c.emailAutoLog?`<small class="legend">Último evento: ${esc(c.emailAutoLog)}</small>`:''}</div><small class="legend">O usuário é gravado nos eventos de criação, alteração e aprovação de cada estudo. <b>Automático:</b> ao abrir o sistema com estudo vencido, o resumo é enviado sozinho (1× por dia) pelo serviço gratuito FormSubmit — na 1ª ativação, confirme no inbox clicando em “Activate FormSubmit”. Requer internet. <b>Manual:</b> o botão “Avisos por e-mail” do Cronograma abre o seu cliente de correio com o resumo pronto.</small></div></div>
   <div class="card"><h3><i class="fas fa-clipboard-check c-brand"></i>Validação do motor de cálculo (AIAG MSA 4ª ed.)</h3><p class="legend">Executa o exemplo oficial do manual (10 peças × 3 avaliadores × 3 tentativas) e compara com os valores publicados — X̄-R: EV 0,202 · AV 0,230 · GRR 0,306 · %GRR 26,68 · ndc 5; ANOVA (Minitab): EV 0,200 · AV 0,227 · GRR 0,302 · %GRR 27,86 · ndc 4 — além do t crítico (conferido contra SciPy), constantes X̄-R e kappa de Cohen e os casos do seletor de método (X̄-R · ANOVA · ANOVA com interação mantida · multiplicador 5,15σ/6σ — global e por estudo). Rode antes de aprovar instrumentos.</p><div class="row" style="margin-bottom:8px"><button class="btn" onclick="go('validacao')"><i class="fas fa-vial"></i>Abrir a aba Validação do sistema (todos os tipos de estudo)</button></div><div id="vaiout"><button class="btn pri" onclick="aiagSelfTest('vaiout')"><i class="fas fa-play"></i>Executar validação agora</button></div></div>
   <div class="card"><h3><i class="fas fa-cloud c-brand"></i>Sincronização em nuvem</h3><label class="row"><input type="checkbox" data-c="cloud" ${c.cloud?'checked':''}> Sincronizar em tempo real com Firebase (vários computadores veem as mesmas informações)</label><p class="legend">Os estudos ficam no Firebase (Firestore) e também em cache neste navegador.</p></div>
-  <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
+  <div class="card"><h3><i class="fas fa-database c-brand"></i>Backup e dados</h3><div class="row"><button class="btn" onclick="exportJSON()"><i class="fas fa-download"></i>Baixar backup</button><button class="btn" onclick="$('#imp2').click()"><i class="fas fa-upload"></i>Restaurar backup</button><input type="file" id="imp2" accept=".json" hidden><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn" onclick="askSeed26()" title="Recria os estudos programados de 2026 (Medidores de altura e Micrômetros) que não existirem"><i class="fas fa-calendar-plus"></i>Estudos 2026</button><button class="btn" onclick="askFill26()" title="Gera valores de medição para os estudos em branco do programa 2026 (AIAG MSA 4ª ed.)"><i class="fas fa-pen-ruler"></i>Valores 2026</button><button class="btn" onclick="migrateAll(true)"><i class="fas fa-broom"></i>Remover duplicados</button><button class="btn dan" onclick="wipe()"><i class="fas fa-trash"></i>Apagar tudo</button></div></div></div>
   <div style="margin-top:16px;text-align:right"><button class="btn pri" onclick="saveCfg()"><i class="fas fa-floppy-disk"></i>Salvar configurações</button></div></div>`;$('#imp2').onchange=importJSON}
 function saveCfg(){const was=S.cfg.cloud;$$('[data-c]').forEach(e=>{const k=e.dataset.c;S.cfg[k]=e.type==='checkbox'?e.checked:e.type==='number'||k==='k'||k==='decimais'?+e.value:e.value;if(k==='decimais')S.cfg[k]=Math.max(0,Math.min(8,Math.round(+e.value||0)))});
   S.studies.forEach(s=>s.resultado=calc(s));persist();if(S.cfg.cloud&&!was)initCloud();if(!S.cfg.cloud&&was){db=null;setSync(false)}toast('Configurações salvas · estudos recalculados')}
@@ -3116,6 +3260,10 @@ h3 small{font:400 11px 'Segoe UI',Arial;color:#605E5C}
 .pg.land.fill5,.pg.land.fill6,.pg.land.rrcP,.pg.land.anaP{display:flex;flex-direction:column}
 @media print{.pg.land.fill5,.pg.land.fill6,.pg.land.rrcP,.pg.land.anaP{height:186.5mm}}
 .pg.land.fill5 .sig,.pg.land.fill6 .sig{margin-top:auto;padding-top:24px}
+/* v69 — última página do estudo: assinaturas no fim da folha (também no anexo de justificativa) */
+.pg.land.lastpg{display:flex;flex-direction:column}
+.pg.land.lastpg>.sig{margin-top:auto;padding-top:24px}
+@media print{.pg.land.lastpg{min-height:186.5mm}}
 .pg.land.fill6 .res th{padding:9px;font-size:13.5px}.pg.land.fill6 .res td{padding:13px 8px;font-size:13.5px}
 .pg.land.fill6 .crit{font-size:11.6px;line-height:1.62}.pg.land.fill6 .obs{font-size:11.6px;line-height:1.62}
 .pg.land.rrcP .rrc{flex:1 1 auto;min-height:0;align-items:stretch}
@@ -3243,6 +3391,9 @@ h3 small{font:400 11px 'Segoe UI',Arial;color:#605E5C}
 @media print{
 .pg.land.fill .fillT,.pg.land.fill .dgA,.pg.land.fill4>.rrc,.pg.land.fill4 .rrc>div,.pg.land.fill5 .linBody,.pg.land.fill5 .linBody>div{min-height:auto}
 .pg.land.fill5 .linBody .cb img{max-height:96mm}
+/* v69 — tendência: análise + resultado + histograma na mesma página (antes a análise ficava sozinha numa página quase vazia) */
+.pg.land.fill5.tend .ana{margin:6px 0 4px}.pg.land.fill5.tend .ana p{font-size:11px;line-height:1.45}.pg.land.fill5.tend .ana .verd{margin-top:4px;padding:4px 12px}
+.pg.land.fill5.tend .linBody .cb img{max-height:62mm}
 .pg.land .sig{margin-top:12px}
 .pg.pf1 .dt td,.pg.pf1 .dt th{padding:2.2px 3px!important}.pg.pf1 .cal td{padding:2px 5px!important}.pg.pf1 .cb img{height:54mm!important}.pg.pf1 .sig{margin-top:8px!important}.pg.pf1 .ana p{font-size:9.2px!important}.pg.pf1 .crit{font-size:9.4px!important}.pg.pf1 h3{font-size:11px!important;margin:6px 0 2px!important}
 .pg.pf2 .dt td,.pg.pf2 .dt th{font-size:9.2px!important;padding:2px 2.5px!important}.pg.pf2 .cal td{font-size:9.2px!important;padding:2px 5px!important}.pg.pf2 .cb img{height:47mm!important}.pg.pf2 .res td{padding:3px 6px!important}.pg.pf2 .info td{padding:1.5px 4px!important}.pg.pf2 .ana p{font-size:8.8px!important}.pg.pf2 h3{font-size:10.5px!important;margin:5px 0 2px!important}
@@ -3279,7 +3430,7 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
 const SIMBAN='';/* v39: selo de dados simulados removido dos relatórios impressos */
-const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
+const sigBlock=(s,sig)=>`<!--SIG--><div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div><!--/SIG-->`;
 function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
   const rv=adq(m['%GRR (VT)'],C.grrOk,C.grrCond),rt=adq(m['%GRR (Tol)'],C.grrOk,C.grrCond),rn=m.ndc>=C.ndcMin?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
@@ -3466,13 +3617,16 @@ function reportTend(s,R,sig){const X=R.ser,dp=decimalPlaces(s),i=instrDisp(s),C=
   return`<div class="pg land fill">${hd('')}${info}${ban}
   <div class="linMain"><div><h3>Folha de dados <small>· ${X.n} medições · tendência = valor − referência · ${dp} ${dp===1?'casa decimal':'casas decimais'}</small></h3><div class="fillT">${sheet}</div></div>
   <div class="linSide">${stats}${icBox}</div></div></div>
-  <div class="pg land anaP">${hd(' — análise do estudo')}${ana}</div>
-  <div class="pg land fill5">${hd(' — análise gráfica e resultado')}${info}${ban}
+  <div class="pg land fill5 tend">${hd(' — análise e resultado')}${info}${ana}
   <div class="linBody"><div>${resG}${resT}<div class="crit">${criteria('bias')}</div></div>
   <div>${cbG('HISTOGRAMA DAS LEITURAS',histCfg)}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}</div></div>
   ${sigBlock(s,sig)}</div>`}
 /* v54: página anexo com a justificativa para o auditor (perguntas e respostas) — pode ser desativada em Configurações */
-function reportPage(s,sig){const base=reportPageCore(s,sig);if(S.cfg.justRel===false)return base;try{const R=s.resultado;if(!R||R.status==='Incompleto')return base;const jp=justPageHTML(s,R,true);return jp?base+jp:base}catch(e){return base}}
+/* v69 — assinaturas/aprovações SOMENTE na última página do estudo (depois do anexo), coladas no fim da folha */
+function sigLastOnly(h,s,sig){const re=/<!--SIG-->[\s\S]*?<!--\/SIG-->/g,n=(h.match(re)||[]).length;if(!n)return h;let k=0;
+  h=h.replace(re,()=>++k===n?sigBlock(s,sig):'');
+  const key='<div class="pg ',i=h.lastIndexOf(key);if(i>=0)h=h.slice(0,i)+'<div class="pg lastpg '+h.slice(i+key.length);return h}
+function reportPage(s,sig){let all=reportPageCore(s,sig);if(S.cfg.justRel!==false){try{const R=s.resultado;if(R&&R.status!=='Incompleto'){const jp=justPageHTML(s,R,true);if(jp)all+=jp}}catch(e){}}return sigLastOnly(all,s,sig)}
 function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);if(s.tipo==='bias'&&R.ser)return reportTend(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrDisp(s);
   return`<div class="pg land"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· Res. '+esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr></table>
@@ -3482,14 +3636,31 @@ function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R
   ${sigBlock(s,sig)}<div class="ft">MSA Pro · Metodologia AIAG MSA 4ª edição</div></div>`}
 function openWin(title,body){const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir','fa-triangle-exclamation');return}
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><span style="display:inline-block;background:#fff;border:1px solid #C9D6E2;border-radius:6px;padding:10px 12px;font:600 12px 'Segoe UI',Arial;color:#165A9C;margin-right:8px;vertical-align:top">Papel: A4 · Orientação: PAISAGEM</span><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>function fitPages(){try{var L=700,pgs=document.querySelectorAll("div.pg");for(var i=0;i<pgs.length;i++){var pg=pgs[i];if(/(fill2|fill3|at2)/.test(pg.className))continue;var lv=0;pg.classList.add("meas");var h=pg.scrollHeight;pg.classList.remove("meas");while(h>L&&lv<4){lv++;pg.classList.add("pf"+lv);pg.classList.add("meas");h=pg.scrollHeight;pg.classList.remove("meas")}}}catch(e){}}<\/script><script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{fitPages();print()},400))}<\/script></body></html>`);w.document.close()}
-function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
-  modal(`<div class="mh"><h3>Assinaturas do relatório</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
-  <label class="l">Verificado por</label><input class="f" id="sigV" value="${esc(S.cfg.verificadoPor||'')}" placeholder="Nome de quem verificou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
-  <label class="l" style="margin-top:10px">Aprovado por</label><input class="f" id="sigA" value="${esc(S.cfg.aprovadoPor||'')}" placeholder="Nome de quem aprovou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
-  <small class="legend" style="display:block;margin-top:10px">Os nomes entram no bloco de assinaturas de todos os estudos impressos e ficam salvos para as próximas impressões. Deixe em branco para imprimir somente as linhas.</small></div>
-  <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="sigGo"><i class="fas fa-print"></i>Imprimir ${L.length>1?L.length+' estudos':'estudo'}</button></div>`);
-  $('#sigGo').onclick=()=>{S.cfg.verificadoPor=document.getElementById('sigV').value.trim();S.cfg.aprovadoPor=document.getElementById('sigA').value.trim();persist();const sig={v:S.cfg.verificadoPor,a:S.cfg.aprovadoPor};closeModal();toast('Gerando relatório...','fa-print');setTimeout(()=>openWin(L.length===1?L[0].codigo:`Relatórios MSA (${L.length})`,L.map(s=>reportPage(JSON.parse(JSON.stringify(s)),sig)).join('')),30)};
+/* v68 — "só salvar quando e/ou se eu quiser": o pedido de assinaturas NÃO grava nada por padrão.
+   Os nomes entram no documento gerado e valem na sessão (V.sig); só vão para as configurações
+   se o usuário marcar explicitamente "Lembrar estes nomes". Nenhum fluxo de validação/impressão
+   executa persist() por conta própria. */
+function sigAsk(go,title,btn){title=title||'Assinaturas do relatório';btn=btn||'Continuar';
+  modal(`<div class="mh"><h3>${esc(title)}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
+  <label class="l">Verificado por</label><input class="f" id="sigV" value="${esc((V.sig&&V.sig.v)||S.cfg.verificadoPor||'')}" placeholder="Nome de quem verificou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
+  <label class="l" style="margin-top:10px">Aprovado por</label><input class="f" id="sigA" value="${esc((V.sig&&V.sig.a)||S.cfg.aprovadoPor||'')}" placeholder="Nome de quem aprovou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
+  <small class="legend" style="display:block;margin-top:10px">Os nomes entram no bloco de assinaturas do documento gerado e valem durante esta sessão. Nada é gravado automaticamente — marque a opção abaixo apenas se quiser mantê-los para as próximas impressões. Deixe em branco para imprimir somente as linhas.</small>
+  <label class="row" style="margin-top:10px;align-items:flex-start"><input type="checkbox" id="sigKeep" style="margin-top:2px"> <span style="font-size:12.5px">Lembrar estes nomes para as próximas impressões (grava nas configurações)</span></label></div>
+  <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="sigGo"><i class="fas fa-print"></i>${esc(btn)}</button></div>`);
+  $('#sigGo').onclick=()=>{const v=document.getElementById('sigV').value.trim(),a=document.getElementById('sigA').value.trim();V.sig={v,a};
+   if(document.getElementById('sigKeep').checked){S.cfg.verificadoPor=v;S.cfg.aprovadoPor=a;persist()}
+   const sig={v,a};closeModal();go(sig)};
   setTimeout(()=>{const el=document.getElementById('sigV');if(el)el.focus()},60)}
+/* v68 — Imprimir no editor gera o relatório do estado ATUAL da tela SEM salvar o estudo
+   (sem saveStudy, sem histórico, sem nuvem). Gravar segue exclusivo do botão Salvar/Ctrl+S. */
+function printEditor(){const s=V.edit;if(!s)return;
+  if(!String(s.codigo||'').trim()){toast('Informe o código do estudo para imprimir','fa-triangle-exclamation');return}
+  if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){toast('Já existe um estudo com este código — ajuste antes de imprimir','fa-triangle-exclamation');return}
+  const snap=JSON.parse(JSON.stringify(s));
+  sigAsk(sig=>{toast('Relatório gerado — o estudo NÃO foi salvo; use “Salvar” quando quiser gravar','fa-print');setTimeout(()=>openWin(snap.codigo,reportPage(snap,sig)),30)},'Assinaturas do relatório','Imprimir')}
+function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
+  const SN=L.map(s=>JSON.parse(JSON.stringify(s)));
+  sigAsk(sig=>{toast('Gerando relatório...','fa-print');setTimeout(()=>openWin(L.length===1?L[0].codigo:`Relatórios MSA (${L.length})`,SN.map(s=>reportPage(s,sig)).join('')),30)},'Assinaturas do relatório',L.length>1?'Imprimir '+L.length+' estudos':'Imprimir estudo')}
 function printSummary(){const L=dashSet().sort((a,b)=>(b.data||'').localeCompare(a.data||''));const c=st=>L.filter(s=>(s.resultado?.status||'Incompleto')===st).length;
   const st=STATUS.map(c);const img=chartImg({c:{type:'bar',data:{labels:STATUS,datasets:[{data:st,backgroundColor:STATUS.map(x=>SCOL[x])}]},options:{plugins:{legend:{display:false}}}}});
   const tk=Object.keys(TYPES);const img2=chartImg({c:{type:'bar',data:{labels:tk.map(t=>TYPES[t].n),datasets:STATUS.map(x=>({label:x,data:tk.map(t=>L.filter(s=>s.tipo===t&&(s.resultado?.status||'Incompleto')===x).length),backgroundColor:SCOL[x]}))},options:{scales:{x:{stacked:true},y:{stacked:true}}}}});
@@ -3504,7 +3675,7 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeModal()};
 function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div class="mb">${msg}</div><div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="cYes">Confirmar</button></div>`);$('#cYes').onclick=()=>{closeModal();yes()}}
 
 /* ---------------- início ---------------- */
-load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);repairSim();render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
+load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);repairSim();seed26Boot();fill26Boot();render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
 </script>
 <script>
 (function(){var mode='auto';try{mode=localStorage.getItem('msa-theme')||'auto'}catch(e){}
