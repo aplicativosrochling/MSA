@@ -1421,7 +1421,6 @@ function justPageHTML(s,R,annex,extraQAs){
   <tr><td>Data</td><td>${fdate(s.data)}</td><td>Emitido em</td><td>${new Date().toLocaleString('pt-BR')}</td></tr></table>`;
   const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm"> — ${esc(R.msg||'')}</span></div>`;
   return`<div class="pg land${annex?' annex':''}">${hd}${info}${ban}${mts.length?`<h3>Indicadores-chave do estudo</h3><div class="mt">${mts.map(x=>`<div><b>${x[1]}</b><span>${esc(x[0])}</span></div>`).join('')}</div>`:''}
-  <h3>Perguntas que o auditor pode fazer — respostas preparadas</h3>
   ${qaPrintHTML(qas)}
   <p class="legend">Documento gerado automaticamente pelo MSA Pro a partir do cálculo real deste estudo. Critérios: AIAG MSA 4ª edição (limites, constantes e exemplo oficial) e ANOVA dois fatores conforme o Minitab; limites de aceitação configuráveis — %GRR ≤ ${C.grrOk}% aceitável · ${C.grrOk}–${C.grrCond}% condicional · ndc ≥ ${C.ndcMin} · multiplicador ${String(C.k).replace('.',',')}σ.</p>
   ${sigBlock(s,null)}</div>`}catch(e){console.error(e);return''}}
