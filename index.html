@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v63</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v67</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -743,7 +743,7 @@ function normalize(s){const d=s.dados;s.decimais=decimalPlaces(s);
 const A2=[0,0,1.880,1.023,.729,.577,.483,.419,.373,.337,.308],D3=[0,0,0,0,0,0,0,.076,.136,.184,.223],D4=[0,0,3.267,2.574,2.282,2.114,2.004,1.924,1.864,1.816,1.777],d2=[0,0,1.128,1.693,2.059,2.326,2.534,2.704,2.847,2.970,3.078];
 const K1={2:.8862,3:.5908},K2={2:.7071,3:.5231},K3={2:.7071,3:.5231,4:.4467,5:.4030,6:.3742,7:.3534,8:.3375,9:.3249,10:.3146};
 /* v59 · nome legível do método ativo de R&R (usado na tela, no relatório e na justificativa) */
-const rrNome=m=>m==='xr'?'Média e amplitude (X̄-R, AIAG)':m==='anova_int'?'ANOVA com interação sempre mantida (α = 1)':'ANOVA (método do Minitab)';
+const rrNome=m=>m==='xr'?'média e amplitude (X̄-R)':m==='anova_int'?'ANOVA — interação sempre mantida (α = 1)':'ANOVA (método do Minitab)';
 const tol=s=>{const a=num(s.lie),b=num(s.lse);return ok(a)&&ok(b)&&b>a?b-a:NaN};
 function calc(s){normalize(s);try{return({est:cEst,bias:cBias,lin:cLin,rr:cRR,atr:cAtr})[s.tipo](s)}catch(e){console.error(e);return{status:'Incompleto',m:{},msg:'Erro no cálculo'}}}
 function cEst(s){const d=s.dados,n=d.n;const rows=d.m.map(r=>r.map(num));const full=rows.filter(r=>r.every(ok));
@@ -1158,7 +1158,7 @@ function valPDF(){const w=window.open('','_blank');if(!w){toast('Permita pop-ups
   table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e3e8f0;padding:4px 6px;text-align:right}th{background:#EEF2F8;font-size:10.5px}th:first-child{text-align:left}tr.nok td{background:#FDECEB}
   .dif{color:#D92D20;margin-top:5px}.okm{color:#079455;margin-top:5px}.sum{display:flex;gap:10px;margin:10px 0 14px}.sum div{flex:1;border:1px solid #d5dce8;border-radius:8px;padding:8px}.sum b{font-size:18px;display:block}
   .np{text-align:right;margin-bottom:8px}@media print{.np{display:none}}.wrap{padding:14px}ul{margin:4px 0 12px 16px;padding:0;line-height:1.6}`;
-  const body=`<div class="wrap"><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>
+  const body=`<div class="wrap"><div class="np"><span style="display:inline-block;background:#fff;border:1px solid #C9D6E2;border-radius:6px;padding:10px 12px;font:600 12px 'Segoe UI',Arial;color:#165A9C;margin-right:8px;vertical-align:top">Papel: A4 · Orientação: PAISAGEM</span><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>
   <h1>Relatório de Validação do Sistema — MSA Pro</h1><div>${esc(S.cfg.empresa||'')} · Emitido em ${dt}${S.cfg.usuario?' · Responsável: '+esc(S.cfg.usuario):''}</div>
   <div class="sum"><div>Estudos testados<b>${cs.length}</b></div><div>Verificações<b>${all.length}</b></div><div>Idênticas<b style="color:#079455">${nOk}</b></div><div>Divergentes<b style="color:${all.length-nOk?'#D92D20':'#079455'}">${all.length-nOk}</b></div></div>
   <b>Referências normativas</b><ul><li>AIAG — Measurement Systems Analysis (MSA), 4ª edição: exemplo de R&amp;R variável (10 peças × 3 avaliadores × 3 tentativas), exemplo de tendência (15 leituras, ref. 6,00), exemplo de linearidade (5 referências × 12 leituras), tabela cruzada de atributo A × B e tabelas de constantes A2, D3, D4, d2, K1, K2, K3.</li>
@@ -1278,38 +1278,69 @@ function auditorQA(s,R){
   const pc=(v,d)=>ok(v)?pct(v,typeof d==='number'?d:2):'—';
   const push=(q,a)=>qas.push({q,a});
   const kS=String((R.ser&&ok(+R.ser.kEff))?+R.ser.kEff:(+C.k||6)).replace('.',',');
-  push('Os cálculos do sistema foram validados contra o manual AIAG e o Minitab?',
-   'Sim. A aba <b>Validação do sistema</b> reproduz o exemplo oficial do AIAG MSA 4ª edição (10 peças × 3 avaliadores × 3 tentativas), os exemplos do manual de tendência, linearidade e R&amp;R por atributos, as tabelas de constantes A₂, D₃, D₄, d₂, K₁, K₂ e K₃, o t crítico conferido contra SciPy e a ANOVA dois fatores conferida contra o Minitab.</p><p>Além da matemática, cada tipo de estudo tem <b>três casos de classificação — Aprovado, Condicional e Reprovado</b> (R&amp;R variável, tendência, linearidade, estabilidade e R&amp;R por atributos) — com status e indicadores-chave conferidos contra o valor de referência (manual ou implementação independente).</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.');
+  /* v67 · JUSTIFICATIVA COERENTE POR TIPO DE ESTUDO:
+     · a abertura explica POR QUE o estudo foi realizado e COMO foi conduzido, com os números reais;
+     · o item "confiança nos cálculos" ficou no FIM e é específico do tipo (trust()) — antes ele abria
+       TODOS os documentos citando o exemplo R&R 10×3×3 e as constantes K1/K2/K3 mesmo em
+       estabilidade/tendência/linearidade/atributos, o que tornava o anexo incoerente para o auditor;
+     · a pergunta sobre pontos fora na estabilidade só existe quando HÁ pontos fora (v67). */
+  const TT=tol(s),tolTxt=ok(TT)?` · tolerância declarada ${esc(s.lie)} – ${esc(s.lse)} ${esc(s.unidade||'')}`:'';
+  if(s.tipo==='est'&&ser.xb){
+    const refE=num(s.dados&&s.dados.ref),dX=ok(refE)&&ok(m['X̄̄'])?m['X̄̄']-refE:NaN;
+    const refTxt=ok(refE)?` de valor de referência ${esc(s.dados.ref)}${s.unidade?' '+esc(s.unidade):''}`:'';
+    const refDev=ok(dX)?` · leitura média ${dX>=0?'+':'−'}${fxd(Math.abs(dX),Math.max(dp,3))} em relação ao valor de referência`:'';
+    push('Por que este estudo de estabilidade foi realizado e como ele foi conduzido?',
+     `A estabilidade responde à primeira pergunta do AIAG MSA 4ª edição (cap. III, Seção C): <b>o sistema de medição se mantém estatisticamente sob controle ao longo do tempo?</b> É o pré-requisito dos demais estudos — viés, repetibilidade e R&amp;R só são interpretáveis sobre um sistema estável.</p><p>Condução: uma <b>peça padrão</b>${refTxt} é medida repetidamente em <b>${m['Subgrupos']} subgrupos de tamanho ${s.dados.n}</b>, em intervalos regulares, e plotada em <b>cartas de controle X̄ e R</b> cujos limites são construídos com os próprios dados do sistema (A₂·R̄ e D₄·R̄ do AIAG) — as cartas medem o comportamento do sistema de medição, não o produto.</p><p>Série deste estudo: X̄̄ = ${f(m['X̄̄'])} · R̄ = ${f(m['R̄'])} · limites da carta X̄ = ${f(ser.lcl,Math.max(dp,4))} a ${f(ser.ucl,Math.max(dp,4))} · LSC R = ${f(ser.uclR,Math.max(dp,4))}${tolTxt}${refDev}.</p><p>O afastamento do X̄̄ em relação à referência não é o critério da estabilidade — ele antecipa o viés que o estudo de tendência quantifica; aqui o critério são <b>causas especiais nas cartas</b> (pontos fora dos limites e sequências), detalhadas a seguir.`);
+  }
+  if(s.tipo==='bias'&&ser.al!==undefined)push('Por que este estudo de tendência foi realizado e como ele foi conduzido?',
+   `A tendência (bias) mede o <b>afastamento sistemático entre a média das leituras do instrumento e o valor de referência correto</b> — “erro absoluto” no vocabulário do AIAG MSA 4ª edição (cap. III, Seção B); é o estudo que quantifica o viés apontado pelas cartas de estabilidade.</p><p>Condução: um padrão de valor de referência conhecido (${f(m['Referência'])}${s.unidade?' '+esc(s.unidade):''}) é medido <b>${m['n']} vezes em condição normal de uso</b> (${ser.v.length} leituras válidas), pelo operador habitual e sem ajuste prévio do instrumento.</p><p>Neste estudo: média das leituras = ${f(m['Média'])} → <b>bias = média − referência = ${f(m['Tendência'])}</b>${ok(R.kv)?`, equivalente a ${pc(R.kv)} da tolerância declarada${ok(TT)?` (${esc(s.lie)} – ${esc(s.lse)} ${esc(s.unidade||'')})`:''}`:''}. O teste t das respostas a seguir decide se esse viés é estatisticamente significativo.`);
+  if(s.tipo==='lin'&&ser.a!==undefined){
+    const nRef=new Set(ser.pts.map(p=>p[0])).size;
+    push('Por que este estudo de linearidade foi realizado e como ele foi conduzido?',
+     `A linearidade verifica se o <b>viés se mantém constante ao longo de toda a faixa de operação</b> (AIAG MSA 4ª edição, cap. III, Seção D): um instrumento pode estar correto no centro da faixa e puxar para cima ou para baixo nos extremos — um estudo em ponto único não revela isso.</p><p>Condução: padrões de referência distribuídos pela faixa (aqui <b>${nRef} referências</b>), cada uma medida ao menos 10 vezes — <b>${ser.N} leituras válidas</b> no total; para cada referência calcula-se o bias médio (leitura − referência) e ajusta-se a reta <b>bias = b + a·referência</b>.</p><p>Leitura do resultado: inclinação a ≠ 0 significa viés que varia com o nível medido (não-linearidade); intercepto b ≠ 0 significa viés constante somado em toda a faixa. Os testes t, as bandas de confiança 95% e a classificação estão nas respostas a seguir.`);
+  }
+  if(s.tipo==='rr'&&ser.an)push('Por que este estudo de R&amp;R foi realizado e como ele foi conduzido?',
+   `O R&amp;R quantifica a variação do sistema de medição e a separa em <b>repetibilidade (EV)</b> — mesmo operador, mesma peça, repetições — e <b>reprodutibilidade (AV)</b> — entre operadores —, comparando-a à variação entre peças (PV) para responder: <b>este sistema distingue peças boas de ruins?</b> (AIAG MSA 4ª edição, cap. III, Seção A).</p><p>Condução: <b>${s.dados.parts} peças representativas do processo × ${s.dados.ops} avaliadores × ${s.dados.trials} tentativas</b> (${s.dados.ops*s.dados.parts*s.dados.trials} leituras), peças medidas em ordem aleatória e sem que o avaliador veja as leituras anteriores.</p><p>A aprovação combina <b>%GRR</b> — ≤ ${C.grrOk}% aceitável · até ${C.grrCond}% condicional — e <b>ndc ≥ ${C.ndcMin}</b>; o método de cálculo ativo e suas fórmulas estão justificados nas respostas a seguir.`);
+  if(s.tipo==='atr'&&ser.per&&ser.per.length)push('Por que este estudo de atributos foi realizado e como ele foi conduzido?',
+   `Quando a decisão sobre a peça é binária — <b>aceitar/rejeitar</b> (go/no-go), gabarito, visão ou calibre de atributo — não existe número contínuo para decompor em %GRR: a variação do sistema de medição é avaliada pela <b>concordância das classificações</b> (AIAG MSA 4ª edição, cap. IV).</p><p>Condução: <b>${s.dados.parts} peças com referência conhecida</b> (boas e ruins definidas por padrão inquestionável, incluindo peças limítrofes quando existirem) classificadas A/R por <b>${s.dados.ops} avaliador(es) em ${s.dados.trials} tentativas</b>, sem ver a referência nem as respostas dos demais (${s.dados.ops*s.dados.parts*s.dados.trials} chamadas).</p><p>São apurados, por avaliador e entre avaliadores: <b>eficácia</b> (acertos), <b>taxa de perda</b> (aceitar peça ruim — risco do cliente), <b>falso alarme</b> (rejeitar peça boa — custo) e <b>kappa</b> (concordância descontado o acaso). Limites e resultado estão nas respostas a seguir.`);
+  const trust=()=>{
+    if(s.tipo==='rr'&&ser.an)push('Por que posso confiar nos cálculos deste estudo de R&amp;R?',
+     `A aba <b>Validação do sistema</b> reproduz o exemplo oficial do AIAG MSA 4ª edição (10 peças × 3 avaliadores × 3 tentativas) no método X̄-R, a ANOVA dois fatores conferida contra o Minitab, as tabelas de constantes A₂, D₃, D₄, d₂, K₁, K₂ e K₃ e o t crítico conferido contra SciPy.</p><p>Além da matemática, o R&amp;R variável tem <b>três casos de classificação — Aprovado, Condicional e Reprovado</b> — com status e indicadores-chave conferidos contra o valor de referência (manual ou implementação independente).</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+    else if(s.tipo==='est')push('Por que posso confiar nos cálculos deste estudo de estabilidade?',
+     `A aba <b>Validação do sistema</b> reproduz o caso de estabilidade em cartas X̄-R (20 subgrupos × 5 leituras) conferido contra implementação independente — o manual AIAG não publica exemplo numérico de estabilidade — e <b>três casos de classificação (Aprovado, Condicional e Reprovado)</b> com pontos fora, sequência e contagem de subgrupos conferidos um a um.</p><p>As constantes A₂, D₃ e D₄ usadas nos limites deste estudo são conferidas caso a caso contra as tabelas oficiais do AIAG MSA 4ª edição.</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+    else if(s.tipo==='bias')push('Por que posso confiar nos cálculos deste estudo de tendência?',
+     `A aba <b>Validação do sistema</b> reproduz o exemplo de tendência do próprio AIAG MSA 4ª edição (15 leituras, referência 6,00 — método da amostra independente) e <b>três casos de classificação (Aprovado, Condicional e Reprovado)</b> conferidos contra implementação independente.</p><p>O t crítico é calculado pela distribuição t exata, conferida contra SciPy (ex.: ν = 14 → 2,144787), e a ANOVA dois fatores do sistema foi conferida contra o Minitab.</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+    else if(s.tipo==='lin')push('Por que posso confiar nos cálculos deste estudo de linearidade?',
+     `A aba <b>Validação do sistema</b> reproduz o exemplo de linearidade do próprio AIAG MSA 4ª edição (5 peças de referência 2 a 10 × 12 leituras) e <b>três casos de classificação (Aprovado, Condicional e Reprovado)</b> conferidos contra implementação independente.</p><p>A regressão, as bandas de confiança 95% e o t crítico seguem as fórmulas do manual — o t crítico foi conferido contra SciPy.</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+    else if(s.tipo==='atr')push('Por que posso confiar nos cálculos deste estudo de atributos?',
+     `A aba <b>Validação do sistema</b> reproduz a tabulação cruzada do exemplo do AIAG MSA 4ª edição (tabela A × B, n = 150: 44 / 6 / 3 / 97) com o mesmo kappa de Cohen do manual, e <b>três estudos completos de classificação (Aprovado, Condicional e Reprovado)</b> — 20 peças × 3 avaliadores × 3 tentativas — conferidos indicador a indicador (eficácia, perda, falso alarme e kappa).</p><p>A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+    else push('Por que posso confiar nos cálculos deste estudo?',
+     `A aba <b>Validação do sistema</b> reproduz os exemplos do manual AIAG MSA 4ª edição e casos de classificação Aprovado/Condicional/Reprovado conferidos contra o manual ou implementação independente. A evidência completa pode ser impressa pelo botão “Imprimir evidência” da própria aba.`);
+  };
   if(s.tipo==='rr'&&ser.an){
-    const useA=ser.metodo!=='xr',gA=ok(m['%GRR (ANOVA)'])?pct(m['%GRR (ANOVA)'],2):'—',gX=ok(m['%GRR (X̄-R)'])?pct(m['%GRR (X̄-R)'],2):'—',ref=ok(R.kv)?pct(R.kv,2):pc(m['%GRR (VT)']);
+    /* v64 · justificativa do auditor baseada no MÉTODO SELECIONADO (seletor "Método de cálculo do R&R Variável"):
+       xr = média e amplitude (X̄-R, AIAG) · anova = ANOVA (método do Minitab) · anova_int = interação sempre mantida (α = 1) */
+    const isX=ser.metodo==='xr',isAI=ser.metodo==='anova_int',useA=!isX,gA=ok(m['%GRR (ANOVA)'])?pct(m['%GRR (ANOVA)'],2):'—',gX=ok(m['%GRR (X̄-R)'])?pct(m['%GRR (X̄-R)'],2):'—',ref=ok(R.kv)?pct(R.kv,2):pc(m['%GRR (VT)']);
+    const origemM=s.rrMetodo?', definido neste estudo':' — padrão do sistema';
     const base=C.base==='tol'?'tolerância (LSE − LIE)':'variação total (VT) do estudo',al=ok(+ser.an.alpha)?+ser.an.alpha:.05;
-    const met=ser.metodo,nomeM=rrNome(met),origemM=(s.rrMetodo||s.rrK)?'definido neste estudo':'padrão do sistema',pIntT=ok(ser.an.pInt)?fxd(ser.an.pInt,4):'—';
-    const cmpM=`Neste estudo: %GRR (ANOVA) = ${gA} · %GRR (X̄-R) = ${gX} — a diferença entre os métodos é metodológica (componentes de variância vs. amplitudes), não erro de cálculo.`;
-    if(met==='xr'){
-      push(`Por que este estudo foi calculado pelo método “${nomeM}”?`,
-       `O AIAG MSA 4ª edição descreve dois métodos: <b>médias e amplitudes (X̄-R)</b> e <b>ANOVA</b>. Para este estudo o método selecionado foi <b>${nomeM}</b> (${origemM}) — é o método do <b>exemplo numérico impresso no manual</b>.</p><p>Nele: EV = R̄̄ × K₁ · AV = √[(X̄diff × K₂)² − EV² ÷ (n·r)] · GRR = √(EV² + AV²) · PV = Rp × K₃, usando as constantes tabeladas K₁, K₂ e K₃ do manual. Não há decomposição em componentes de variância nem teste da interação Operador×Peça.</p><p>O sistema calcula <b>pelos dois métodos</b> e classifica pelo método ativo. ${cmpM}</p><p>Se o cliente ou o auditor exigir o resultado do Minitab, basta selecionar “${rrNome('anova')}” no editor do estudo ou em Configurações.`);
-      push('Por que os valores deste estudo seguem os números do manual e podem diferir do Minitab?',
-       'Porque o método ativo é o mesmo do exemplo impresso no manual AIAG (X̄-R). No exemplo oficial, os mesmos dados produzem %GRR 26,68 (X̄-R, manual) e 27,86 (ANOVA/Minitab), EV 0,202 vs 0,200 e ndc 5 vs 4.</p><p>As diferenças residuais em relação ao manual vêm apenas do <b>arredondamento das constantes</b> (K₁, K₂, K₃, D₄) e das casas decimais; em relação ao Minitab, da estimação por <b>componentes de variância</b> (quadrados médios) no lugar de amplitudes. Divergências dessa magnitude <b>confirmam</b> o motor de cálculo — não o contradizem.');
-    }else if(met==='anova_int'){
-      const rem=ok(ser.an.pInt)&&ser.an.pInt>0.05;
-      push(`Por que este estudo foi calculado pelo método “${nomeM}”?`,
-       `Foi selecionado <b>${nomeM}</b> (${origemM}). É a ANOVA de dois fatores do Minitab, porém <b>sem remover a interação Operador×Peça</b> (α = 1): ela é sempre mantida no modelo, mesmo com p alto (aqui p = ${pIntT}${rem?' — no padrão do Minitab, com α = 0,05, ela seria removida e agrupada ao erro':''}).</p><p>Essa opção se justifica quando o cliente ou a engenharia exige não agrupar a interação, ou quando se adota postura conservadora. O termo de interação passa a compor a reprodutibilidade (AV).</p><p>O sistema calcula <b>pelos dois métodos</b> e classifica pelo método ativo. ${cmpM}`);
-      push('Por que os valores deste estudo diferem do padrão do Minitab e do exemplo do manual?',
-       'Três motivos esperados:</p><p><b>(1) Interação sempre mantida</b> — o Minitab padrão agrupa a interação ao erro quando p > α; aqui ela permanece no modelo, o que altera ligeiramente AV, GRR e ndc.</p><p><b>(2) Método diferente do manual</b> — o exemplo impresso no manual está em X̄-R (amplitudes), enquanto a ANOVA estima componentes de variância por quadrados médios.</p><p><b>(3) Constantes tabeladas</b> — K₁, K₂, K₃ e D₄ do manual são publicadas com arredondamento. Divergências dessa magnitude <b>confirmam</b> o motor de cálculo — não o contradizem.');
-    }else{
-      push('Por que o sistema calcula pelo método do Minitab (ANOVA) e não pelo exemplo do manual (médias e amplitudes)?',
+    if(isX)push('Por que o estudo foi calculado pelo método de médias e amplitudes (X̄-R)?',
+     `O AIAG MSA 4ª edição aceita dois métodos para o R&amp;R variável — <b>médias e amplitudes (X̄-R)</b> e <b>ANOVA</b> — e o exemplo numérico impresso no manual é calculado justamente por médias e amplitudes.</p><p>Este estudo foi calculado por <b>média e amplitude (X̄-R, AIAG)${origemM}</b>, conforme a seleção “Método de cálculo do R&amp;R Variável”. Neste método: <b>EV</b> (repetibilidade) = R̄̄ × K₁; <b>AV</b> (reprodutibilidade) = √((X̄<sub>diff</sub> × K₂)² − EV² ÷ (peças × tentativas)); <b>PV</b> (variação entre peças) = Rp × K₃; <b>GRR</b> = √(EV² + AV²) e <b>ndc</b> = 1,41 × PV ÷ GRR — constantes K₁, K₂ e K₃ tabeladas pelo AIAG conforme o número de avaliadores, peças e tentativas.</p><p>É o método mais transparente para auditoria: cada resultado pode ser conferido à mão com médias e amplitudes, sem software estatístico, e reproduz diretamente o exemplo oficial do manual — por isso é amplamente aceito em auditorias (ISO 9001 / IATF 16949).</p><p>Como conferência cruzada, o sistema calculou também a ANOVA: %GRR (X̄-R) = ${gX} · %GRR (ANOVA) = ${gA}. A classificação adotada é a do método ativo (X̄-R); a diferença entre os dois é metodológica (amplitudes vs. componentes de variância), não erro de cálculo.`);
+    else if(isAI)push('Por que a ANOVA manteve a interação Operador×Peça (α = 1) e o que isso significa?',
+     `Na ANOVA de dois fatores, a interação Operador×Peça é testada e, no padrão do Minitab (α = 0,05), removida e agrupada ao erro quando p > α. Neste estudo o método ativo é <b>ANOVA com interação SEMPRE mantida (α = 1${origemM})</b>: a interação não é agrupada em hipótese alguma (p da interação = ${ok(ser.an.pInt)?fxd(ser.an.pInt,4):'—'}).</p><p>Esse modo atende a exigências de cliente/engenharia que não querem “esconder” a interação — por exemplo, quando operadores podem ter técnica diferente para peças específicas e essa variação precisa permanecer separada do erro puro (repetibilidade).</p><p>Efeito prático: com a interação no modelo, o termo de erro da ANOVA passa a ser a própria interação; se ela for relevante, EV e GRR tendem a ficar maiores — um critério mais conservador.</p><p>Neste estudo: %GRR (ANOVA, interação mantida) = ${gA} · %GRR (X̄-R) = ${gX} — a classificação adotada é a da ANOVA com interação mantida.`);
+    else push('Por que o sistema calcula pelo método do Minitab (ANOVA) e não pelo exemplo do manual (médias e amplitudes)?',
      `O AIAG MSA 4ª edição descreve dois métodos: <b>médias e amplitudes (X̄-R)</b> e <b>ANOVA</b>. O exemplo numérico impresso no manual está no método X̄-R.</p><p>O Minitab — software de referência dos laboratórios certificados — calcula o Gage R&amp;R por <b>ANOVA de dois fatores</b> por padrão e remove a interação Operador×Peça quando p > α (aqui: α = ${fxd(al,2)} · p = ${ok(ser.an.pInt)?fxd(ser.an.pInt,4):'—'} → interação ${ser.an.inter?(al>=1?'SEMPRE mantida (α = 1)':'mantida (p ≤ α)'):'removida e agrupada ao erro'}).</p><p>O sistema calcula <b>pelos dois métodos</b> e classifica pelo método ativo (${rrNome(ser.metodo)}${(s.rrMetodo||s.rrK)?', definido neste estudo':' — padrão do sistema'}), prática alinhada ao software certificado usado na auditoria.</p><p>Neste estudo: %GRR (ANOVA) = ${gA} · %GRR (X̄-R) = ${gX} — a diferença é metodológica (componentes de variância vs. amplitudes), não erro de cálculo.`);
-      push('Por que os valores do sistema são um pouco diferentes dos números impressos no manual?',
-     'Três motivos esperados:</p><p><b>(1) Método diferente</b> — o manual publica o exemplo no método X̄-R, enquanto a ANOVA estima os componentes de variância por quadrados médios: no exemplo oficial, os mesmos dados produzem %GRR 26,68 (manual, X̄-R) e 27,86 (ANOVA/Minitab), EV 0,202 vs 0,200 e ndc 5 vs 4.</p><p><b>(2) Constantes tabeladas</b> — K₁, K₂, K₃ e D₄ do manual são publicadas com arredondamento.</p><p><b>(3) Interação agrupada</b> — quando p da interação ≥ α, a ANOVA agrupa a interação ao erro (prática do Minitab). Divergências dessa magnitude <b>confirmam</b> o motor de cálculo — não o contradizem.');
-    }
+    push('Por que os valores do sistema são um pouco diferentes dos números impressos no manual?',
+     isX?`Não devem diferir neste método — o exemplo numérico do AIAG MSA 4ª edição é calculado justamente por médias e amplitudes (X̄-R): EV 0,202 · AV 0,230 · GRR 0,306 · %GRR 26,68 · ndc 5. Como este estudo usa o mesmo método, diferenças só podem vir de arredondamento das constantes tabeladas (K₁, K₂, K₃, D₄) ou dos decimais configurados.</p><p>Já em relação à ANOVA a diferença é esperada: os mesmos dados estimados por componentes de variância (quadrados médios) produzem %GRR 27,86 e ndc 4 no exemplo oficial. É divergência metodológica (amplitudes vs. quadrados médios), não erro de cálculo.`
+     :isAI?`Dois motivos esperados:</p><p><b>(1) Método diferente</b> — o manual publica o exemplo no método X̄-R (%GRR 26,68); este estudo usa ANOVA com a interação Operador×Peça SEMPRE mantida, estimada por quadrados médios e sem agrupar a interação ao erro (na ANOVA padrão do Minitab os mesmos dados dão 27,86 — e com a interação mantida o valor pode divergir ainda mais, pois o termo de erro passa a ser a própria interação).</p><p><b>(2) Constantes tabeladas</b> — K₁, K₂, K₃ e D₄ do manual são publicadas com arredondamento.</p><p>São divergências metodológicas — <b>confirmam</b> o motor de cálculo, não o contradizem.`
+     :'Três motivos esperados:</p><p><b>(1) Método diferente</b> — o manual publica o exemplo no método X̄-R, enquanto a ANOVA estima os componentes de variância por quadrados médios: no exemplo oficial, os mesmos dados produzem %GRR 26,68 (manual, X̄-R) e 27,86 (ANOVA/Minitab), EV 0,202 vs 0,200 e ndc 5 vs 4.</p><p><b>(2) Constantes tabeladas</b> — K₁, K₂, K₃ e D₄ do manual são publicadas com arredondamento.</p><p><b>(3) Interação agrupada</b> — quando p da interação > α, a ANOVA agrupa a interação ao erro (prática do Minitab). Divergências dessa magnitude <b>confirmam</b> o motor de cálculo — não o contradizem.');
     const st=R.status,go=+C.grrOk,gc=+C.grrCond;
     const whyNdc=(st==='Condicional'&&ok(m.ndc)&&m.ndc<+C.ndcMin)?` Além disso, ndc = ${m.ndc} ficou abaixo do mínimo configurado (${C.ndcMin}), o que também mantém a classificação condicional até que a discriminação seja justificada ou melhorada.`:'';
     push(`Por que o %GRR de ${ref} foi classificado como “${st}”?`,
      st==='Aprovado'
-      ?`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR ≤ ${go}% = aceitável.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ), portanto o sistema de medição é adequado para a característica.${ok(m.ndc)?` ndc = ${m.ndc} (mínimo exigido ${C.ndcMin}).`:''}`
+      ?`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR ≤ ${go}% = aceitável.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ · método ${rrNome(ser.metodo)}), portanto o sistema de medição é adequado para a característica.${ok(m.ndc)?` ndc = ${m.ndc} (mínimo exigido ${C.ndcMin}).`:''}`
       :st==='Condicional'
-      ?`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR ≤ ${go}% = aceitável · entre ${go}% e ${gc}% = <b>condicional</b> — pode ser aceito dependendo da <b>criticalidade da característica, do custo do equipamento e da aprovação do cliente</b>; acima de ${gc}% = reprovado.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ) está na faixa condicional: o uso é permitido com esta justificativa registrada e ciência do cliente/engenharia.${whyNdc}`
-      :`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR acima de ${gc}% = reprovado.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ) excede o limite: o sistema de medição não é adequado para a característica e o estudo deve ser replanejado (resolução, fixação, método ou instrumento) antes de medir esta característica.${whyNdc}`);
+      ?`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR ≤ ${go}% = aceitável · entre ${go}% e ${gc}% = <b>condicional</b> — pode ser aceito dependendo da <b>criticalidade da característica, do custo do equipamento e da aprovação do cliente</b>; acima de ${gc}% = reprovado.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ · método ${rrNome(ser.metodo)}) está na faixa condicional: o uso é permitido com esta justificativa registrada e ciência do cliente/engenharia.${whyNdc}`
+      :`Critério adotado (alinhado ao AIAG MSA 4ª ed.): %GRR acima de ${gc}% = reprovado.</p><p>Neste estudo %GRR = ${ref} (base: ${base} · multiplicador ${kS}σ · método ${rrNome(ser.metodo)}) excede o limite: o sistema de medição não é adequado para a característica e o estudo deve ser replanejado (resolução, fixação, método ou instrumento) antes de medir esta característica.${whyNdc}`);
     if(ser.outR&&ser.outR.length){
       const det=ser.outR.slice(0,6).map(pp=>{const oi=pp[0],p=pp[1];const rrs=(s.dados.v[oi]&&s.dados.v[oi].map(r=>num(r[p])))||[];return`${esc((s.dados.opNames||[])[oi]||('Operador '+(oi+1)))} · peça ${p+1} (R = ${f(rng(rrs),Math.max(dp,3))})`}).join('; ');
       push(`O que significa o aviso “${ser.outR.length} amplitude(s) acima do LSC”?`,
@@ -1319,7 +1350,7 @@ function auditorQA(s,R){
      `<b>${kS} desvios-padrão (${kS}σ — 99,73% da população)</b>, prática atual do AIAG MSA 4ª edição e do Minitab; o 5,15σ (99%) era o multiplicador da 3ª edição.</p><p>O multiplicador afeta apenas o <b>%Tolerância</b> (k·σ ÷ (LSE − LIE)) e a variação do estudo; EV, AV e GRR em σ, e o %GRR sobre a variação total, não mudam.</p><p>Configuração ativa: base do %GRR = ${base}.`);
     const nA=m['ndc (ANOVA)'],nX=m['ndc (X̄-R)'];
     if(ok(nA)&&ok(nX)&&nA!==nX)push('Por que o ndc do sistema difere do calculado pelo manual?',
-     `ndc = 1,41 × PV ÷ GRR (truncado). A ANOVA estima PV e GRR por componentes de variância; o método X̄-R, por amplitudes — pequenas diferenças mudam o truncamento.</p><p>Neste estudo: ndc ANOVA = ${nA} · ndc X̄-R = ${nX}. Ambos são válidos; prevalece o do método ativo (${rrNome(ser.metodo)}).`);
+     `ndc = 1,41 × PV ÷ GRR (truncado). A ANOVA estima PV e GRR por componentes de variância; o método X̄-R, por amplitudes — pequenas diferenças mudam o truncamento.</p><p>Neste estudo: ndc ANOVA = ${nA} · ndc X̄-R = ${nX}. Ambos são válidos; prevalece o do método ativo (${useA?'ANOVA':'X̄-R'}).`);
   }
   if(s.tipo==='bias'&&ser.al!==undefined){
     const alv=+s.erroPct>0?pct(+s.erroPct,0):'5%';
@@ -1349,8 +1380,9 @@ function auditorQA(s,R){
       :`O estudo ficou fora dos dois blocos do critério.</p><p><b>Bloco estatístico</b> — inclinação significativa (t = ${f(m['t (a)'],3)} vs t crítico ${f(m['t crítico'],3)}) e/ou linha bias = 0 fora das bandas 95% (o viés varia com o nível medido).</p><p><b>Bloco do procedimento</b> — %Linearidade = ${pc(m['%Linearidade'],2)} e/ou %Bias máx/Tol = ${pc(m['%Bias máx/Tol'],2)} atingiram o limite (${C.biasMax}%).</p><p>O instrumento não é adequado nesta faixa sem ajuste/calibração por pontos de uso (e novo estudo).`);
   }
   if(s.tipo==='est'&&ser.xb){
-    push(`O que significam os ${ser.outX.length+ser.outR.length} ponto(s) fora dos limites de controle?`,
-     `A carta X̄ acusou ${ser.outX.length} ponto(s) fora dos limites e a carta R, ${ser.outR.length}; sequência de 7+ pontos do mesmo lado da média: ${ser.trend?'sim — investigar':'não'}.</p><p>Ponto fora de controle indica causa especial naquele momento (ajuste, desgaste, operador, ambiente) e deve ser investigado com ação registrada; o critério local exige nenhum ponto fora dos limites para aprovar.</p><p>Recomendação do AIAG: 20 ou mais subgrupos para avaliar estabilidade com confiança (este estudo tem ${m['Subgrupos']}).`);
+    /* v67 · a pergunta sobre pontos fora só existe quando HÁ pontos fora (antes imprimia "0 ponto(s)" até em estudo estável) */
+    if(ser.outX.length+ser.outR.length>0)push(`O que significam os ${ser.outX.length+ser.outR.length} ponto(s) fora dos limites de controle?`,
+     `A carta X̄ acusou ${ser.outX.length} ponto(s) fora dos limites e a carta R acusou ${ser.outR.length}; sequência de 7+ pontos do mesmo lado da média: ${ser.trend?'sim — investigar':'não'}.</p><p>Ponto fora de controle indica causa especial naquele momento (ajuste, desgaste, operador, ambiente) e deve ser investigado com ação registrada; o critério local exige nenhum ponto fora dos limites para aprovar.</p><p>Recomendação do AIAG: 20 ou mais subgrupos para avaliar estabilidade com confiança (este estudo tem ${m['Subgrupos']}).`);
     const ste=R.status,outE=ser.outX.length+ser.outR.length;
     push(`Por que o estudo de estabilidade foi classificado como “${ste}”?`,
      ste==='Aprovado'
@@ -1390,6 +1422,8 @@ function auditorQA(s,R){
     push('Por que o estudo de atributos não tem %GRR, ndc, EV ou AV?',
      `Porque o dado é binário (aceito/reprovado) — não há variância contínua para decompor em repetibilidade/reprodutibilidade nem “número de categorias distintas”.</p><p>A discriminação do sistema de medição é avaliada pela capacidade de separar peças boas e ruins: eficácia, taxa de perda, falso alarme e kappa (AIAG MSA 4ª ed., cap. IV — análise de sistemas de medição por atributos), a mesma abordagem do Minitab Attribute Agreement Analysis.</p><p>Para medir com números use o R&amp;R variável; para decisões go/no-go, este estudo é o correto.`);
   }
+  /* v67 · confiança nos cálculos SEMPRE por último (o documento abre com o ESTUDO, não com o sistema) */
+  trust();
   return qas;
 }
 /* ---- renderização na tela (aplicação) ---- */
@@ -1397,7 +1431,7 @@ function qaHTML(qas){return qas&&qas.length?`<div class="qa">${qas.map((x,i)=>`<
 function toggleQAid(id){const b=document.getElementById(id);if(!b)return;b.style.display=b.style.display==='none'?'':'none'}
 let QA_HIDDEN=false;
 function audBlock(s,R,id='qaBody'){const qas=auditorQA(s,R);if(!qas.length)return'';
-  return`<div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px"><div class="row" style="justify-content:space-between;margin-bottom:2px"><b style="font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)"><i class="fas fa-clipboard-question" style="margin-right:6px"></i>Justificativa para o auditor · perguntas e respostas</b><span class="row" style="gap:6px"><button class="btn sm" onclick="toggleQAid('${id}')"><i class="fas fa-eye"></i>Mostrar/ocultar</button><button class="btn sm" onclick="printJustStudy()"><i class="fas fa-print"></i>Imprimir</button></span></div><div id="${id}" style="display:${QA_HIDDEN?'none':''}">${qaHTML(qas)}<small class="legend" style="display:block;margin-top:8px">Gerado automaticamente a partir do cálculo real deste estudo · critérios AIAG MSA 4ª ed. + prática Minitab · limites ajustáveis em Configurações.</small></div></div>`}
+  return`<div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px"><div class="row" style="justify-content:space-between;margin-bottom:2px"><b style="font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)"><i class="fas fa-clipboard-question" style="margin-right:6px"></i>Justificativa para o auditor · perguntas e respostas</b><span class="row" style="gap:6px"><button class="btn sm" onclick="toggleQAid('${id}')"><i class="fas fa-eye"></i>Mostrar/ocultar</button><button class="btn sm" onclick="printJustStudy()"><i class="fas fa-print"></i>Imprimir</button></span></div><div id="${id}" style="display:${QA_HIDDEN?'none':''}">${qaHTML(qas)}<small class="legend" style="display:block;margin-top:8px">Gerado automaticamente a partir do cálculo real deste estudo · critérios AIAG MSA 4ª ed.${s.tipo==='rr'&&R.ser&&R.ser.metodo?` · método de cálculo: <b>${rrNome(R.ser.metodo)}</b>`:' + prática Minitab'} · limites ajustáveis em Configurações.</small></div></div>`}
 function valStudyResult(c){if(!c||!c.build)return null;return valWithCfg(c.cfg,()=>{const s=c.build();return{s,R:calc(s)}})}
 function audBlockVal(c){const v=valStudyResult(c);if(!v)return'';
   return`<div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px"><div class="row" style="justify-content:space-between;margin-bottom:2px"><b style="font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)"><i class="fas fa-clipboard-question" style="margin-right:6px"></i>Justificativa para o auditor</b><span class="row" style="gap:6px"><button class="btn sm" onclick="toggleQAid('qav-${esc(c.id)}')"><i class="fas fa-eye"></i>Mostrar/ocultar</button><button class="btn sm" onclick="valJustOne('${esc(c.id)}')"><i class="fas fa-print"></i>Imprimir</button></span></div><div id="qav-${esc(c.id)}">${qaHTML(auditorQA(v.s,v.R))}</div></div>`}
@@ -1420,10 +1454,28 @@ function justPageHTML(s,R,annex,extraQAs){
   <tr><td>Tolerância</td><td>${esc(s.lie||'—')} – ${esc(s.lse||'—')} ${esc(s.unidade||'')}</td><td>Responsável</td><td>${esc(s.responsavel)||'—'}</td></tr>
   <tr><td>Data</td><td>${fdate(s.data)}</td><td>Emitido em</td><td>${new Date().toLocaleString('pt-BR')}</td></tr></table>`;
   const ban=`<div class="v ${R.status}"><span>RESULTADO: ${R.status.toUpperCase()}</span><span class="vm"> — ${esc(R.msg||'')}</span></div>`;
-  return`<div class="pg land${annex?' annex':''}">${hd}${info}${ban}${mts.length?`<h3>Indicadores-chave do estudo</h3><div class="mt">${mts.map(x=>`<div><b>${x[1]}</b><span>${esc(x[0])}</span></div>`).join('')}</div>`:''}
-  ${qaPrintHTML(qas)}
-  <p class="legend">Documento gerado automaticamente pelo MSA Pro a partir do cálculo real deste estudo. Critérios: AIAG MSA 4ª edição (limites, constantes e exemplo oficial) e ANOVA dois fatores conforme o Minitab; limites de aceitação configuráveis — %GRR ≤ ${C.grrOk}% aceitável · ${C.grrOk}–${C.grrCond}% condicional · ndc ≥ ${C.ndcMin} · multiplicador ${String(C.k).replace('.',',')}σ.</p>
-  ${sigBlock(s,null)}</div>`}catch(e){console.error(e);return''}}
+  /* v67 · critérios da legenda ESPECÍFICOS do tipo de estudo (antes citava %GRR/ndc/multiplicador até em estabilidade/tendência/linearidade/atributos) */
+  const legCri={rr:`AIAG MSA 4ª edição (limites, constantes e exemplo oficial) · <b>método de cálculo do R&amp;R: ${rrNome((R.ser&&R.ser.metodo)||'anova')}</b> — respostas ao auditor alinhadas ao método selecionado no estudo · limites de aceitação configuráveis: %GRR ≤ ${C.grrOk}% aceitável · ${C.grrOk}–${C.grrCond}% condicional · ndc ≥ ${C.ndcMin} · multiplicador ${String(C.k).replace('.',',')}σ`,
+   est:`AIAG MSA 4ª edição (cap. III — estabilidade, cartas X̄-R com constantes A₂, D₃, D₄) · critério local: nenhum ponto fora dos limites de controle · sem sequência de 7+ pontos do mesmo lado da média · mínimo recomendado de 20 subgrupos`,
+   bias:`AIAG MSA 4ª edição (cap. III — tendência, método da amostra independente) · critério híbrido local: zero dentro do IC 95% (teste t) e %Tendência < ${C.biasMax}% da tolerância`,
+   lin:`AIAG MSA 4ª edição (cap. III — linearidade, regressão bias × referência) · critério local: inclinação e intercepto não significativos a 95%, linha bias = 0 dentro das bandas de confiança e %Linearidade/%Bias máx < ${C.biasMax}%`,
+   atr:`AIAG MSA 4ª edição (cap. IV — sistemas de medição por atributos) · critério local: eficácia ≥ ${C.effOk}% · taxa de perda ≤ ${C.missOk}% · falso alarme ≤ ${C.faOk}% · kappa ≥ ${fxd(C.kappaOk,2)}`};
+  const leg=`<p class="legend">Documento gerado automaticamente pelo MSA Pro a partir do cálculo real deste estudo. Critérios: ${legCri[s.tipo]||legCri.rr}.</p>`;
+  const cont=`<div class="hd2"><div><small>${esc(C.empresa)}</small><b style="margin-left:8px">${annex?'Anexo — Justificativa para auditoria':'Relatório de justificativa para auditoria'} · continuação</b></div><small>${esc(s.codigo)}</small></div>`;
+  /* v66 · paginação dos cartões: 6 na 1ª página (leva o cabeçalho completo) e 8 nas seguintes — nunca encolher para caber */
+  const F1=2,FN=4,pgs=[];let idx=0;
+  const qH3='<h3>Perguntas que o auditor pode fazer — respostas preparadas</h3>';
+  const head1=annex?`<div class="pg land">${cont}${ban}${qH3}`
+    :`<div class="pg land">${hd}${info}${ban}${qH3}`;
+  if(qas.length<=F1){pgs.push(head1+qaPrintHTML(qas)+leg+sigBlock(s,null)+'</div>')}
+  else{
+    let first=true;
+    while(idx<qas.length){const n=first?F1:FN;const part=qaPrintHTML(qas.slice(idx,idx+n));idx+=n;
+      if(first){pgs.push(head1+part+'</div>');first=false}
+      else{const last=idx>=qas.length;pgs.push(`<div class="pg land">${cont}${part}${last?leg+sigBlock(s,null):''}</div>`)}
+    }
+  }
+  return pgs.join('');}catch(e){console.error(e);return''}}
 function valEvidenceHTML(rows){if(!rows||!rows.length)return'';
   return`<h3 style="margin-top:8px">Evidência — comparação com a referência (${rows.filter(x=>x.ok).length}/${rows.length} idênticas)</h3><table><tr><th style="text-align:left">Grandeza</th><th>Referência</th><th>Sistema</th><th>Dif.</th><th>Fonte</th><th>Resultado</th></tr>${rows.map(x=>`<tr><td style="text-align:left">${esc(x.n)}</td><td style="text-align:right">${valFmt(x.esp,x.dec)}</td><td style="text-align:right">${valFmt(x.got,x.dec+1)}</td><td style="text-align:right">${valFmt(x.got-x.esp,x.dec+1)}</td><td>${esc(x.fonte||'')}</td><td style="text-align:center;color:${x.ok?'#067647':'#B42318'}"><b>${x.ok?'OK':'DIVERGE'}</b></td></tr>`).join('')}</table><p class="legend">Tolerância = arredondamento do valor impresso na referência. “Fonte” indica a origem do valor de referência (Manual AIAG, SciPy/Minitab ou cálculo à mão).</p>`}
 /* ---- ações de impressão da justificativa ---- */
@@ -2590,7 +2642,7 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
    <button class="btn" onclick="printJustStudy()" title="Relatório de perguntas e respostas preparadas para o auditor"><i class="fas fa-clipboard-question"></i>Justificativa</button>
    ${V.isNew?'':`<button class="btn" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i>Duplicar</button><button class="btn dan" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button>`}
-   <button class="btn" onclick="printEdit()" title="Imprime sem salvar — use o botão Salvar para gravar"><i class="fas fa-print"></i>Imprimir</button>
+   <button class="btn" onclick="saveEdit(true)"><i class="fas fa-print"></i>Imprimir</button>
    <button class="btn pri" onclick="saveEdit()"><i class="fas fa-floppy-disk"></i>Salvar <small style="opacity:.7">Ctrl+S</small></button></div>
    <div class="card" style="margin-bottom:16px"><h3><i class="fas fa-circle-info c-brand"></i>Identificação</h3><div class="form" id="info"></div></div>
    ${s.revalObr?`<div class="card reval-banner" style="margin-bottom:16px"><h3><i class="fas fa-rotate c-bad"></i>Revalidação obrigatória</h3><p class="legend">Instrumento <b>${esc(s.revalObr.instrumento||'')}</b> — ${esc(s.revalObr.motivo)} em <b>${fdate(s.revalObr.em)}</b>. Registre um recálculo (novo ciclo) para liberar a revalidação.</p><div class="row"><button class="btn sm" onclick="openCycle('${s.id}')"><i class="fas fa-rotate"></i>Registrar recálculo</button><button class="btn sm dan" onclick="clearReval('${s.id}')"><i class="fas fa-xmark"></i>Remover marcação</button></div></div>`:''}<div class="card" style="margin-bottom:16px"><h3><i class="fas fa-table c-brand"></i>Dados de medição</h3><div class="row" id="params" style="margin-bottom:12px"></div><div class="row" style="margin-bottom:10px"><button class="btn sm" onclick="pasteModal()" title="Cole um bloco do Excel, PDF ou Word"><i class="fas fa-paste"></i>Colar em bloco</button><small class="legend">Ou cole direto (Ctrl+V) numa célula: o bloco é encaixado na grade e a orientação é ajustada sozinha.</small></div><div class="tw" id="grid" style="padding:0"></div></div>
@@ -2607,7 +2659,7 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
    inp('unidade','Unidade')+
    `<div><label class="l">Casas decimais deste estudo</label><select class="f" data-f="decimais">${Array.from({length:9},(_,i)=>`<option value="${i}" ${decimalPlaces(s)===i?'selected':''}>${i} ${i===1?'casa':'casas'}</option>`).join('')}</select></div>`+
    (s.tipo==='bias'?`<div><label class="l">Especificação (nominal)</label><input class="f" data-f="espec" value="${esc(s.espec||'')}" inputmode="decimal" autocomplete="off"></div><div><label class="l">Tolerância (±)</label><input class="f" data-f="tolPm" value="${esc(s.tolPm||'')}" inputmode="decimal" autocomplete="off"></div><div><label class="l">Erro admissível (α, %)</label><input class="f" data-f="erroPct" type="number" min="1" max="50" step="0.5" value="${+(s.erroPct||5)}"></div>`:inp('lie','LIE (tol. inferior)','text','inputmode="decimal"')+inp('lse','LSE (tol. superior)','text','inputmode="decimal"'))+
-   (s.tipo==='rr'?`<div><label class="l">Método R&amp;R deste estudo</label><select class="f" data-f="rrMetodo"><option value="" ${!s.rrMetodo?'selected':''}>Seguir padrão do sistema (${rrNome((S.cfg.rrMetodo==='xr'||S.cfg.rrMetodo==='anova_int')?S.cfg.rrMetodo:'anova')})</option><option value="anova" ${s.rrMetodo==='anova'?'selected':''}>ANOVA (método do Minitab)</option><option value="xr" ${s.rrMetodo==='xr'?'selected':''}>Média e amplitude (X̄-R, AIAG)</option><option value="anova_int" ${s.rrMetodo==='anova_int'?'selected':''}>ANOVA com interação sempre mantida (α = 1)</option></select><small class="legend">Padrão do sistema: <b>ANOVA (Minitab) · 6σ</b> — AIAG MSA 4ª ed.</small></div><div><label class="l">Multiplicador deste estudo</label><select class="f" data-f="rrK"><option value="" ${!(+s.rrK)?'selected':''}>Seguir padrão (${String(S.cfg.k||6).replace('.',',')}σ)</option><option value="6" ${+s.rrK===6?'selected':''}>6σ — 99,73% (AIAG 4ª ed.)</option><option value="5.15" ${+s.rrK===5.15?'selected':''}>5,15σ — 99% (AIAG 3ª ed.)</option></select></div>`:'')+
+   (s.tipo==='rr'?`<div><label class="l">Método R&amp;R deste estudo</label><select class="f" data-f="rrMetodo"><option value="" ${!s.rrMetodo?'selected':''}>Seguir padrão do sistema (${rrNome((S.cfg.rrMetodo==='xr'||S.cfg.rrMetodo==='anova_int')?S.cfg.rrMetodo:'anova')})</option><option value="xr" ${s.rrMetodo==='xr'?'selected':''}>Média e amplitude (X̄-R)</option><option value="anova" ${s.rrMetodo==='anova'?'selected':''}>ANOVA (método do Minitab)</option><option value="anova_int" ${s.rrMetodo==='anova_int'?'selected':''}>ANOVA — interação sempre mantida (α = 1)</option></select><small class="legend">Padrão do sistema: <b>ANOVA (Minitab) · 6σ</b> — AIAG MSA 4ª ed.</small></div><div><label class="l">Multiplicador deste estudo</label><select class="f" data-f="rrK"><option value="" ${!(+s.rrK)?'selected':''}>Seguir padrão (${String(S.cfg.k||6).replace('.',',')}σ)</option><option value="6" ${+s.rrK===6?'selected':''}>6σ — 99,73% (AIAG 4ª ed.)</option><option value="5.15" ${+s.rrK===5.15?'selected':''}>5,15σ — 99% (AIAG 3ª ed.)</option></select></div>`:'')+
    `<div><label class="l">Área / Setor</label><input class="f" data-f="area" list="dlArea" value="${esc(s.area)}"><datalist id="dlArea">${areas().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>`+inp('responsavel','Responsável')+
    inp('freq','Frequência (meses / evento)')+
    `<div><label class="l">Periodicidade do recálculo (meses)</label><input class="f" data-f="freqMeses" type="number" min="0" max="120" step="1" value="${+s.freqMeses||0}"></div>`+inp('proxima','Próximo recálculo','date')+inp('aprovadoPor','Aprovado por (auditoria)')+
@@ -2980,7 +3032,8 @@ const RPT_CSS=`/* v63 — TODOS os documentos em A4 PAISAGEM (fim da mistura ret
 *{box-sizing:border-box}
 body{font-family:'Segoe UI',Arial,sans-serif;color:#252423;margin:0;font-size:12.4px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 h1,h2,h3{font-family:'Segoe UI',Arial;margin:0}
-@page{size:A4 landscape;margin:9mm 9mm 11mm;@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:8pt 'Segoe UI',Arial,sans-serif;color:#8A8886}@bottom-left{content:'MSA Pro · AIAG MSA 4ª edição';font:8pt 'Segoe UI',Arial,sans-serif;color:#8A8886}}
+/* v66 — @page limpo: só tamanho+ margens (margin boxes caíam a regra inteira em alguns motores → página saía RETRATO) */
+@page{size:A4 landscape;margin:9mm 9mm 11mm}
 .pg{break-after:page;page-break-after:always}.pg:last-child{break-after:auto;page-break-after:auto}
 .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #165A9C;padding-bottom:8px;margin-bottom:12px;break-inside:avoid;break-after:avoid}.hd h1{font-size:19px;color:#165A9C}.hd small{color:#605E5C;font-size:11.5px;line-height:1.5}
 table{width:100%;border-collapse:collapse;margin:6px 0 10px}td,th{border:1px solid #C9D6E2;padding:5px 7px;text-align:left;vertical-align:top}th{background:#EEF4FA;font-size:11px}
@@ -2992,14 +3045,14 @@ thead{display:table-header-group}tr,img{break-inside:avoid;page-break-inside:avo
 .legend{font-size:11.2px;color:#605E5C;margin:4px 0 6px;line-height:1.55}
 /* v54 · Justificativa para o auditor (perguntas e respostas) */
 /* v62 — leitura confortável: cards, parágrafos curtos, sem texto justificado */
-.qa{margin:4px 0 2px;display:grid;gap:10px}.qa-i{break-inside:avoid;page-break-inside:avoid;margin:0;padding:10px 13px 11px;border:1px solid #D9E2EE;border-radius:8px;background:#FBFCFD}
+.qa{margin:4px 0 2px;display:grid;gap:10px}.qa-i{break-inside:avoid;page-break-inside:avoid;margin:0;padding:8px 12px 9px;border:1px solid #D9E2EE;border-radius:8px;background:#FBFCFD}
 .qa-q{font-weight:700;color:#165A9C;font-size:13.5px;margin-bottom:5px;line-height:1.45}
 .qa-q .qn{display:inline-block;min-width:20px;height:20px;line-height:20px;text-align:center;background:#165A9C;color:#fff;border-radius:10px;font-size:11px;margin-right:8px;vertical-align:1px}
-.qa-a{font-size:12.2px;text-align:left;padding-left:30px;line-height:1.62;color:#333A47}
+.qa-a{font-size:12px;text-align:left;padding-left:28px;line-height:1.56;color:#333A47}
 .qa-a p{margin:0 0 5px}.qa-a p:last-child{margin-bottom:0}
 .qa-a b{color:#134A7C}
 .mt{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:8px 0 12px}.mt div{border:1px solid #C9D6E2;border-radius:6px;padding:7px 9px;break-inside:avoid}.mt b{display:block;font-size:15px;margin-bottom:1px}.mt span{font-size:10.5px;color:#605E5C;text-transform:uppercase;letter-spacing:.04em}
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 12px}.charts>div{break-inside:avoid;page-break-inside:avoid}.charts>div:only-child{grid-column:1/-1}.charts img{display:block;width:100%;height:auto;border:1px solid #E1E8EF;border-radius:6px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 12px}.charts>div{break-inside:avoid;page-break-inside:avoid}.charts>div:only-child{grid-column:1/-1}.charts img{display:block;width:100%;height:54mm;object-fit:contain;border:1px solid #E1E8EF;border-radius:6px}
 .dt td,.dt th{text-align:center;font-size:10.4px;padding:3.5px 4px}
 h3{font-size:14.5px;margin:16px 0 6px;color:#165A9C;break-after:avoid;page-break-after:avoid}
 .rr th{background:#165A9C;color:#fff;border-color:#165A9C;font-size:10px;text-transform:none}.rr th.opn0{width:7%}
@@ -3008,17 +3061,17 @@ h3{font-size:14.5px;margin:16px 0 6px;color:#165A9C;break-after:avoid;page-break
 .rr .rm td{background:#E4EDF7;font-weight:700}.rr .ra td{background:#F5F8FC}.rr .ra td.bad{color:#D13438;font-weight:700}.rr .rm td.mc,.rr .ra td.mc,.rr .rm td.rl,.rr .ra td.rl{background:#D8E4F2}
 .rr .rp td{background:#165A9C;color:#fff;font-weight:700;border-color:#165A9C}.rr .rp td.mc{background:#0D3D68;color:#fff}.rr tbody.opg{break-inside:avoid;page-break-inside:avoid}.rr sub{font-size:8px}
 .rch2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.cb{margin-bottom:8px;break-inside:avoid}.ct{background:#165A9C;color:#fff;text-align:center;font:700 11px 'Segoe UI',Arial;padding:4px;border-radius:4px 4px 0 0}.cb img{display:block;width:100%;height:62mm;object-fit:fill;border:1px solid #C9D6E2;border-radius:4px}.cb.wide img{height:58mm}.rch2{break-inside:avoid}.land .cb img{break-inside:auto;page-break-inside:auto;break-before:avoid}
-.land .hd h1{font-size:18px}.land .hd{padding-bottom:6px;margin-bottom:8px}.land h3{font-size:13px;margin:8px 0 4px}.hdr{text-align:right}.hdr b{display:block;font:700 16px 'Segoe UI',Arial;color:#165A9C}
-.land .info td{padding:3.2px 6px;font-size:10.7px}.land .info td:nth-child(odd){width:9%;white-space:nowrap}
+.cb{margin-bottom:8px;break-inside:avoid}.ct{background:#165A9C;color:#fff;text-align:center;font:700 11px 'Segoe UI',Arial;padding:4px;border-radius:4px 4px 0 0}.cb img{display:block;width:100%;height:54mm;object-fit:fill;border:1px solid #C9D6E2;border-radius:4px}.cb.wide img{height:50mm}.rch2{break-inside:avoid}.land .cb img{break-inside:auto;page-break-inside:auto;break-before:avoid}
+.land .hd h1{font-size:16.5px}.land .hd{padding-bottom:5px;margin-bottom:6px}.land h3{font-size:13px;margin:8px 0 4px}.hdr{text-align:right}.hdr b{display:block;font:700 16px 'Segoe UI',Arial;color:#165A9C}
+.land .info td{padding:2.6px 6px;font-size:10.6px}.land .info td:nth-child(odd){width:9%;white-space:nowrap}
 .land .info2 td{font-size:11.8px;padding:6px 8px}.land .info2 td:nth-child(odd){width:13%}
 .pg.land .qa{grid-template-columns:1fr 1fr;gap:9px}
-.land .v{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 10px;font-size:12.5px;margin:4px 0 2px}.land .v .vm{font-size:11.2px;font-weight:700}
+.land .v{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 10px;font-size:12.5px;margin:3px 0 2px}.land .v .vm{font-size:11.2px;font-weight:700}
 .sim{font-size:9.5px;font-weight:700;color:#B54708;margin-bottom:4px}
 /* ---- Estabilidade: página 1 e 2 preenchendo toda a área útil (sem espaço em branco) ---- */
 .pg.land.fill .estK,.pg.land.fill .crit{flex:0 0 auto}
-.pg.land.fill .fillT table.dt.estX td{font-size:10.8px;padding:6px 3px}
-.pg.land.fill .fillT table.dt.estX th{font-size:10.6px;padding:6px 4px}
+.pg.land.fill .fillT table.dt.estX td{font-size:10.8px;padding:5px 3px}
+.pg.land.fill .fillT table.dt.estX th{font-size:10.6px;padding:5px 4px}
 .pg.land.fill .fillT table.dt.estX.e9 td,.pg.land.fill .fillT table.dt.estX.e9 th{font-size:9.2px;padding:2.6px 2.4px}
 .pg.land.fill .fillT table.dt.estX.e8 td,.pg.land.fill .fillT table.dt.estX.e8 th{font-size:8.4px;padding:2px 1.6px}
 .pg.land.fill .fillT>table.dt.estX thead th.lbl{width:26mm}
@@ -3028,7 +3081,7 @@ h3{font-size:14.5px;margin:16px 0 6px;color:#165A9C;break-after:avoid;page-break
 .pg.land.fill2 .rch2 .cb{display:flex;flex-direction:column;height:100%;min-height:0}
 .pg.land.fill2 .rch2 .cb img{flex:1 1 auto;min-height:0;height:100%}
 @media screen{.pg.land.fill2{height:210mm}}
-@media print{.pg.land.fill2{height:auto;min-height:186.5mm}}
+@media print{.pg.land.fill2{height:186.5mm}}
 /* ---- R&R variável: página de gráficos preenchendo a área útil (sem espaço em branco) ---- */
 .pg.land.fill3{display:flex;flex-direction:column}
 .pg.land.fill3 .hd,.pg.land.fill3 .info{flex:0 0 auto}
@@ -3038,7 +3091,7 @@ h3{font-size:14.5px;margin:16px 0 6px;color:#165A9C;break-after:avoid;page-break
 .pg.land.fill3 .cb.wide{flex:58 1 0;margin-bottom:0}
 .pg.land.fill3 .cb img{flex:1 1 auto;min-height:0;height:100%}
 @media screen{.pg.land.fill3{height:210mm}}
-@media print{.pg.land.fill3{height:auto;min-height:186.5mm}}
+@media print{.pg.land.fill3{height:186.5mm}}
 /* ---- R&R variável: página de cálculos/resultado preenchendo a área útil ---- */
 .pg.land.fill4{display:flex;flex-direction:column}
 .pg.land.fill4>*{flex:0 0 auto}
@@ -3050,14 +3103,32 @@ h3{font-size:14.5px;margin:16px 0 6px;color:#165A9C;break-after:avoid;page-break
 .pg.land.fill4 .cal.k td{font-size:11px}
 .pg.land.fill4 .res{margin-top:8px}.pg.land.fill4 .res th{padding:8px;font-size:13px}.pg.land.fill4 .res td{padding:11px 8px;font-size:13px}
 @media screen{.pg.land.fill4{height:210mm}}
-@media print{.pg.land.fill4{height:auto;min-height:186.5mm}}
+@media print{.pg.land.fill4{height:186.5mm}}
 h3 small{font:400 11px 'Segoe UI',Arial;color:#605E5C}
 .rr{table-layout:fixed;margin-top:4px}.rr td{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}.rr th.opn0{width:30px}.rr thead tr:first-child th:nth-child(2){width:62px}.rr thead tr:first-child th:last-child{width:92px}.rr .mc{text-align:right}
 .rrc{display:grid;grid-template-columns:1.5fr .85fr 1.15fr;gap:10px;align-items:start}.rrc table{margin:0 0 6px}
 .cal th{background:#165A9C;color:#fff;font-size:10.5px;text-align:center;border-color:#165A9C}.cal th small{font-weight:400;opacity:.85}.cal th.sm{font-size:8.5px;font-weight:400;background:#1E6FBE}.cal td{font-size:10.6px;padding:3.5px 6px}.cal td small{color:#605E5C}.cal .sy{font-weight:700;white-space:nowrap;width:46px}.cal .vl{text-align:right;font-weight:700;background:#F5F8FC;white-space:nowrap;font-variant-numeric:tabular-nums}
 .cal.k td{text-align:center;padding:2.5px 4px;font-variant-numeric:tabular-nums}.cal.k td.u{background:#FFE58A;font-weight:700}.kn{font-size:9.6px;color:#605E5C;line-height:1.5}.cal tr.nd td{background:#EEF4FA}
-.res{margin-top:4px}.res th{background:#165A9C;color:#fff;font-size:12px;text-align:center;padding:6px;border-color:#165A9C}.res td{font-size:12.2px;font-weight:700;text-align:center;padding:6px}.res td.rb{background:#EEF4FA;color:#165A9C;width:18%;text-transform:uppercase}.res td.rv{width:14%;font-variant-numeric:tabular-nums}
+.res{margin-top:4px}.res th{background:#165A9C;color:#fff;font-size:12px;text-align:center;padding:5px;border-color:#165A9C}.res td{font-size:12.2px;font-weight:700;text-align:center;padding:5px}.res td.rb{background:#EEF4FA;color:#165A9C;width:18%;text-transform:uppercase}.res td.rv{width:14%;font-variant-numeric:tabular-nums}
 .land .crit{margin-top:4px}.land .obs{font-size:10.8px;line-height:1.55;margin-top:6px}.land .obs b{color:#165A9C}.land .sig{margin-top:26px}
+/* v66 — paginação determinística: cálculo/resultado/análise em páginas próprias,
+   fontes maiores, tabelas que esticam até o rodapé (zero espaço em branco), Q&A paginado */
+.pg.land.fill5,.pg.land.fill6,.pg.land.rrcP,.pg.land.anaP{display:flex;flex-direction:column}
+@media print{.pg.land.fill5,.pg.land.fill6,.pg.land.rrcP,.pg.land.anaP{height:186.5mm}}
+.pg.land.fill5 .sig,.pg.land.fill6 .sig{margin-top:auto;padding-top:24px}
+.pg.land.fill6 .res th{padding:9px;font-size:13.5px}.pg.land.fill6 .res td{padding:13px 8px;font-size:13.5px}
+.pg.land.fill6 .crit{font-size:11.6px;line-height:1.62}.pg.land.fill6 .obs{font-size:11.6px;line-height:1.62}
+.pg.land.rrcP .rrc{flex:1 1 auto;min-height:0;align-items:stretch}
+.pg.land.rrcP .rrc>div{display:flex;flex-direction:column;min-height:0}
+.pg.land.rrcP .rrc>div>table{flex:1 1 auto;margin:0 0 6px}
+.pg.land.rrcP .cal td{font-size:11.6px;padding:5px 7px}.pg.land.rrcP .cal th{font-size:11px}
+.pg.land.rrcP .cal.k td{font-size:11px;padding:3.5px 4px}
+.pg.land.rrcP .crit{margin-top:8px;font-size:11.6px;line-height:1.62}
+.pg.land.anaP .ana{flex:1 1 auto}.pg.land.anaP .ana p{font-size:12.2px;line-height:1.65;margin:5px 0}.pg.land.anaP .ana .at{font-size:12px;margin-bottom:6px}
+.pg.land.anaP .ana .verd{font-size:13.5px}
+.hd2{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #165A9C;padding-bottom:5px;margin-bottom:9px}
+.hd2 small{color:#605E5C;font-size:11px}.hd2 b{font:700 13px 'Segoe UI',Arial;color:#165A9C}
+.linSide .cal td{font-size:10.8px;padding:4px 6px}
 /* v63 — documento inteiro em A4 PAISAGEM: um único @page (o padrão acima) governa todas as páginas;
    .land segue apenas como classe de estilo */
 @media screen{.pg.land{width:297mm;min-height:210mm;padding:10mm}}
@@ -3107,16 +3178,12 @@ h3 small{font:400 11px 'Segoe UI',Arial;color:#605E5C}
 .dt.a.f10 td{font-size:10.5px}.dt.a.f9 td{font-size:10px}.dt.a.f8 td{font-size:9.5px}.dt.a.f7 td{font-size:9px}.dt.a.f6 td{font-size:8.6px}
 .dt.a.f10 th,.dt.a.f9 th{font-size:9.2px}.dt.a.f8 th,.dt.a.f7 th{font-size:9px}.dt.a.f6 th{font-size:8.5px}
 @media screen{.pg.land.fill{height:210mm}}
-@media print{.pg.land.fill{height:auto;min-height:186.5mm}}
+@media print{.pg.land.fill{height:186.5mm}}
 /* ---- R&R variável: tabela preenchendo a página + linhas/fonte maiores (sem espaço em branco) ---- */
 .pg.land.fill .fillT{flex:1 1 auto;min-height:0}
 .pg.land.fill .fillT>table{height:100%;margin:2px 0 0}
-/* v65 — pág. 1 (R&R variável etc.): height:100% não resolve com o pai de altura 'auto' na impressão (sobrava ~40% em branco).
-   Solução: fillT vira coluna flex e a tabela cresce (flex:1) — mesmo padrão da pág. de cálculos (fill4) */
-.pg.land.fill>.fillT{display:flex;flex-direction:column}
-.pg.land.fill>.fillT>table{flex:1 1 auto;height:auto;margin:2px 0 0}
-.pg.land.fill .dt.rr td{font-size:11.3px;padding:4.5px 6px}
-.pg.land.fill .dt.rr th{font-size:11px;padding:5px 6px}
+.pg.land.fill .dt.rr td{font-size:10.7px;padding:3.6px 5px}
+.pg.land.fill .dt.rr th{font-size:10.4px;padding:4px 5px}
 .pg.land.fill .dt.rr .vt{font-size:11.5px}
 .pg.land.fill .dt.rr sub{font-size:9px}
 .pg.land.fill .rr th.opn0{width:34px}
@@ -3181,9 +3248,6 @@ h3 small{font:400 11px 'Segoe UI',Arial;color:#605E5C}
 .pg.pf2 .dt td,.pg.pf2 .dt th{font-size:9.2px!important;padding:2px 2.5px!important}.pg.pf2 .cal td{font-size:9.2px!important;padding:2px 5px!important}.pg.pf2 .cb img{height:47mm!important}.pg.pf2 .res td{padding:3px 6px!important}.pg.pf2 .info td{padding:1.5px 4px!important}.pg.pf2 .ana p{font-size:8.8px!important}.pg.pf2 h3{font-size:10.5px!important;margin:5px 0 2px!important}
 .pg.pf3 .dt td,.pg.pf3 .dt th{font-size:8.6px!important;padding:1.6px 2px!important}.pg.pf3 .cal td{font-size:8.6px!important;padding:1.6px 4px!important}.pg.pf3 .cb img{height:41mm!important}.pg.pf3 .info td{font-size:9px!important;padding:1.2px 3px!important}.pg.pf3 .ana p{font-size:8.4px!important}.pg.pf3 .crit{font-size:8.8px!important}.pg.pf3 h3{font-size:10px!important;margin:4px 0 2px!important}.pg.pf3 .res td{padding:2.5px 5px!important;font-size:9.5px!important}
 .pg.pf4 .dt td,.pg.pf4 .dt th{font-size:8px!important;padding:1.2px 1.6px!important}.pg.pf4 .cal td{font-size:8px!important;padding:1.2px 3px!important}.pg.pf4 .cb img{height:36mm!important}.pg.pf4 .info td{font-size:8.4px!important;padding:1px 3px!important}.pg.pf4 .ana p{font-size:8px!important}.pg.pf4 .crit{font-size:8.4px!important}.pg.pf4 h3{font-size:9.5px!important;margin:3px 0 1px!important}.pg.pf4 .sig{margin-top:5px!important}.pg.pf4 .sig div{min-height:22px!important}.pg.pf4 .hd{margin-bottom:4px!important;padding-bottom:3px!important}
-/* v65 — última página do estudo: assinaturas coladas no fim da folha */
-.pg.lastpg:not(.annex){display:flex;flex-direction:column;min-height:186.5mm}
-.pg.lastpg:not(.annex)>.sig{margin-top:auto!important;flex:0 0 auto}
 }`
 
 function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
@@ -3215,7 +3279,7 @@ function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
 const SIMBAN='';/* v39: selo de dados simulados removido dos relatórios impressos */
-const sigBlock=(s,sig)=>`<!--SIG--><div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div><!--/SIG-->`;
+const sigBlock=(s,sig)=>`<div class="sig"><div>Executado por<br><b>${esc(s.responsavel)}</b></div><div>Verificado por${sig&&sig.v?`<br><b>${esc(sig.v)}</b>`:''}</div><div>Aprovado por${sig&&sig.a?`<br><b>${esc(sig.a)}</b>`:''}</div></div>`;
 function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),f=v=>fsig(v,dp),pc=v=>ok(v)?pct(v,2):'—',i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
   const adq=(v,a,b)=>!ok(v)?['—','Incompleto']:v<=a?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:v<=b?['SISTEMA CONDICIONAL','Condicional']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
   const rv=adq(m['%GRR (VT)'],C.grrOk,C.grrCond),rt=adq(m['%GRR (Tol)'],C.grrOk,C.grrCond),rn=m.ndc>=C.ndcMin?['SISTEMA DE MEDIÇÃO ADEQUADO','Aprovado']:['SISTEMA DE MEDIÇÃO NÃO ADEQUADO','Reprovado'];
@@ -3228,12 +3292,13 @@ function reportRR(s,R,sig){const m=R.m,X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.t
   const vr=[['%VE','Repetibilidade (equipamento)',m['%EV'],X.EVt],['%VO','Reprodutibilidade (operador)',m['%AV'],X.AVt],['%R&amp;R','Repetib. + Reprodutib.',m['%GRR (VT)'],X.GRRt],['%VP','Variação da peça',m['%PV'],X.PVt]];
   return`<div class="pg land fill">${hd('')}${info}${ban}<h3>Dados de medição <small>(${un||'valores'} · ${dp} ${dp===1?'casa decimal':'casas decimais'})</small></h3><div class="fillT">${dataTable(s)}</div></div>
   <div class="pg land fill3">${hd(' — gráficos')}${info}${rrCharts(s,R)}</div>
-  <div class="pg land fill4">${hd(' — cálculos e resultado')}<div class="rrc"><div><table class="cal"><thead><tr><th colspan="3">Cálculos</th></tr></thead><tbody>
+  <div class="pg land rrcP">${hd(' — cálculos')}<div class="rrc"><div><table class="cal"><thead><tr><th colspan="3">Cálculos</th></tr></thead><tbody>
   ${X.metodo==='anova'?anovaCr(X,m,f,cr):`${cr('R̿','(R̄<sub>a</sub> + R̄<sub>b</sub> + R̄<sub>c</sub>) / nº operadores',f(m['R̄̄']))}${cr('X̄<sub>DIFF</sub>','máx(X̄) − mín(X̄)',f(m['X diff']))}${cr('LSC<sub>R</sub>','R̿ × D<sub>4</sub>',f(m['LSC R']))}
   ${cr('VE','R̿ × K<sub>1</sub> — repetibilidade',f(m.EV))}${cr('VO','√[(X̄<sub>DIFF</sub> × K<sub>2</sub>)² − VE²/(n·r)] — reprodutibilidade',f(m.AV))}${cr('R&amp;R','√(VE² + VO²)',f(m.GRR))}
   ${cr('R<sub>p</sub>','máx(X̄ peça) − mín(X̄ peça)',f(m.Rp))}${cr('VP','R<sub>p</sub> × K<sub>3</sub> — variação da peça',f(m.PV))}${cr('VT','√(R&amp;R² + VP²) — variação total',f(m.TV))}${cr('ndc','1,41 × VP / R&amp;R',ok(m.ndc)?m.ndc:'∞')}`}</tbody></table></div>
   <div>${X.metodo==='anova'?anovaTbl(X.an,'cal')+'<div style="height:6px"></div>'+anovaVarTbl(X.an,s,'cal','',X.kEff):kt}</div>
-  <div><table class="cal"><thead><tr><th rowspan="2">Variação</th><th>% Var. total</th><th>% Tolerância</th></tr><tr><th class="sm">sobre VT</th><th class="sm">${esc(String(X.kEff||C.k||6)).replace('.',',')}σ / (LSE − LIE)</th></tr></thead><tbody>${vr.map(r=>`<tr><td><b>${r[0]}</b><br><small>${r[1]}</small></td><td class="vl">${pc(r[2])}</td><td class="vl">${pc(r[3])}</td></tr>`).join('')}<tr class="nd"><td><b>ndc</b><br><small>nº de categorias distintas</small></td><td class="vl" colspan="2">${ok(m.ndc)?m.ndc:'∞'}</td></tr></tbody></table></div></div>
+  <div><table class="cal"><thead><tr><th rowspan="2">Variação</th><th>% Var. total</th><th>% Tolerância</th></tr><tr><th class="sm">sobre VT</th><th class="sm">${esc(String(X.kEff||C.k||6)).replace('.',',')}σ / (LSE − LIE)</th></tr></thead><tbody>${vr.map(r=>`<tr><td><b>${r[0]}</b><br><small>${r[1]}</small></td><td class="vl">${pc(r[2])}</td><td class="vl">${pc(r[3])}</td></tr>`).join('')}<tr class="nd"><td><b>ndc</b><br><small>nº de categorias distintas</small></td><td class="vl" colspan="2">${ok(m.ndc)?m.ndc:'∞'}</td></tr></tbody></table></div></div></div>
+  <div class="pg land fill6">${hd(' — resultado e conclusão')}
   <table class="res"><thead><tr><th colspan="3">RESULTADO DA ANÁLISE — ${rrNome(X.metodo)} · ${String(X.kEff||6).replace('.',',')}σ${X.origemEstudo?' (definido no estudo)':''}</th></tr></thead><tbody><tr><td class="rb">Variação total</td><td class="rv">${pc(m['%GRR (VT)'])}</td><td class="${rv[1]}">${rv[0]}</td></tr><tr><td class="rb">Tolerância</td><td class="rv">${pc(m['%GRR (Tol)'])}</td><td class="${rt[1]}">${rt[0]}</td></tr><tr><td class="rb">ndc</td><td class="rv">${ok(m.ndc)?m.ndc:'∞'}</td><td class="${rn[1]}">${rn[0]}</td></tr></tbody></table>
   <div class="crit">${criteria(s.tipo)}</div>${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   ${sigBlock(s,sig)}</div>`}
@@ -3269,7 +3334,8 @@ function reportEst(s,R,sig){const X=R.ser,d=s.dados,n=d.n,g=d.g,dp=decimalPlaces
   const cc=chartCfgs(s,R);
   const charts2=cc.length===2?`<div class="rch2">${cbE(cc[0].t+' — médias por amostra',cc[0].c,'t72')}${cbE(cc[1].t+' — amplitudes por amostra',cc[1].c,'t72')}</div>`:cc.map(c2=>cbE(c2.t,c2.c,'wide')).join('');
   return`<div class="pg land fill">${hd('')}${info}${ban}<h3>Amostras medidas <small>· ${g} amostras × ${n} medições · ${dp} ${dp===1?'casa decimal':'casas decimais'}${hasDH?'':' · registre data e hora de cada amostra no editor, se desejar'}</small></h3>${g<=28?`<div class="fillT">${estTable(s,R)}</div>`:estTable(s,R)}
-  <div class="rrc estK">${kt}${kc}${ana}</div><div class="crit">${criteria('est')}</div></div>
+  </div>
+  <div class="pg land rrcP">${hd(' — cálculos e análise')}<div class="rrc estK">${kt}${kc}${ana}</div><div class="crit">${criteria('est')}</div></div>
   <div class="pg land fill2">${hd(' — cartas de controle')}${info}${charts2}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}
   ${sigBlock(s,sig)}</div>`}
 function reportAtr(s,R,sig){const X=R.ser,d=s.dados,O=d.ops,P=d.parts,T=d.trials,dp=decimalPlaces(s),i=instrDisp(s),C=S.cfg,un=esc(s.unidade||'');
@@ -3355,9 +3421,10 @@ function reportLin(s,R,sig){const X=R.ser,d=s.dados,g=d.g,m=d.m,dp=decimalPlaces
   const ccL=chartCfgs(s,R);
   return`<div class="pg land fill">${hd('')}${info}${ban}
   <div class="linMain"><div><h3>Folha de dados <small>· ${g} amostras × ${m} medições · ${dp} ${dp===1?'casa decimal':'casas decimais'} · deslocamento = média − referência</small></h3><div class="fillT">${sheet}</div></div>
-  <div class="linSide">${kt}${hyp}${ana}</div></div></div>
-  <div class="pg land fill5">${hd(' — intervalos de confiança e análise gráfica')}${info}${ban}
-  <div class="linBody"><div>${ciT?`<h3>Intervalos de confiança</h3>${ciT}`:''}${resG}${resT}<div class="crit">${criteria('lin')}</div></div>
+  <div class="linSide">${kt}</div></div></div>
+  <div class="pg land anaP">${hd(' — hipóteses, intervalos e análise')}${hyp}${ana}${ciT?`<div style="margin-top:10px" class="anaPci">${ciT}</div>`:''}</div>
+  <div class="pg land fill5">${hd(' — resultado e análise gráfica')}${info}${ban}
+  <div class="linBody"><div>${resG}${resT}<div class="crit">${criteria('lin')}</div></div>
   <div>${ccL.length?cbG('LINEARIDADE — ANÁLISE GRÁFICA (bias × referência)',ccL[0].c):''}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}</div></div>
   ${sigBlock(s,sig)}</div>`}
 /* ---- Tendência (Bias) híbrido v44 — relatório paisagem em 2 páginas, mesmo padrão/cores dos outros estudos (sem espaço em branco) + formato da planilha ESTUDO DE TENDÊNCIA ---- */
@@ -3398,17 +3465,14 @@ function reportTend(s,R,sig){const X=R.ser,dp=decimalPlaces(s),i=instrDisp(s),C=
   const cbG=(t,cfg)=>{cfg.options=cfg.options||{};cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:40,left:6,right:10});cfg.plugins=[...(cfg.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c:cfg},760,560,14)}" alt="${esc(t)}"></div>`};
   return`<div class="pg land fill">${hd('')}${info}${ban}
   <div class="linMain"><div><h3>Folha de dados <small>· ${X.n} medições · tendência = valor − referência · ${dp} ${dp===1?'casa decimal':'casas decimais'}</small></h3><div class="fillT">${sheet}</div></div>
-  <div class="linSide">${stats}${icBox}${ana}</div></div></div>
+  <div class="linSide">${stats}${icBox}</div></div></div>
+  <div class="pg land anaP">${hd(' — análise do estudo')}${ana}</div>
   <div class="pg land fill5">${hd(' — análise gráfica e resultado')}${info}${ban}
   <div class="linBody"><div>${resG}${resT}<div class="crit">${criteria('bias')}</div></div>
   <div>${cbG('HISTOGRAMA DAS LEITURAS',histCfg)}${s.obs?`<div class="obs"><b>Observações / ações</b><div>${esc(s.obs).replace(/\n/g,'<br>')}</div></div>`:''}</div></div>
   ${sigBlock(s,sig)}</div>`}
 /* v54: página anexo com a justificativa para o auditor (perguntas e respostas) — pode ser desativada em Configurações */
-/* v65 — assinaturas SOMENTE na última página do estudo (após o anexo, se houver), no fim da folha */
-function sigLastOnly(h,s,sig){const re=/<!--SIG-->[\s\S]*?<!--\/SIG-->/g,n=(h.match(re)||[]).length;if(!n)return h;let k=0;
-  h=h.replace(re,()=>++k===n?sigBlock(s,sig):'');
-  const key='<div class="pg ',i=h.lastIndexOf(key);if(i>=0)h=h.slice(0,i)+'<div class="pg lastpg '+h.slice(i+key.length);return h}
-function reportPage(s,sig){let all=reportPageCore(s,sig);if(S.cfg.justRel!==false){try{const R=s.resultado;if(R&&R.status!=='Incompleto'){const jp=justPageHTML(s,R,true);if(jp)all+=jp}}catch(e){}}return sigLastOnly(all,s,sig)}
+function reportPage(s,sig){const base=reportPageCore(s,sig);if(S.cfg.justRel===false)return base;try{const R=s.resultado;if(!R||R.status==='Incompleto')return base;const jp=justPageHTML(s,R,true);return jp?base+jp:base}catch(e){return base}}
 function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);if(s.tipo==='bias'&&R.ser)return reportTend(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrDisp(s);
   return`<div class="pg land"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· Res. '+esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr></table>
@@ -3417,10 +3481,8 @@ function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R
   ${imgs?`<div class="charts">${imgs}</div>`:''}<h3>Dados de medição</h3>${dataTable(s).replace(/<table class="dt"><tr>(.*?)<\/tr>/g,'<table class="dt"><thead><tr>$1</tr></thead>')}<div class="crit">${criteria(s.tipo)}</div>${s.obs?`<h3>Observações / ações</h3><div class="obs">${esc(s.obs).replace(/\n/g,'<br>')}</div>`:''}
   ${sigBlock(s,sig)}<div class="ft">MSA Pro · Metodologia AIAG MSA 4ª edição</div></div>`}
 function openWin(title,body){const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir','fa-triangle-exclamation');return}
-  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>function fitPages(){try{var L=710,pgs=document.querySelectorAll("div.pg");for(var i=0;i<pgs.length;i++){var pg=pgs[i];if(/\bfill2\b|\bfill3\b/.test(pg.className))continue;var lv=0;pg.classList.add("meas");var h=pg.scrollHeight;pg.classList.remove("meas");while(h>L&&lv<4){lv++;pg.classList.add("pf"+lv);pg.classList.add("meas");h=pg.scrollHeight;pg.classList.remove("meas")}}}catch(e){}}function pinSig(){try{var P=190/25.4*96,pgs=document.querySelectorAll("div.pg.annex.lastpg");for(var i=0;i<pgs.length;i++){var pg=pgs[i],sg=pg.querySelector(".sig");if(!sg)continue;pg.classList.add("meas");sg.style.marginTop="0px";var t0=pg.getBoundingClientRect().top,u=[],ch=pg.children,j,k;for(j=0;j<ch.length;j++){var c=ch[j];if(c===sg)continue;if(c.classList.contains("qa")){for(k=0;k<c.children.length;k++)u.push(c.children[k])}else u.push(c)}var st=0,end=0;for(j=0;j<u.length;j++){var r=u[j].getBoundingClientRect(),tp=r.top-t0,bt=r.bottom-t0;if(bt-st>P)st=tp;end=bt}var hs=sg.getBoundingClientRect().height,m=P-(end-st)-hs-14;pg.classList.remove("meas");sg.style.setProperty("margin-top",(m>20?m:20)+"px","important")}}catch(e){}}<\/script><script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{fitPages();pinSig();print()},400))}<\/script></body></html>`);w.document.close()}
-/* v65 — Imprimir do editor NÃO salva: imprime uma cópia do estudo em edição (draft) */
-function printEdit(){const s=V.edit;if(!s)return;const d=JSON.parse(JSON.stringify(s));d.resultado=calc(d);printStudies(null,d)}
-function printStudies(ids,draft){const L=draft?[draft]:ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"><style>${RPT_CSS}</style></head><body><div class="np"><span style="display:inline-block;background:#fff;border:1px solid #C9D6E2;border-radius:6px;padding:10px 12px;font:600 12px 'Segoe UI',Arial;color:#165A9C;margin-right:8px;vertical-align:top">Papel: A4 · Orientação: PAISAGEM</span><button onclick="print()">🖨 Imprimir / Salvar PDF</button></div>${body}<script>function fitPages(){try{var L=700,pgs=document.querySelectorAll("div.pg");for(var i=0;i<pgs.length;i++){var pg=pgs[i];if(/(fill2|fill3|at2)/.test(pg.className))continue;var lv=0;pg.classList.add("meas");var h=pg.scrollHeight;pg.classList.remove("meas");while(h>L&&lv<4){lv++;pg.classList.add("pf"+lv);pg.classList.add("meas");h=pg.scrollHeight;pg.classList.remove("meas")}}}catch(e){}}<\/script><script>window.onload=()=>{(document.fonts?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{fitPages();print()},400))}<\/script></body></html>`);w.document.close()}
+function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
   modal(`<div class="mh"><h3>Assinaturas do relatório</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">
   <label class="l">Verificado por</label><input class="f" id="sigV" value="${esc(S.cfg.verificadoPor||'')}" placeholder="Nome de quem verificou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
   <label class="l" style="margin-top:10px">Aprovado por</label><input class="f" id="sigA" value="${esc(S.cfg.aprovadoPor||'')}" placeholder="Nome de quem aprovou" onkeydown="if(event.key==='Enter')document.getElementById('sigGo').click()">
@@ -3433,7 +3495,7 @@ function printSummary(){const L=dashSet().sort((a,b)=>(b.data||'').localeCompare
   const tk=Object.keys(TYPES);const img2=chartImg({c:{type:'bar',data:{labels:tk.map(t=>TYPES[t].n),datasets:STATUS.map(x=>({label:x,data:tk.map(t=>L.filter(s=>s.tipo===t&&(s.resultado?.status||'Incompleto')===x).length),backgroundColor:SCOL[x]}))},options:{scales:{x:{stacked:true},y:{stacked:true}}}}});
   openWin('Relatório gerencial MSA',`<div class="pg land"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório gerencial MSA</h1></div><small>${{30:'Últimos 30 dias',90:'Últimos 90 dias',365:'Últimos 12 meses',0:'Todo o período'}[V.dash.periodo]}${V.dash.area?' · '+esc(V.dash.area):''} · ${new Date().toLocaleString('pt-BR')}</small></div>
   <div class="mt"><div><span>Total</span><b>${L.length}</b></div><div><span>Aprovados</span><b style="color:#107C10">${st[0]}</b></div><div><span>Condicionais</span><b style="color:#B54708">${st[1]}</b></div><div><span>Reprovados</span><b style="color:#D13438">${st[2]}</b></div><div><span>Incompletos</span><b>${st[3]}</b></div></div>
-   <div class="charts"><img src="${img}"><img src="${img2}"></div><h3>Estudos</h3><table><thead><tr><th>Código</th><th>Tipo</th><th>Peça / Característica</th><th>Instrumento</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Status</th></tr></thead>${L.map(s=>`<tr><td><b>${esc(s.codigo)}</b></td><td>${TYPES[s.tipo].n}</td><td>${esc(s.nome)} ${esc(s.caracteristica)}</td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel)}</td><td>${esc(s.resultado?.chave)}</td><td class="${s.resultado?.status}">${s.resultado?.status}</td></tr>`).join('')}</table><div class="ft">MSA Pro</div></div>`)}
+   <div class="charts"><img src="${img}"><img src="${img2}"></div></div><div class="pg land"><h3 style="margin-top:2px">Estudos</h3><table><thead><tr><th>Código</th><th>Tipo</th><th>Peça / Característica</th><th>Instrumento</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Status</th></tr></thead>${L.map(s=>`<tr><td><b>${esc(s.codigo)}</b></td><td>${TYPES[s.tipo].n}</td><td>${esc(s.nome)} ${esc(s.caracteristica)}</td><td>${esc(instrName(s))}</td><td>${fdate(s.data)}</td><td>${esc(s.responsavel)}</td><td>${esc(s.resultado?.chave)}</td><td class="${s.resultado?.status}">${s.resultado?.status}</td></tr>`).join('')}</table><div class="ft">MSA Pro</div></div>`)}
 
 /* ---------------- modais ---------------- */
 function modal(h){$('#modal').innerHTML=h;$('#ov').classList.add('show')}
