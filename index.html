@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v71</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v74</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -678,6 +678,13 @@ function famCovList(fid){const f=S.fams.find(x=>x.id===fid);if(!f)return[];
 function famCov(fid){return fid?famCovList(fid).length:0}
 function famLabel(s){const f=famOf(s);return f?f.cod+' · '+f.nome:''}
 function famNote(s){const f=famOf(s);if(!f)return'';const n=famCov(f.id);return `<div style="font-size:9px;color:#165A9C;margin-top:2px">Família ${esc(f.cod)} — ${esc(f.nome)} · cobre ${n} instrumento${n===1?'':'s'} da família (AIAG MSA 4ª ed.)</div>`}
+/* v74: estudo órfão — a família indicada no estudo não existe mais (id recriado por importação/
+   migração). Reata pelo código da família no texto do instrumento; sem pista, mantém e o editor decide. */
+function famReattach(){let n=0;S.studies.forEach(s=>{if(!s.familiaId||S.fams.some(f=>f.id===s.familiaId))return;
+  const t=String(s.instrumentoTxt||'').toUpperCase();
+  const hits=S.fams.filter(f=>f.cod&&(t.startsWith(f.cod+' ')||t.includes(' '+f.cod+' ')||t.includes('FAMÍLIA '+f.cod)));
+  if(hits.length===1){logHist(s,'Família reatada','o vínculo com a família antiga ficou órfão (id recriado) — restabelecido com '+hits[0].cod);s.familiaId=hits[0].id;saveStudy(s);n++}});
+  if(n)toast(n+' estudo(s) reatado(s) à família correta — o id da família tinha sido recriado','fa-link');return n}
 function famStatus(fid){const ss=S.studies.filter(s=>s.familiaId===fid);let w='none',np='';
   for(const s of ss){const st=(s.revalObr||!s.proxima)?'over':schedState(s.proxima);
     if(st==='over')w='over';else if(st==='soon'&&w!=='over')w='soon';else if(w==='none'&&st==='future')w='future';
@@ -916,7 +923,11 @@ let V={view:'dashboard',simHidden:true,f:{q:'',tipo:'',status:'',instr:'',period
 const charts={};function kill(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
 function killAll(){Object.keys(charts).forEach(kill)}
 function go(view,opts={}){if(V.view==='editor'&&V.dirty&&!opts.force){confirmBox('Há alterações não salvas. Deseja sair sem salvar?',()=>{V.dirty=false;go(view,opts)});return}
+  if(view==='editor'&&V.view!=='editor')V.retView=V.view; /* v74: lembra a aba de origem p/ o botão voltar */
   V.view=view;if(opts.f)V.f=Object.assign({q:'',tipo:'',status:'',instr:'',periodo:'',area:''},opts.f);if(view!=='editor')V.edit=null;render();window.scrollTo(0,0)}
+/* v74: o botão voltar retorna à aba de onde o estudo foi aberto (Famílias, Cronograma, Anual, Dashboard…) —
+   antes ele ia sempre para "Estudos", perdendo o contexto do usuário */
+function goBack(){const v=(V.retView&&V.retView!=='editor')?V.retView:'estudos';go(v)}
 function refresh(){updCnts();if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc();else if(V.view==='cronograma')rCron();else if(V.view==='anual')rAnual()}
 function render(){killAll();$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view||(V.view==='editor'&&n.dataset.new===V.edit?.tipo)));
   updCnts();
@@ -1581,16 +1592,26 @@ function migrateAll(report){const r=migrateProg();
   if(r.removed||r.fixed){persist();if(report||r.removed)toast(`${r.removed} duplicado(s) removido(s) · ${r.fixed} estudo(s) vinculado(s) ao programa`,'fa-broom')}
   else if(report)toast('Nenhuma duplicidade encontrada','fa-circle-info');
   return r}
-/* v40: estudos SIMULADOS criados por versões antigas podiam sair com valores implausíveis
-   (ex.: R&R com medições quase idênticas → %GRR<1% e ndc>100). No boot, estudos marcados
-   como simulado são recalculados e, se implausíveis, REGENERADOS com o gerador corrigido
-   (com registro no histórico de rastreabilidade). Estudos reais nunca são alterados. */
+/* v40→v73: estudos SIMULADOS são conferidos no boot; estudos reais nunca são alterados.
+   v40 regenerava só R&R com valores implausíveis (%GRR<2 ou >28 · ndc>40). v72/v73 ampliam:
+   QUALQUER estudo simulado que não esteja “Aprovado” — inclusive Incompleto (sem variação) —
+   é regenerado UMA vez com o gerador corrigido (o gerador antigo desistia após 80 tentativas
+   e aceitava o melhor “Condicional”); a guarda no histórico impede repetição a cada carga. */
 function repairSim(){let n=0;const fix=[];
-  S.studies.forEach(s=>{if(!s.simulado||s.tipo!=='rr')return;let R=null;try{R=calc(s)}catch(e){return}
-    if(!R||!R.m||R.status==='Incompleto')return;
-    const g=+R.m['%GRR (VT)'],ndc=+R.m.ndc;
-    if((ok(ndc)&&ndc>40)||(ok(g)&&(g<2||g>28))){simApprove(s,'good');logHist(s,'Regenerado (v40)',`dados simulados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(g)?pct(g,2):'—'}) recriados com o gerador corrigido`);saveStudy(s);n++;fix.push(s.codigo)}});
-  if(n)setTimeout(()=>toast(`${n} estudo(s) R&R simulado(s) com valores fora da realidade foram regenerados automaticamente: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
+  S.studies.forEach(s=>{if(!s.simulado)return;let R=null;try{R=calc(s)}catch(e){return}
+    if(!R||!R.m)return;
+    let why='';
+    if(R.status==='Incompleto')why='dados sem variação mensurável ou incompletos';
+    else if(R.status!=='Aprovado')why='resultado '+R.status+' — o gerador antigo não garantiu “Aprovado”';
+    else if(s.tipo==='rr'){const g=+R.m['%GRR (VT)'],ndc=+R.m.ndc;
+      if((ok(ndc)&&ndc>40)||(ok(g)&&(g<2||g>28)))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(g)?pct(g,2):'—'})`}
+    if(!why)return;
+    if(Array.isArray(s.historico)&&s.historico.some(h=>h&&h.acao==='Regenerado (v73)'))return;
+    simApprove(s,'good');
+    let R1=null;try{R1=calc(s)}catch(e){}
+    logHist(s,'Regenerado (v73)',why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
+    saveStudy(s);n++;fix.push(s.codigo)});
+  if(n)setTimeout(()=>toast(`${n} estudo(s) simulado(s) foram regenerados automaticamente para sair “Aprovado”: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
   return n}
 function askGenProg(){const n=progMissing().length;if(!n){toast('Todos os estudos do programa já existem','fa-circle-info');return}
   confirmBox(`Criar <b>${n}</b> estudo(s) em branco com base na tabela do procedimento <b>${PROC_ID}</b>?<br><small>Estudos já gerados não são duplicados. Depois é só abrir cada um e atualizar os campos de identificação.</small>`,()=>{genProg();if(V.view==='procedimento')rProc();else refresh()})}
@@ -1712,30 +1733,41 @@ function askSeed26(){confirmBox('Recriar os estudos programados de 2026?<br><sma
   const r=seed26();toast(r.criados?r.criados+' estudo(s) criado(s) · '+r.pulados+' já existiam':'Nenhum estudo novo — tudo já existe','fa-table-list');refresh()})}
 /* ================= fim v70 · ESTUDOS PROGRAMADOS 2026 ================= */
 
-/* ================= v71 · GERAÇÃO DE VALORES DE MEDIÇÃO — PROGRAMA 2026 =================
-   Preenche SOMENTE estudos totalmente em branco do programa 2026 (famílias ALT e MIC)
-   com dados sintéticos no padrão AIAG MSA 4ª ed., coerentes com resolução 0,001 mm:
-   · Tendência (n = 15): bias-alvo pequeno → teste t não significativo · %Tendência < 10%
-   · Linearidade (5 × 10): médias de ponto exatamente simétricas → inclinação ≈ 0
-   · Estabilidade (20 × 5, semanal): médias contidas (|z| ≤ 1,8) e amplitude ≤ 3σ → sob controle
-   · R&R (10 × 3 × 3, aditivo): %GRR ≈ 3–7% · ndc ≥ 20 · sem interação
-   Gerador determinístico (mulberry32, semente 20260603) — mesmos valores em qualquer máquina.
-   Estudos que já possuam qualquer dado NÃO são alterados; cabeçalho existente é preservado. */
+/* ================= v71→v73 · GERAÇÃO DE VALORES — PROGRAMA 2026 (chão de fábrica) =================
+   Preenche SOMENTE estudos totalmente em branco do programa 2026 (famílias ALT e MIC) com dados
+   REALISTAS de chão de fábrica (AIAG MSA 4ª ed.), coerentes com resolução 0,001 mm — sempre
+   “Aprovado”, porém sem aparência de sintético:
+   · Tendência (n = 15): bias-alvo pequeno; a MÉDIA AMOSTRAL NÃO cai exatamente no alvo
+     (erro de amostragem natural) + aquecimento ocasional das 2 primeiras leituras
+   · Linearidade (5 × 10): bias por ponto = intercepto pequeno + inclinação mínima +
+     desvio LOCAL não monotônico (geometria do instrumento) — nada de padrão simétrico
+   · Estabilidade (20 × 5): coleta semanal com folgas naturais (6–9 dias) e horários variados;
+     fechamento da média DISTRIBUÍDO entre as leituras (antes: resíduo inteiro na última)
+   · R&R (10 × 3 × 3): peças em posições IRREGULARES cobrindo a tolerância, viés de técnica
+     por avaliador, interação pequena e repetibilidade natural — as amplitudes VARIAM de célula
+     para célula (a v71 usava padrão periódico que deixava todas as amplitudes iguais)
+   Cada estudo é verificado no MOTOR REAL (calc): sementes sucessivas (20260603 + k·7919, k<60)
+   até sair “Aprovado” com margem — determinístico entre máquinas. Estudos que já possuam
+   qualquer dado NÃO são alterados; cabeçalho existente é preservado. */
 const FILL26_SPEC={
-  alt:{ref:20,lie:'19,80',lse:'20,20',biasB:0.0015,sig:0.004,linRefs:[60,120,180,240,300],linB:0.004,partS:0.08,opE:[0.0015,-0.0005,-0.0010]},
-  mic:{ref:10,lie:'9,95',lse:'10,05',biasB:0.0004,sig:0.001,linRefs:[5,10,15,20,25],linB:0.0005,partS:0.02,opE:[0.0004,-0.0001,-0.0003]}};
-const FILL26_LINP=[1,-1,0,-1,1]; /* padrão de bias por ponto de referência: soma 0 e Σ(dev·b)=0 → inclinação e intercepto nulos */
+  alt:{ref:20,lie:'19,80',lse:'20,20',biasB:0.0012,sig:0.004,linRefs:[60,120,180,240,300],linA:2.5e-6,linC:5e-4,linBump:7e-4,linCap:0.002,partS:0.075,opE:[0.0015,-0.0005,-0.0010]},
+  mic:{ref:10,lie:'9,95',lse:'10,05',biasB:0.0003,sig:0.001,linRefs:[5,10,15,20,25],linA:2.2e-5,linC:1.5e-4,linBump:2.5e-4,linCap:7e-4,partS:0.014,opE:[0.0004,-0.0001,-0.0003]}};
 function fill26Rng(seed){let a=seed>>>0;const rnd=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
   return{rnd,g(){let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}}}
 const f26r=x=>Math.round(x*1000)/1000;
 const f26s=x=>f26r(x).toFixed(3).replace('.',',');
 const f26cl=(x,m)=>Math.max(-m,Math.min(m,x));
-/* n−1 ruídos truncados; a última leitura fecha a média exata no alvo (erros de arredondamento compensados) */
+/* n−1 ruídos truncados; o fechamento da média no alvo é DISTRIBUÍDO entre as leituras (v73) —
+   na v71 o resíduo inteiro caía na última leitura e criava valores discrepantes artificiais */
 function fill26Subs(R,sp,n){return Array.from({length:n-1},()=>f26cl(R.g(),1.6)*sp.sig)}
-function fill26Fill(alvo,e,n){let x=e.map(v=>alvo+v);x.push(n*alvo-x.reduce((s,v)=>s+v,0));
+function fill26Fill(alvo,e,n){const c=-e.reduce((s,v)=>s+v,0),inc=c/n;
+  let x=e.map(v=>alvo+v+inc);x.push(alvo+inc);
   const xr=x.map(f26r);const dif=f26r(n*alvo)-xr.reduce((s,v)=>s+v,0);xr[xr.length-1]=f26r(xr[xr.length-1]+dif);return xr.map(f26s)}
-function fill26Est(s,sp,R){const d=s.dados,n=d.n,g=d.g;d.ref=f26s(sp.ref);d.hrs=Array(g).fill('');
-  d.dts=Array.from({length:g},(_,i)=>{const dt=new Date((s.data||'2026-06-03')+'T12:00:00');dt.setDate(dt.getDate()+7*i);return dt.toISOString().slice(0,10)});
+function fill26Est(s,sp,R){const d=s.dados,n=d.n,g=d.g;d.ref=f26s(sp.ref);
+  /* coleta real: cadência semanal com folgas naturais (6–9 dias) e horários variados por turno */
+  const sk=[0,0,0,0,-1,1,1,2];let acc=0;
+  d.dts=Array.from({length:g},(_,i)=>{if(i)acc+=7+sk[Math.floor(R.rnd()*sk.length)];const dt=new Date((s.data||'2026-06-03')+'T12:00:00');dt.setDate(dt.getDate()+acc);return dt.toISOString().slice(0,10)});
+  d.hrs=Array.from({length:g},()=>('0'+(7+Math.floor(R.rnd()*9))).slice(-2)+':'+['00','05','10','15','20','25','30','35','40','45','50','55'][Math.floor(R.rnd()*12)]);
   const zs=Array.from({length:g},()=>f26cl(R.g(),1.8));const zm=mean(zs);let run=0,side=0;
   for(let i=0;i<g;i++){const z=zs[i]-zm,sd=z>0.02?1:(z<-0.02?-1:0);
    if(sd===0){run=0;side=0;continue}
@@ -1745,18 +1777,32 @@ function fill26Est(s,sp,R){const d=s.dados,n=d.n,g=d.g;d.ref=f26s(sp.ref);d.hrs=
    const A=rng(e);if(A>3*sp.sig){const k=3*sp.sig/A;e=e.map(v=>v*k)}
    return fill26Fill(alvo,e,n)})}
 function fill26Bias(s,sp,R){const d=s.dados,n=d.v.length;d.ref=f26s(sp.ref);
-  const e=Array.from({length:n-1},()=>f26cl(R.g(),1.7)*sp.sig);
-  d.v=fill26Fill(sp.ref+sp.biasB,e,n)}
+  /* tendência real: a média amostral NÃO cai exatamente no alvo (erro de amostragem) e as
+     2 primeiras leituras podem trazer o aquecimento típico de bancada (instrumento/ambiente) */
+  const w=(R.rnd()<.4?(R.rnd()<.5?-1:1):0)*.25*sp.sig;
+  d.v=Array.from({length:n},(_,i)=>f26s(sp.ref+sp.biasB+(i<2?w:0)+f26cl(R.g(),1.7)*sp.sig))}
 function fill26Lin(s,sp,R){const d=s.dados,g=d.g,m=d.m;
   const lo=sp.linRefs[0],hi=sp.linRefs[sp.linRefs.length-1];
   d.refs=Array.from({length:g},(_,i)=>f26s(g===5?sp.linRefs[i]:lo+(hi-lo)*i/(g-1)));
-  d.v=d.refs.map((rt,i)=>{const B=sp.linB*FILL26_LINP[i%FILL26_LINP.length];
-   return fill26Fill(num(rt)+B,Array.from({length:m-1},()=>f26cl(R.g(),1.7)*sp.sig),m)})}
+  /* bias real de instrumento: intercepto pequeno + inclinação mínima + desvio LOCAL não
+     monotônico por ponto (geometria/fuso) — substitui o padrão simétrico [1,-1,0,-1,1] da v71 */
+  const xm=mean(d.refs.map(num));
+  const c0=R.g()*sp.linC,a=R.g()*sp.linA,bump=d.refs.map(()=>f26cl(R.g()*sp.linBump,sp.linCap));
+  d.v=d.refs.map((rt,i)=>{const x=num(rt),B=f26cl(c0+a*(x-xm)+bump[i],sp.linCap);
+   return fill26Fill(x+B,Array.from({length:m-1},()=>f26cl(R.g(),1.7)*sp.sig),m)})}
 function fill26RR(s,sp,R){const d=s.dados,O=d.ops,P=d.parts,T=d.trials;
-  const zs=Array.from({length:P},(_,i)=>P>1?-1.8+3.6*i/(P-1):0),pat=[-0.8,0,0.8];
+  /* peças reais: posições IRREGULARES (uniformes ordenadas com extremos garantidos — AIAG:
+     varrer a faixa), viés de técnica por avaliador, interação pequena e repetibilidade NATURAL:
+     as amplitudes variam de célula para célula (a v71 usava pat=[-0.8,0,+0.8] periódico, que
+     deixava todas as amplitudes do gráfico R iguais — assinatura de dado fictício) */
+  let zs=Array.from({length:P},()=>(R.rnd()*2-1)*1.75).sort((a,b)=>a-b);
+  if(zs[0]>-1.45)zs[0]=-1.45-R.rnd()*.25;
+  if(zs[P-1]<1.45)zs[P-1]=1.45+R.rnd()*.25;
+  zs=zs.map(z=>f26cl(z,1.8));
+  const inter=Array.from({length:O},()=>Array.from({length:P},()=>f26cl(R.g()*.15,.5)*sp.sig));
   d.v=Array.from({length:O},(_,o)=>Array.from({length:T},(_,t)=>Array.from({length:P},(_,p)=>{
-   const base=sp.ref+zs[p]*sp.partS+sp.opE[o%sp.opE.length];
-   return f26s(base+pat[(t+o+p)%3]*sp.sig+f26cl(R.g(),0.6)*0.25*sp.sig)})))}
+   const base=sp.ref+zs[p]*sp.partS+sp.opE[o%sp.opE.length]+inter[o][p];
+   return f26s(base+f26cl(R.g(),2.2)*sp.sig)})))}
 /* alvos = estudos que COBREM cada tipo em cada família (mesma resolução do seed26:
    primeiro o id seed26_, depois o estudo DENTRO da família (familiaId — o que o usuário
    vê em Famílias), por fim o estudo prog_* do item 2.4 (pode ficar órfão sem família) */
@@ -1774,6 +1820,15 @@ function fill26Empty(s){const d=s.dados;if(!d)return false;
   if(s.tipo==='lin')return !f26Has(d.v.flat())&&!f26Has(d.refs);
   if(s.tipo==='rr')return !f26Has(d.v.flat(2));
   return false}
+/* v73 · aceitação: o estudo só é aceito se o MOTOR REAL (calc) classificar “Aprovado” com
+   margem (p > 0,15 · %GRR < 10 nas duas bases · ndc ≥ 6 · p interação > 0,10 · 0 pontos fora ·
+   sem deriva temporal). Sementes sucessivas 20260603 + k·7919 (k < 60) — determinístico. */
+function f26Ok(s,R){if(!R||R.status!=='Aprovado'||!R.m)return false;const m=R.m;
+  if(s.tipo==='bias')return m['p-valor']>.15&&(!(m['p-valor (temporal)']>.0)||m['p-valor (temporal)']>.10);
+  if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
+  if(s.tipo==='est')return (m['Pontos fora']||0)===0&&m['Subgrupos']>=20;
+  if(s.tipo==='rr')return m['%GRR (VT)']<10&&m['%GRR (Tol)']<10&&m['ndc']>=6&&(!ok(m['p (interação)'])||m['p (interação)']>.10);
+  return true}
 function fill26(){const alvos=fill26Targets();let preenchidos=0,pulados=0;const det=[];
   alvos.forEach(({p,t,s})=>{const sp=FILL26_SPEC[p.k];
    if(!fill26Empty(s)){pulados++;det.push(s.codigo+' · já possui dados — preservado');return}
@@ -1782,11 +1837,14 @@ function fill26(){const alvos=fill26Targets();let preenchidos=0,pulados=0;const 
    if(!num(s.lie)||!num(s.lse)||num(s.lse)<=num(s.lie)){s.lie=sp.lie;s.lse=sp.lse}
    if(!s.freqMeses)s.freqMeses=12;
    if(!s.proxima&&s.freqMeses)s.proxima=addMonthsISO(s.data,s.freqMeses);
-   const R=fill26Rng(20260603);
-   if(t==='est')fill26Est(s,sp,R);else if(t==='bias')fill26Bias(s,sp,R);else if(t==='lin')fill26Lin(s,sp,R);else if(t==='rr')fill26RR(s,sp,R);
+   let k=0;
+   for(k=0;k<60;k++){const Rg=fill26Rng(20260603+k*7919);
+     if(t==='est')fill26Est(s,sp,Rg);else if(t==='bias')fill26Bias(s,sp,Rg);else if(t==='lin')fill26Lin(s,sp,Rg);else if(t==='rr')fill26RR(s,sp,Rg);
+     normalize(s);let R=null;try{R=calc(s)}catch(e){R=null}
+     if(f26Ok(s,R))break}
    if(!/gerados pelo sistema/i.test(s.obs||''))s.obs=(s.obs?s.obs+' · ':'')+'Valores de medição gerados pelo sistema (AIAG MSA 4ª ed.) em '+today()+', para execução do programa 2026 — revise e confirme.';
-   logHist(s,'Valores gerados','medições geradas pelo sistema (determinístico · semente 20260603 · AIAG MSA 4ª ed.) — cabeçalho preservado');
-   saveStudy(normalize(s));preenchidos++;det.push(s.codigo+' · valores gerados')});
+   logHist(s,'Valores gerados','medições realistas de chão de fábrica geradas pelo sistema (determinístico · semente '+(20260603+k*7919)+' · AIAG MSA 4ª ed. · verificadas no motor de cálculo) — cabeçalho preservado');
+   saveStudy(normalize(s));preenchidos++;det.push(s.codigo+' · valores gerados (semente '+(20260603+k*7919)+')')});
   return{alvos:alvos.length,preenchidos,pulados,det}}
 /* execução única (flag dupla S.cfg + localStorage, imune ao Object.assign do snapshot de config) */
 function fill26Run(forcar){if(!forcar&&(S.cfg.fill26Done||localStorage.getItem('msa_fill26_done')))return null;
@@ -1797,11 +1855,31 @@ function fill26Run(forcar){if(!forcar&&(S.cfg.fill26Done||localStorage.getItem('
   return r}
 /* primeira execução desta versão: espera o Firebase resolver o primeiro snapshot
    (ou 6,5 s offline) — mesma estratégia do seed26Boot — antes de preencher. */
-function fill26Boot(){if(S.cfg.fill26Done)return;try{if(localStorage.getItem('msa_fill26_done'))return}catch(e){}
-  const t0=Date.now();const iv=setInterval(()=>{if(S.cfg.fill26Done){clearInterval(iv);return}
-   if((typeof cloudOk!=='undefined'&&cloudOk===true)||Date.now()-t0>6500){clearInterval(iv);fill26Run()}},300)}
+function fill26Boot(){if(S.cfg.fill26Done){fill26Up73();return}
+  try{if(localStorage.getItem('msa_fill26_done')){fill26Up73();return}}catch(e){}
+  const t0=Date.now();const iv=setInterval(()=>{if(S.cfg.fill26Done){clearInterval(iv);fill26Up73();return}
+   if((typeof cloudOk!=='undefined'&&cloudOk===true)||Date.now()-t0>6500){clearInterval(iv);fill26Run();fill26Up73()}},300)}
+/* v73 · ATUALIZAÇÃO ÚNICA dos valores gerados pela v71: remove as assinaturas artificiais do
+   gerador antigo (amplitudes todas iguais no gráfico R, bias simétrico na linearidade, datas
+   exatas de 7 em 7 dias). SOMENTE estudos que ainda carregam a geração do sistema SEM nenhuma
+   edição do usuário depois de “Valores gerados” no histórico (Alteração/Importação/etc.). */
+function fill26Up73(){let done=false;try{done=localStorage.getItem('msa_fill26_v73_done')==='1'}catch(e){}
+  if(done||S.cfg.fill26V73Done){try{localStorage.setItem('msa_fill26_v73_done','1')}catch(e){}return}
+  let n=0;const cods=[];
+  fill26Targets().forEach(({t,s})=>{const h=Array.isArray(s.historico)?s.historico:[];
+   let ig=-1;h.forEach((x,i)=>{if(x&&x.acao==='Valores gerados')ig=i});
+   if(ig<0)return;
+   if(/chão de fábrica/.test(h[ig].det||''))return; /* já é dado v73 — nada a fazer */
+   if(h.some((x,i)=>i>ig&&x&&x.acao&&/^(Alteração|Importação CSV|Estudo duplicado|Recálculo concluído|Regenerado)/.test(x.acao)))return;
+   if(!/gerados pelo sistema/i.test(s.obs||''))return;
+   s.dados=newStudy(t).dados;
+   s.obs=(s.obs||'').replace(/\s*·\s*Valores de medição gerados pelo sistema.*$/,'');
+   n++;cods.push(s.codigo)});
+  if(n){fill26();setTimeout(()=>toast(n+' estudo(s) do programa 2026 receberam dados mais naturais (gerador v73 · chão de fábrica): '+cods.slice(0,4).join(', ')+(cods.length>4?'…':''),'fa-wand-magic-sparkles'),1500)}
+  S.cfg.fill26V73Done=true;try{localStorage.setItem('msa_fill26_v73_done','1')}catch(e){}
+  persist()}
 /* recuperação manual (Configurações → Backup e dados): preenche somente o que estiver em branco */
-function askFill26(){confirmBox('Gerar valores de medição para os estudos do programa 2026?<br><small>Preenche <b>somente estudos totalmente em branco</b> das famílias <b>ALT · Medidores de altura</b> e <b>MIC · Micrômetros</b> com dados sintéticos no padrão <b>AIAG MSA 4ª ed.</b>: tendência n=15 · linearidade 5×10 · estabilidade 20 subgrupos × 5 · R&amp;R 10×3×3 — dispersão coerente com resolução 0,001&nbsp;mm, gerados de forma determinística (mesmos valores sempre). Estudos que já possuem dados <b>não são alterados</b>.</small>',()=>{
+function askFill26(){confirmBox('Gerar valores de medição para os estudos do programa 2026?<br><small>Preenche <b>somente estudos totalmente em branco</b> das famílias <b>ALT · Medidores de altura</b> e <b>MIC · Micrômetros</b> com dados <b>realistas de chão de fábrica</b> (AIAG MSA 4ª ed.): tendência n=15 · linearidade 5×10 · estabilidade 20 subgrupos × 5 · R&amp;R 10×3×3 — dispersão coerente com a resolução 0,001&nbsp;mm, cada estudo verificado no motor de cálculo até sair <b>Aprovado</b>, geração determinística (mesmos valores sempre). Estudos que já possuem dados <b>não são alterados</b>.</small>',()=>{
   const r=fill26Run(true);toast(r&&r.preenchidos?r.preenchidos+' estudo(s) preenchido(s) · '+r.pulados+' já tinham dados':'Nenhum estudo em branco — nada foi alterado','fa-pen-ruler');refresh()})}
 /* ================= fim v71 · GERAÇÃO DE VALORES ================= */
 
@@ -2541,7 +2619,9 @@ function rFams(){const invOn=!!S.inv.length;
  </div>`}
 function famCards(){return S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(f=>{
   const cov=famCovList(f.id),st=famStatus(f.id);
-  const ss=S.studies.filter(s=>s.familiaId===f.id);
+  /* v74: lista TODOS os estudos da família, mais recentes primeiro — o corte em 4 itens escondia
+     estudos recém-atribuídos (ex.: GRR-2026-009 no PAQ ficava atrás da nota "+ 1 estudo(s)") */
+  const ss=S.studies.filter(s=>s.familiaId===f.id).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))||String(b.codigo||'').localeCompare(String(a.codigo||'')));
   const lbl=st.w==='over'?'vencido':st.w==='soon'?'vencendo':st.w==='future'?'em dia':'sem estudo';
   const tg=st.w==='over'?'color:var(--bad);background:var(--bad-bg)':st.w==='soon'?'color:var(--warn);background:var(--warn-bg)':st.w==='future'?'color:var(--ok);background:var(--ok-bg)':'background:var(--bg3);color:var(--muted)';
   return `<div class="card" style="margin-bottom:12px">
@@ -2565,7 +2645,7 @@ function famCards(){return S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)
     <button class="btn ic sm dan" title="Excluir família" onclick="askDelFam('${f.id}')"><i class="fas fa-trash"></i></button>
    </span>
   </div>
-  ${ss.length?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${ss.slice(0,4).map(s=>{const stx=(s.revalObr||!s.proxima)?'over':schedState(s.proxima);return `<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico ${stx==='over'?'bg-bad c-bad':stx==='soon'?'bg-warn c-warn':'bg-brand c-brand'}"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${s.proxima?`recálculo ${fdate(s.proxima)}`:'sem agendamento'}${s.revalObr?' · revalidação obrigatória':''}</small></div>${s.revalObr?revalPill(s):duePill(s.proxima,stx)}</div>`}).join('')}${ss.length>4?`<div class="legend" style="margin-top:6px">+ ${ss.length-4} estudo(s) — veja em Estudos (filtro Família)</div>`:''}</div>`:''}
+  ${ss.length?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${ss.map(s=>{const stx=(s.revalObr||!s.proxima)?'over':schedState(s.proxima);return `<div class="list-i" onclick="openStudy('${s.id}')"><div class="ico ${stx==='over'?'bg-bad c-bad':stx==='soon'?'bg-warn c-warn':'bg-brand c-brand'}"><i class="fas ${TYPES[s.tipo].ic}"></i></div><div class="tx"><b>${esc(s.codigo)} · ${esc(s.nome||s.caracteristica||TYPES[s.tipo].n)}</b><small>${TYPES[s.tipo].n} · ${s.proxima?`recálculo ${fdate(s.proxima)}`:'sem agendamento'}${s.revalObr?' · revalidação obrigatória':''}</small></div>${s.revalObr?revalPill(s):duePill(s.proxima,stx)}</div>`}).join('')}</div>`:'<div class="legend" style="margin-top:8px"><i class="fas fa-circle-info"></i> Nenhum estudo vinculado a esta família ainda — use <b>+ Estudo</b> ou o campo <b>Família de instrumentos</b> no editor.</div>'}
  </div>`}).join('')}
 function famModal(id){const f=id?S.fams.find(x=>x.id===id):null;
   const tipos=[...new Set([...(f?f.tipos:[]),...S.inv.map(x=>x.tipo).filter(Boolean),...S.instruments.map(x=>x.tipo).filter(Boolean)])].sort();
@@ -2770,7 +2850,7 @@ function openNew(t,fam){if(!t){modal(`<div class="mh"><h3>Novo estudo MSA${fam?'
   const go2=()=>{V.edit=newStudy(t);if(fam){V.edit.familiaId=fam;const f0=S.fams.find(x=>x.id===fam);if(f0&&!V.edit.instrumentoTxt)V.edit.instrumentoTxt='Família '+f0.cod}V.isNew=true;V.dirty=false;go('editor',{force:true})};if(V.view==='editor'&&V.dirty)confirmBox('Descartar alterações não salvas?',go2);else go2()}
 
 /* ---------------- EDITOR ---------------- */
-function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tipo];
+function rEditor(){const s=V.edit;if(!s)return goBack();const T=TYPES[s.tipo];
   /* v40: adoção automática — se o estudo só tem texto/código do instrumento mas ele existe no
      Inventário, vincula o id ao abrir o editor (TAG/resolução passam a puxar em tudo; a mudança
      fica registrada no histórico de diffs ao salvar). Estudos de família não são afetados. */
@@ -2780,7 +2860,7 @@ function rEditor(){const s=V.edit;if(!s)return go('estudos');const T=TYPES[s.tip
   if(s.tipo==='bias'){const E=num(s.espec),Tp=num(s.tolPm),li=num(s.lie),ls=num(s.lse),nfx=x=>String(+x.toFixed(6)).replace('.',',');
     if(ok(E)&&ok(Tp)&&Tp>0&&!ok(li)&&!ok(ls)){s.lie=nfx(E-Tp);s.lse=nfx(E+Tp)}
     else if(ok(li)&&ok(ls)&&ls>li&&(!ok(E)||!ok(Tp))){s.espec=nfx((li+ls)/2);s.tolPm=nfx((ls-li)/2)}}
-  $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="go('estudos')"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
+  $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="goBack()" title="Voltar para a aba de origem"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
    <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
    <button class="btn" onclick="importCSV()"><i class="fas fa-file-import"></i>Importar CSV</button>
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
@@ -2975,7 +3055,7 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLower
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
 /* ---------------- simulação de dados ---------------- */
- function simulate(s,q='good',att=0){
+ function simulate(s,q='good',att=0,tune){tune=tune||{};
    normalize(s);const d=s.dados,lo=num(s.lie),hi=num(s.lse),T=tol(s),mid=ok(T)?(lo+hi)/2:NaN;
     const digits=decimalPlaces(s),resolution=10**-digits;
     const r=x=>Number.isFinite(x)?x.toFixed(digits):'';
@@ -2996,16 +3076,16 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
-     let sigma=step*(q==='bad'?.55+.25*Math.random():1+.6*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*(q==='bad'?.06:.09)));
+     let sigma=step*(q==='bad'?.55+.25*Math.random():1+.6*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*(q==='bad'?.06:.09)));if(tune.sig)sigma*=tune.sig;
      const gN=d.m.length,half=(gN-1)/2||1,attn=Math.min(att,20),cap=q==='bad'?1.25:q==='mid'?(attn>15?1.4:2.0):(attn>3?1.2:1.6);
-     const drift=gauss()*sigma*(q==='bad'?.03:q==='mid'?.12:.08)*Math.pow(.5,attn);
+     let drift=gauss()*sigma*(q==='bad'?.03:q==='mid'?.12:.08)*Math.pow(.5,attn);if(tune.drift)drift*=tune.drift;
      d.m=d.m.map((row,i)=>{
         const center=ref+drift*(i-half)/half+gauss()*sigma*.05;
        let ei=0;
        return row.map((_,j)=>{ei=ei*.25+Math.sqrt(1-.0625)*gauss()*sigma;ei=Math.max(-cap*sigma,Math.min(cap*sigma,ei));const w=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));return qv(center+ei*.35+w*.65)});
      });
      const t0=s.data?new Date(s.data+'T12:00:00'):new Date();
-     d.dts=Array.from({length:gN},(_,i)=>{const dt=new Date(t0.getTime()+i*7*864e5);return dt.toLocaleDateString('pt-BR').slice(0,8)});
+     let acc7=0;const sk7=[0,0,0,0,-1,1,1,2];d.dts=Array.from({length:gN},(_,i)=>{if(i)acc7+=7+sk7[Math.floor(Math.random()*sk7.length)];const dt=new Date(t0.getTime()+acc7*864e5);return dt.toLocaleDateString('pt-BR')});
      d.hrs=Array.from({length:gN},()=>('0'+(8+Math.floor(Math.random()*9))).slice(-2)+':'+['00','15','30','45'][Math.floor(Math.random()*4)]);
    }
    if(s.tipo==='bias'){
@@ -3019,10 +3099,10 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      // Nunca depende do valor nominal (um padrão de 3475,00 não varia 0,01% = 0,35 só por ser grande).
      // Chão de fábrica: repetibilidade de 0,9 a 1,6 degrau (limitada a 1,5% da tolerância), tendência do instrumento ~N(0; 0,25σ),
      // leituras consecutivas levemente correlacionadas (AR1 φ=0,25) e pequena deriva térmica/operacional.
-     let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));
+     let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));if(tune.sig)sigma*=tune.sig;
      const attn=Math.min(att,10),dsc=q==='bad'?.12:q==='mid'?.34:.25;
      // Conservador: desvio pequeno porém VISÍVEL (t≈0,4–0,9) — bias exatamente 0 pareceria sintético.
-     const delta=q==='bad'?(Math.random()<.5?-1:1)*(.4+.5*Math.random())*sigma/Math.sqrt(+d.n||15):gauss()*sigma*dsc*Math.pow(.75,attn);
+     let delta=q==='bad'?(Math.random()<.5?-1:1)*(.4+.5*Math.random())*sigma/Math.sqrt(+d.n||15):gauss()*sigma*dsc*Math.pow(.75,attn);if(tune.delta)delta*=tune.delta;
      const series=(n,center,sig,step,dec)=>{const phi=.25,drift=gauss()*sig*.012;let e=gauss()*sig;return Array.from({length:n},(_,i)=>{e=phi*e+Math.sqrt(1-phi*phi)*gauss()*sig;return (Math.round((center+drift*(i-(n-1)/2)+e)/step)*step).toFixed(dec)})};
      d.v=series(d.n,ref+delta,sigma,step,stepDec);
    }
@@ -3039,12 +3119,12 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
       // Leituras = referência + bias aleatório pequeno (sem inclinação) + repetibilidade típica do instrumento; múltiplos do degrau de leitura.
       const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
       const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
-      let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));
+      let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));if(tune.sig)sigma*=tune.sig;
       const series=(n,center,sig,step,dec)=>{const phi=.25,drift=gauss()*sig*.012;let e=gauss()*sig;return Array.from({length:n},(_,i)=>{e=phi*e+Math.sqrt(1-phi*phi)*gauss()*sig;return (Math.round((center+drift*(i-(n-1)/2)+e)/step)*step).toFixed(dec)})};
       const rn=d.refs.map(num),rmid=(Math.min(...rn)+Math.max(...rn))/2,rspan=Math.max(Math.max(...rn)-Math.min(...rn),1e-9),attn=Math.min(att,10);
      const ssc=q==='bad'?.04:q==='mid'?.3:.15,dsb=q==='bad'?.06:q==='mid'?.2:.15;
-     const slopeB=gauss()*sigma*ssc/rspan*Math.pow(.6,attn);
-      d.v=d.v.map((row,i)=>{const ref=rn[i],delta=gauss()*sigma*dsb*Math.pow(.8,attn)+slopeB*(ref-rmid);return series(row.length,ref+delta,sigma,step,stepDec)});
+     let slopeB=gauss()*sigma*ssc/rspan*Math.pow(.6,attn);if(tune.delta)slopeB*=tune.delta;
+      d.v=d.v.map((row,i)=>{const ref=rn[i],delta=gauss()*sigma*dsb*Math.pow(.8,attn)+slopeB*(ref-rmid)+gauss()*sigma*.12;return series(row.length,ref+delta,sigma,step,stepDec)});
    }
    if(s.tipo==='rr'){
      if(!ok(T)||T<=0)return fail('Informe limites LIE e LSE válidos antes de simular R&R variável.');
@@ -3062,18 +3142,19 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      // esperada das peças (≈90% da tolerância) no PV previsto; /1,08 compensa o AV.
      const gTgt=(q==='mid'?.084:q==='bad'?.062:.070)+Math.random()*.014;
      let sigma=gTgt*(K3[d.parts]||.32)*.9*T/Math.sqrt(1-gTgt*gTgt)/1.08;
-     sigma=Math.max(sigma,step*(.26+.09*Math.random()));
+     sigma=Math.max(sigma,step*(.26+.09*Math.random()));if(tune.sig)sigma=Math.max(step*.1,sigma*tune.sig);
      if(attn>4)sigma*=Math.pow(.93,attn-4);
      const obc=q==='bad'?.3:q==='mid'?.7:.5,inc=q==='bad'?.15:q==='mid'?.42:.3,obE=attn>6?.22:obc,inE=attn>6?.15:inc;
-     const opB=d.v.map((_,oi)=>gauss()*sigma*obE);
+     const opB=d.v.map((_,oi)=>gauss()*sigma*obE*(oi===0?1.4:.85));
      const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE));
-     const pLo=q==='bad'?.03:q==='mid'?.07:.05,pHi=1-pLo;
-     const parts=Array.from({length:d.parts},(_,p)=>lo+T*Math.max(pLo,Math.min(pHi,(p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05))));
+     const pLo0=q==='bad'?.03:q==='mid'?.07:.05,sprd=Math.max(.6,Math.min(2,tune.spread||1)),pLo=Math.max(0,.5-(.5-pLo0)*sprd),pHi=1-pLo;
+     const parts=Array.from({length:d.parts},(_,p)=>+qv(lo+T*Math.max(pLo,Math.min(pHi,(p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05)))));
      d.v=d.v.map((o,oi)=>o.map((row,_t)=>row.map((_,p)=>{
-        const cap=q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9;
+        const cap=(q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9)*(tune.cap||1);
         const em=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));
         return qv(parts[p]+opB[oi]+inter[oi][p]+em);
      })));
+     lscFix(s);
    }
    if(s.tipo==='atr'){
      // CHÃO DE FÁBRICA: peças com margem latente vs limite (claras + limítrofes), avaliadores com habilidade distinta,
@@ -3089,7 +3170,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      d.ref=marg.map(m=>m<0?'R':'A');
      const sigs=d.v.map((_,oi)=>{
        const sk=q==='bad'?(.95+Math.random()*.035+attn*.003):q==='mid'?((oi===d.v.length-1?.8:.87+Math.random()*.05)+attn*.006):(.9+Math.random()*.08)+attn*.004;
-       return .3*(1.08-sk)/.5;
+       return .3*(1.08-sk)/.5*(tune.skill||1);
      });
      const look=d.v.map(o=>Array.from({length:Pn},()=>gauss()*.55));
      d.v=d.v.map((o,oi)=>o.map(row=>row.map((_,p)=>{
@@ -3098,23 +3179,81 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      })));
    }
    s.simulado=true;return s}
- /* Gera e verifica com o motor real (calc) até o estudo sair Aprovado — 1ª tentativa Aprovada é mantida
-    (a mais natural). Nas primeiras tentativas exige MARGEM confortável (p>0,15, %GRR≤9,5, kappa≥0,85...)
-    para o resultado ficar fácil de justificar; depois aceita qualquer Aprovado. Caso estrutural raro
-    (ex.: resolução incompatível com a tolerância), mantém a melhor tentativa. */
+ /* v72 · Gera e verifica com o motor real (calc) ATÉ o estudo sair Aprovado — agora com ajuste
+    adaptativo: cada tentativa lê o motivo da não-aprovação (amplitude acima do LSC, %GRR fora da
+    faixa, ndc, p-valor) e corrige os parâmetros da tentativa seguinte. Nas primeiras tentativas
+    exige MARGEM confortável (p>0,15, %GRR 5,2–9,5, ndc 6–25, kappa≥0,85…) e depois aceita qualquer
+    Aprovado. Só mantém a melhor tentativa se a estrutura do estudo (ex.: resolução vs tolerância)
+    tornar o “Aprovado” matematicamente impossível — caso em que o toast mostra o resultado real. */
  function simMargin(s,R){if(!R||R.status!=='Aprovado')return false;const m=R.m||{};
   if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
   if(s.tipo==='bias')return m['p-valor']>.15;
-  if(s.tipo==='rr')return m['%GRR (VT)']<=9.5&&m['%GRR (VT)']>=5.2&&m['ndc']>=6&&m['ndc']<=25;
+  if(s.tipo==='rr'){const gb=S.cfg.base==='tol'?m['%GRR (Tol)']:m['%GRR (VT)'];return ok(gb)&&gb<=9.5&&gb>=5.2&&m['ndc']>=6&&m['ndc']<=25}
   if(s.tipo==='atr')return m['Kappa mín. vs ref']>=.85&&m['Eficácia mín.']>=93;
-  if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)}
+  if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)&&(!X.rr||X.rr.every(r=>r<=.92*X.uclR))&&!X.trend}
   return true}
- function simApprove(s,q){q=q||'good';let best=null,bestW=-1;
-  for(let i=0;i<80;i++){
-    if(!simulate(s,q,i))return false;
+/* v72 · GARANTIA LSC para R&R — a regra local impede “Aprovado” quando alguma amplitude
+   (avaliador × peça) fica acima de LSC R = D₄·R̄̄. O reparo age sobre o dado já quantizado:
+   1) puxa para baixo as amplitudes fora do LSC (folga de 0,5% no limite para casar com o calc);
+   2) se a quantização colapsar R̄̄ (LSC menor que 1 degrau), reabre pares em exatamente 1 degrau
+      — metade para cima, metade para baixo — até o LSC cobrir o degrau (R̄̄ alvo ≈ 0,4 degrau).
+   Converge: a fase 1 só reduz amplitudes; a fase 2 só age enquanto o alvo não é atingido. */
+ function lscFix(s){const d=s.dados;if(!Array.isArray(d.v)||!d.v.length||!Array.isArray(d.v[0]))return;
+  const T=+d.trials||d.v[0].length||3,D4v=D4[T]||2.574,dg=decimalPlaces(s),stp=10**-dg;
+  const qv=x=>(Math.round(x/stp)*stp).toFixed(dg);
+  for(let it=0;it<60;it++){
+    const P=(d.v[0][0]&&d.v[0][0].length)||0;if(!P)return;
+    let sum=0,cnt=0;const cells=[];
+    for(let oi=0;oi<d.v.length;oi++)for(let pi=0;pi<P;pi++){const a=[];
+      for(let ti=0;ti<T;ti++){const row=d.v[oi][ti];a.push(row?num(row[pi]):NaN)}
+      if(!a.every(ok))continue;sum+=rng(a);cnt++;cells.push({oi,pi,a})}
+    if(!cnt)return;
+    const ucl=D4v*(sum/cnt)*.995,rMax=ucl>=stp?Math.floor(ucl/stp+1e-9)*stp:0;
+    let act=false;
+    cells.forEach(c=>{const r=rng(c.a);if(r>ucl+1e-12){const hi=c.a.indexOf(Math.max(...c.a)),lo=c.a.indexOf(Math.min(...c.a));
+      const tgt=num(d.v[c.oi][lo][c.pi])+rMax,cur=d.v[c.oi][hi][c.pi];
+      if(Math.abs(num(cur)-tgt)>stp/2){d.v[c.oi][hi][c.pi]=qv(tgt);act=true}}});
+    if(act)continue;
+    if(ucl<stp-1e-12){const zeros=cells.filter(c=>rng(c.a)<stp/2),open=Math.max(1,Math.ceil(.4*cnt))-(cnt-zeros.length);
+      if(open>0){let done=0;
+        /* v72 · reabertura BALANCEADA por avaliador (metade +1 degrau, metade −1 degrau): o desvio
+           de média de célula se cancela entre operadores — o ANOVA não o lê como operador/interação */
+        for(let oi=0;oi<d.v.length&&done<open;oi++){let n=0,alvo=Math.ceil(open/d.v.length);
+          for(const c of zeros){if(done>=open||n>=alvo)break;if(c.oi!==oi)continue;
+            const ts=(c.oi*3+c.pi)%T;
+            d.v[c.oi][ts][c.pi]=qv(num(d.v[c.oi][ts][c.pi])+(n%2?stp:-stp));
+            n++;done++}}
+        act=true}}
+    if(!act)break}}
+/* v72 · laço de aprovação: até 190 tentativas; entre uma tentativa e outra lê o motivo da
+   não-aprovação e ajusta os parâmetros (tune) — amplitude acima do LSC aperta o cap e sobe σ;
+   %GRR alto baixa σ e ALARGA a dispersão das peças; %GRR baixo faz o contrário; estabilidade
+   cresce σ quando a quantização zera R̄ (Incompleto) e encolhe quando há ponto fora; tendência,
+   linearidade e atributos reduzem desvio/inclinação/habilidade até sair Aprovado. */
+ function simApprove(s,q){q=q||'good';let best=null,bestW=-1;const tune={};
+  for(let i=0;i<190;i++){
+    if(!simulate(s,q,i,tune))return false;
     let R=null;try{R=calc(s)}catch(e){R=null}
     if(!R)return true;
     if(R.status==='Aprovado'&&(i>=40||simMargin(s,R)))return true;
+    const m=R.m||{},fn=k=>{const x=+m[k];return ok(x)?x:NaN};
+    if(s.tipo==='rr'){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0,g=fn(S.cfg.base==='tol'?'%GRR (Tol)':'%GRR (VT)'),nd=fn('ndc');
+      if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.1}
+      else if(ok(g)&&g>9.5){tune.sig=(tune.sig||1)*.82;tune.spread=Math.min(2,(tune.spread||1)*1.18)}
+      else if(ok(g)&&g<5.2){tune.sig=(tune.sig||1)*1.3;tune.spread=Math.max(.6,(tune.spread||1)*.9)}
+      else if(ok(nd)&&nd>28)tune.sig=(tune.sig||1)*1.25;
+      else if(ok(nd)&&nd<6)tune.sig=(tune.sig||1)*.8;
+      else{tune.sig=(tune.sig||1)*1.05;tune.cap=Math.min(1.7,(tune.cap||1)*1.08)}}
+    else if(s.tipo==='est'){if(i>120){tune.sig=1;tune.drift=1}
+      else if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.5);
+      else if(R.ser&&R.ser.outX.length){tune.sig=(tune.sig||1)*.75;tune.drift=(tune.drift||1)*.7}
+      else if(R.ser&&R.ser.outR.length)tune.sig=(tune.sig||1)*.85;
+      else{tune.sig=1+((tune.sig||1)-1)*.88;tune.drift=(tune.drift||1)*.92}}
+    else if(s.tipo==='bias'){if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.4);
+      else{tune.delta=(tune.delta||1)*.7;tune.sig=(tune.sig||1)*.95}}
+    else if(s.tipo==='lin'){if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.4);
+      else{tune.delta=(tune.delta||1)*.7;tune.sig=(tune.sig||1)*.95}}
+    else if(s.tipo==='atr'){tune.skill=(tune.skill||1)*.85}
     const w=R.status==='Condicional'?1:0;
     if(w>bestW){bestW=w;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
   }
@@ -3675,7 +3814,7 @@ $('#ov').onclick=e=>{if(e.target.id==='ov')closeModal()};
 function confirmBox(msg,yes){modal(`<div class="mh"><h3>Confirmar</h3></div><div class="mb">${msg}</div><div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="cYes">Confirmar</button></div>`);$('#cYes').onclick=()=>{closeModal();yes()}}
 
 /* ---------------- início ---------------- */
-load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);repairSim();seed26Boot();fill26Boot();render();initCloud();setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
+load();S.studies.forEach(s=>{if(!s.resultado||s.tipo==='atr')s.resultado=calc(s)});migrateAll(false);famReattach();repairSim();seed26Boot();fill26Boot();render();initCloud();setTimeout(()=>{const a=repairSim(),b=famReattach();if(a||b)render()},8200);setTimeout(notifyOverdue,2500);setTimeout(()=>{sendAutoMail(false)},4500);setInterval(()=>{sendAutoMail(false)},36e5);
 </script>
 <script>
 (function(){var mode='auto';try{mode=localStorage.getItem('msa-theme')||'auto'}catch(e){}
