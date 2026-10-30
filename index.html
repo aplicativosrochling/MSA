@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v74</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v75</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -927,8 +927,8 @@ function go(view,opts={}){if(V.view==='editor'&&V.dirty&&!opts.force){confirmBox
   V.view=view;if(opts.f)V.f=Object.assign({q:'',tipo:'',status:'',instr:'',periodo:'',area:''},opts.f);if(view!=='editor')V.edit=null;render();window.scrollTo(0,0)}
 /* v74: o botão voltar retorna à aba de onde o estudo foi aberto (Famílias, Cronograma, Anual, Dashboard…) —
    antes ele ia sempre para "Estudos", perdendo o contexto do usuário */
-function goBack(){const v=(V.retView&&V.retView!=='editor')?V.retView:'estudos';go(v)}
-function refresh(){updCnts();if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc();else if(V.view==='cronograma')rCron();else if(V.view==='anual')rAnual()}
+function goBack(o={}){const v=(V.retView&&V.retView!=='editor')?V.retView:'estudos';go(v,o)}
+function refresh(){updCnts();if(V.view==='dashboard')rDash();else if(V.view==='estudos')rList();else if(V.view==='procedimento')rProc();else if(V.view==='cronograma')rCron();else if(V.view==='anual')rAnual();else if(V.view==='familias')rFams() /* v75: Famílias também atualiza ao vivo (exclusões, nuvem, seed, preenchimento) */}
 function render(){killAll();$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.v===V.view||(V.view==='editor'&&n.dataset.new===V.edit?.tipo)));
   updCnts();
   ({dashboard:rDash,estudos:rList,editor:rEditor,config:rCfg,procedimento:rProc,cronograma:rCron,familias:rFams,anual:rAnual,validacao:rVal,exemplos:rExem})[V.view]()}
@@ -2842,7 +2842,9 @@ function rList(){const L=filtered(),f=V.f;
    <td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn ic sm" title="Editar" onclick="openStudy('${s.id}')"><i class="fas fa-pen"></i></button> <button class="btn ic sm" title="Justificativa p/ auditor" onclick="printJust(['${s.id}'])"><i class="fas fa-clipboard-question"></i></button> <button class="btn ic sm" title="Imprimir" onclick="printStudies(['${s.id}'])"><i class="fas fa-print"></i></button> <button class="btn ic sm" title="Duplicar" onclick="dupStudy('${s.id}')"><i class="fas fa-copy"></i></button> <button class="btn ic sm dan" title="Excluir" onclick="askDel('${s.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`
    :`<div class="empty"><i class="fas fa-folder-open"></i>Nenhum estudo encontrado.<br><br><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Criar estudo</button></div>`;
 }
-function askDel(id){const s=S.studies.find(x=>x.id===id);confirmBox(`Excluir o estudo <b>${esc(s.codigo)}</b>? Esta ação não pode ser desfeita.`,()=>{delStudy(id);V.sel.delete(id);toast('Estudo excluído','fa-trash');if(V.view==='editor')go('estudos',{force:true});else refresh()})}
+function askDel(id){const s=S.studies.find(x=>x.id===id);confirmBox(`Excluir o estudo <b>${esc(s.codigo)}</b>? Esta ação não pode ser desfeita.`,()=>{delStudy(id);V.sel.delete(id);toast('Estudo excluído','fa-trash');
+    /* v75: excluir no editor volta para a aba de ORIGEM (Famílias/Cronograma/…), não para Estudos */
+    if(V.view==='editor'){V.dirty=false;goBack({force:true})}else refresh()})}
 function bulkDel(){confirmBox(`Excluir <b>${V.sel.size}</b> estudo(s) selecionado(s)?`,()=>{[...V.sel].forEach(delStudy);V.sel.clear();toast('Estudos excluídos','fa-trash');rList()})}
 function dupStudy(id){const s=JSON.parse(JSON.stringify(S.studies.find(x=>x.id===id)));s.id=uid();s.codigo=nextCode(s.tipo);s.data=today();s.criadoEm=new Date().toISOString();s.nome=(s.nome||'')+' (cópia)';s.criadoPor=userName();s.atualizadoPor=userName();s.aprovadoPor='';s.aprovadoEm='';s.revalObr=null;s.historico=[];logHist(s,'Estudo duplicado','cópia de '+(S.studies.find(x=>x.id===id)?.codigo||id));saveStudy(s);toast('Estudo duplicado');openStudy(s.id)}
 function openStudy(id){const s=S.studies.find(x=>x.id===id);if(!s)return;V.edit=normalize(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;go('editor',{force:true})}
