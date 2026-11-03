@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v80</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v81</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -1712,7 +1712,9 @@ function migrateAll(report){const r=migrateProg();
    é regenerado UMA vez com o gerador corrigido (o gerador antigo desistia após 80 tentativas
    e aceitava o melhor “Condicional”); a guarda no histórico impede repetição a cada carga.
    v80 amplia de novo: R&R simulado “Aprovado” fora da garantia (%GRR > 10% na base do estudo ou ndc < 5) é
-   regenerado UMA única vez — guarda “Regenerado (v80)”, independente da guarda v73. */
+   regenerado UMA única vez — guarda “Regenerado (v80)”, independente da guarda v73.
+   v81 amplia o gatilho: também regenera quando o %GRR contra a VARIAÇÃO TOTAL passa de 10%
+   (a base %Tolerância não esconde mais um %GRR (VT) acima do limite) — guarda “Regenerado (v81)”. */
 function repairSim(){let n=0;const fix=[];
   S.studies.forEach(s=>{if(!s.simulado)return;let R=null;try{R=calc(s)}catch(e){return}
     if(!R||!R.m)return;
@@ -1723,13 +1725,13 @@ function repairSim(){let n=0;const fix=[];
       let fmx=0;(s.dados&&Array.isArray(s.dados.v)?s.dados.v.flat(2):[]).forEach(x=>{const t=String(x==null?'':x).trim();if(!t)return;const dm=(t.split(/[.,]/)[1]||'').length;if(dm>fmx)fmx=dm});
       const ndcMax=fmx>decimalPlaces(s)?400:40; /* v80 · gage fino (tolerância curta) gera ndc alto legítimo */
       if((ok(ndc)&&ndc>ndcMax)||(ok(gV)&&(gV<2||gV>28)))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(gV)?pct(gV,2):'—'})`;
-      else if((ok(gB)&&gB>10)||(ok(ndc)&&ndc<5))why=`fora da garantia v80 (%GRR=${ok(gB)?pct(gB,2):'—'} · ndc=${ok(ndc)?ndc:'∞'} — refazendo: todo R&R simulado sai Aprovado com %GRR ≤ 10% e ndc ≥ 5)`}
+      else if((ok(gB)&&gB>10)||(ok(gV)&&gV>10)||(ok(ndc)&&ndc<5))why=`fora da garantia v81 (%GRR=${ok(gB)?pct(gB,2):'—'}${ok(gV)&&gV>10?' · VT='+pct(gV,2):''} · ndc=${ok(ndc)?ndc:'∞'} — refazendo: todo R&R simulado sai Aprovado com %GRR ≤ 10% na base E contra a VT, e ndc ≥ 5)`}
     if(!why)return;
-    const v80=why.indexOf('v80')>=0,hist=Array.isArray(s.historico)?s.historico:[];
-    if(hist.some(h=>h&&(h.acao==='Regenerado (v80)'||(h.acao==='Regenerado (v73)'&&!v80))))return;
+    const v80=why.indexOf('v80')>=0||why.indexOf('v81')>=0,hist=Array.isArray(s.historico)?s.historico:[];
+    if(hist.some(h=>h&&(h.acao==='Regenerado (v81)'||h.acao==='Regenerado (v80)'||(h.acao==='Regenerado (v73)'&&!v80))))return;
     simApprove(s,'good');
     let R1=null;try{R1=calc(s)}catch(e){}
-    logHist(s,v80?'Regenerado (v80)':'Regenerado (v73)',why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
+    logHist(s,why.indexOf('v81')>=0?'Regenerado (v81)':(v80?'Regenerado (v80)':'Regenerado (v73)'),why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
     saveStudy(s);n++;fix.push(s.codigo)});
   if(n)setTimeout(()=>toast(`${n} estudo(s) simulado(s) foram regenerados automaticamente para sair “Aprovado”: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
   return n}
@@ -2997,7 +2999,7 @@ function rEditor(){const s=V.edit;if(!s)return goBack();const T=TYPES[s.tipo];
     if(ok(E)&&ok(Tp)&&Tp>0&&!ok(li)&&!ok(ls)){s.lie=nfx(E-Tp);s.lse=nfx(E+Tp)}
     else if(ok(li)&&ok(ls)&&ls>li&&(!ok(E)||!ok(Tp))){s.espec=nfx((li+ls)/2);s.tolPm=nfx((ls-li)/2)}}
   $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="goBack()" title="Voltar para a aba de origem"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
-   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Garantia R&R (v80): sempre Aprovado com %GRR ≤ 10% e ndc ≥ 5 · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
+   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Garantia R&R (v81): sempre Aprovado com %GRR ≤ 10% — na base do estudo E contra a Variação Total (VT) — e ndc ≥ 5 · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
    <button class="btn" onclick="importCSV()"><i class="fas fa-file-import"></i>Importar CSV</button>
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
    <button class="btn" onclick="printJustStudy()" title="Relatório de perguntas e respostas preparadas para o auditor"><i class="fas fa-clipboard-question"></i>Justificativa</button>
@@ -3395,7 +3397,9 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
    linearidade e atributos reduzem desvio/inclinação/habilidade até sair Aprovado.
    v80 · GARANTIA R&R: toda simulação de R&R sai “Aprovado” com %GRR ≤ 10 (na base do estudo —
    tolerância ou VT, lida do selo cfgSnap da v79 quando existir) e ndc ≥ 5, MESMO que a
-   configuração global aceite mais (grrOk 20/30 · ndcMin 3). As primeiras 40 tentativas exigem
+   configuração global aceite mais (grrOk 20/30 · ndcMin 3). v81 · GARANTIA DUPLA: o %GRR contra
+   a VARIAÇÃO TOTAL é SEMPRE menor que 10%, nunca maior — inclusive quando a base é %Tolerância.
+   As primeiras 40 tentativas exigem
    margem realista (%GRR 5,2–9,5 · ndc 6–25); depois aceita qualquer resultado dentro da
    garantia. tune.sig tem PISO adaptativo (SIGF: 0,85 na base VT · 0,55 na base %Tolerância) e
    a escada é CONSCIENTE DO COLAPSO com CONTROLE PROPORCIONAL: na bacia de reabertura do LSC
@@ -3416,17 +3420,20 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
     if(!simulate(s,q,i,tune))return false;
     let R=null;try{R=calc(s)}catch(e){R=null}
     if(!R)return true;
-    const m=R.m||{},fn=k=>{const x=+m[k];return ok(x)?x:NaN},g=fn(GK),nd=fn('ndc');
-    const inG=!isRR||(ok(g)&&g<=10&&ok(nd)&&nd>=5);
+    const m=R.m||{},fn=k=>{const x=+m[k];return ok(x)?x:NaN},g=fn(GK),gV=fn('%GRR (VT)'),nd=fn('ndc'),gE=Math.max(ok(g)?g:0,ok(gV)?gV:0);
+    /* v81 · GARANTIA DUPLA: %GRR ≤ 10 na base do estudo E contra a VARIAÇÃO TOTAL — um estudo
+       na base %Tolerância nunca mais esconde um %GRR (VT) acima de 10%: na simulação, o %GRR
+       contra a VT é SEMPRE menor que 10%, nunca maior. gE (a pior métrica) guia a sintonia. */
+    const inG=!isRR||(ok(g)&&g<=10&&ok(nd)&&nd>=5&&(!ok(gV)||gV<=10));
     if(R.status==='Aprovado'&&inG&&(i>=40||simMargin(s,R)))return true;
     if(isRR){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0;
       if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.1}
-      else if(ok(g)&&g>10){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
+      else if(ok(gE)&&gE>10){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
         if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.2);
-        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.8,Math.min(1.25,Math.sqrt(8.5/g))));tune.av=Math.max(.15,(tune.av||1)*.85);tune.wide=Math.min(1.2,(tune.wide||0)+.1)}}
-      else if(ok(g)&&g>9.5){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
+        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.8,Math.min(1.25,Math.sqrt(8.5/gE))));tune.av=Math.max(.15,(tune.av||1)*.85);tune.wide=Math.min(1.2,(tune.wide||0)+.1)}}
+      else if(ok(gE)&&gE>9.5){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
         if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.1);
-        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.9,Math.min(1.15,Math.sqrt(9/g))));tune.av=Math.max(.15,(tune.av||1)*.9);tune.wide=Math.min(1.2,(tune.wide||0)+.06)}}
+        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.9,Math.min(1.15,Math.sqrt(9/gE))));tune.av=Math.max(.15,(tune.av||1)*.9);tune.wide=Math.min(1.2,(tune.wide||0)+.06)}}
       else if(ok(nd)&&nd<5){tune.sig=Math.max(SIGF,(tune.sig||1)*.78);tune.spread=Math.min(2,(tune.spread||1)*1.12);tune.wide=Math.min(1.2,(tune.wide||0)+.12)}
       else if(ok(g)&&g<5.2){tune.sig=(tune.sig||1)*1.3;tune.spread=Math.max(.6,(tune.spread||1)*.9)}
       else if(ok(nd)&&nd>28)tune.sig=(tune.sig||1)*1.25;
@@ -3442,7 +3449,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
     else if(s.tipo==='lin'){if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.4);
       else{tune.delta=(tune.delta||1)*.7;tune.sig=(tune.sig||1)*.95}}
     else if(s.tipo==='atr'){tune.skill=(tune.skill||1)*.85}
-    const w=R.status==='Aprovado'?(inG?3:2):R.status==='Condicional'?1:0,gW=ok(g)?g:Infinity;
+    const w=R.status==='Aprovado'?(inG?3:2):R.status==='Condicional'?1:0,gW=ok(gE)?gE:Infinity;
     if(w>bestW||(w===bestW&&gW<bestG)){bestW=w;bestG=gW;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
   }
   if(best){try{const o=JSON.parse(best);s.dados=o.d;s.lie=o.lie;s.lse=o.lse}catch(e){}}
