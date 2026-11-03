@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v79</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v80</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -1710,20 +1710,26 @@ function migrateAll(report){const r=migrateProg();
    v40 regenerava só R&R com valores implausíveis (%GRR<2 ou >28 · ndc>40). v72/v73 ampliam:
    QUALQUER estudo simulado que não esteja “Aprovado” — inclusive Incompleto (sem variação) —
    é regenerado UMA vez com o gerador corrigido (o gerador antigo desistia após 80 tentativas
-   e aceitava o melhor “Condicional”); a guarda no histórico impede repetição a cada carga. */
+   e aceitava o melhor “Condicional”); a guarda no histórico impede repetição a cada carga.
+   v80 amplia de novo: R&R simulado “Aprovado” fora da garantia (%GRR > 10% na base do estudo ou ndc < 5) é
+   regenerado UMA única vez — guarda “Regenerado (v80)”, independente da guarda v73. */
 function repairSim(){let n=0;const fix=[];
   S.studies.forEach(s=>{if(!s.simulado)return;let R=null;try{R=calc(s)}catch(e){return}
     if(!R||!R.m)return;
     let why='';
     if(R.status==='Incompleto')why='dados sem variação mensurável ou incompletos';
     else if(R.status!=='Aprovado')why='resultado '+R.status+' — o gerador antigo não garantiu “Aprovado”';
-    else if(s.tipo==='rr'){const g=+R.m['%GRR (VT)'],ndc=+R.m.ndc;
-      if((ok(ndc)&&ndc>40)||(ok(g)&&(g<2||g>28)))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(g)?pct(g,2):'—'})`}
+    else if(s.tipo==='rr'){const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,gV=+R.m['%GRR (VT)'],gB=+R.m[SB==='tol'?'%GRR (Tol)':'%GRR (VT)'],ndc=+R.m.ndc;
+      let fmx=0;(s.dados&&Array.isArray(s.dados.v)?s.dados.v.flat(2):[]).forEach(x=>{const t=String(x==null?'':x).trim();if(!t)return;const dm=(t.split(/[.,]/)[1]||'').length;if(dm>fmx)fmx=dm});
+      const ndcMax=fmx>decimalPlaces(s)?400:40; /* v80 · gage fino (tolerância curta) gera ndc alto legítimo */
+      if((ok(ndc)&&ndc>ndcMax)||(ok(gV)&&(gV<2||gV>28)))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(gV)?pct(gV,2):'—'})`;
+      else if((ok(gB)&&gB>10)||(ok(ndc)&&ndc<5))why=`fora da garantia v80 (%GRR=${ok(gB)?pct(gB,2):'—'} · ndc=${ok(ndc)?ndc:'∞'} — refazendo: todo R&R simulado sai Aprovado com %GRR ≤ 10% e ndc ≥ 5)`}
     if(!why)return;
-    if(Array.isArray(s.historico)&&s.historico.some(h=>h&&h.acao==='Regenerado (v73)'))return;
+    const v80=why.indexOf('v80')>=0,hist=Array.isArray(s.historico)?s.historico:[];
+    if(hist.some(h=>h&&(h.acao==='Regenerado (v80)'||(h.acao==='Regenerado (v73)'&&!v80))))return;
     simApprove(s,'good');
     let R1=null;try{R1=calc(s)}catch(e){}
-    logHist(s,'Regenerado (v73)',why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
+    logHist(s,v80?'Regenerado (v80)':'Regenerado (v73)',why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
     saveStudy(s);n++;fix.push(s.codigo)});
   if(n)setTimeout(()=>toast(`${n} estudo(s) simulado(s) foram regenerados automaticamente para sair “Aprovado”: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
   return n}
@@ -2718,7 +2724,7 @@ function csvApply(){const p=window._csvParsed;const s=V.edit;if(!p||p.err||!s)re
   else if(s.tipo==='lin'){d.g=how==='rep'?p.g:Math.max(d.g,p.g);d.m=p.m;normalize(s);
     d.refs=Array.from({length:d.g},(_,i)=>p.refs[i]??d.refs?.[i]??'');
     d.v=Array.from({length:d.g},(_,i)=>Array.from({length:d.m},(_,j)=>{const nv=p.v[i]?.[j]??'';return nv===''?setv(d.v?.[i]?.[j],''):setv(d.v?.[i]?.[j],nv)}))}
-  normalize(s);markDirty();logHist(s,'Importação CSV',`${p.n} medições (${p.mode==='long'?'formato longo':'colunas por peça'}${how==='emp'?', só células vazias':''})`);
+  normalize(s);if(s.simulado)s.simulado=false;markDirty();logHist(s,'Importação CSV',`${p.n} medições (${p.mode==='long'?'formato longo':'colunas por peça'}${how==='emp'?', só células vazias':''})`);
   rParams();rGrid();recalc();closeModal();toast(`${p.n} medições importadas — confira a grade`,'fa-file-import')}
 
 
@@ -2991,7 +2997,7 @@ function rEditor(){const s=V.edit;if(!s)return goBack();const T=TYPES[s.tipo];
     if(ok(E)&&ok(Tp)&&Tp>0&&!ok(li)&&!ok(ls)){s.lie=nfx(E-Tp);s.lse=nfx(E+Tp)}
     else if(ok(li)&&ok(ls)&&ls>li&&(!ok(E)||!ok(Tp))){s.espec=nfx((li+ls)/2);s.tolPm=nfx((ls-li)/2)}}
   $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="goBack()" title="Voltar para a aba de origem"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
-   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
+   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Garantia R&R (v80): sempre Aprovado com %GRR ≤ 10% e ndc ≥ 5 · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
    <button class="btn" onclick="importCSV()"><i class="fas fa-file-import"></i>Importar CSV</button>
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
    <button class="btn" onclick="printJustStudy()" title="Relatório de perguntas e respostas preparadas para o auditor"><i class="fas fa-clipboard-question"></i>Justificativa</button>
@@ -3068,13 +3074,13 @@ function rGrid(){const s=V.edit,d=s.dados;let h='';
     h=`<table class="dg"><thead><tr><th rowspan="2">Peça</th>${oph}<th rowspan="2">Ref.</th><th rowspan="2">Conc.</th></tr><tr>${trh}</tr></thead><tbody>${d.ref.map((rv2,p)=>`<tr><td class="h">${p+1}</td>${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}${tg('ref.'+p,rv2)}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
     <div class="row" style="padding:10px;gap:10px"><button class="btn sm" onclick="fillCol('A')"><i class="fas fa-check c-ok"></i> Referência: tudo A</button><button class="btn sm" onclick="fillCol('R')"><i class="fas fa-xmark c-bad"></i> Referência: tudo R</button></div>`}
   $('#grid').innerHTML=h;
-  $$('#grid input[data-p]').forEach(e=>{e.oninput=()=>{setPath(V.edit.dados,e.dataset.p,e.value);markDirty();recalcSoon()};e.onkeydown=navKey;e.onpaste=pasteGrid});
+  $$('#grid input[data-p]').forEach(e=>{e.oninput=()=>{setPath(V.edit.dados,e.dataset.p,e.value);if(V.edit.simulado){V.edit.simulado=false;logHist(V.edit,'Dados editados manualmente','simulação desativada neste estudo — valores digitados não são regenerados pelo sistema')}markDirty();recalcSoon()};e.onkeydown=navKey;e.onpaste=pasteGrid});
   $$('#grid input[data-op]').forEach(e=>e.onchange=()=>{V.edit.dados.opNames[+e.dataset.op]=e.value||String.fromCharCode(65+ +e.dataset.op);markDirty();if(s.tipo==='atr')rGrid();recalc()});
   $$('#grid td.tg').forEach(e=>e.tabIndex=0);
-  $$('#grid td.tg').forEach(e=>e.onclick=()=>{const cur=getPath(V.edit.dados,e.dataset.p);const nx=cur===''||cur==null?'A':(cur==='A'||cur===1||cur==='1')?'R':'';setPath(V.edit.dados,e.dataset.p,nx);e.className='tg '+(nx===''?'vn':nx==='A'?'v1':'v0');e.textContent=nx===''?'·':nx;markDirty();recalcSoon()});
+  $$('#grid td.tg').forEach(e=>e.onclick=()=>{const cur=getPath(V.edit.dados,e.dataset.p);const nx=cur===''||cur==null?'A':(cur==='A'||cur===1||cur==='1')?'R':'';setPath(V.edit.dados,e.dataset.p,nx);if(V.edit.simulado){V.edit.simulado=false;logHist(V.edit,'Dados editados manualmente','simulação desativada neste estudo — valores digitados não são regenerados pelo sistema')}e.className='tg '+(nx===''?'vn':nx==='A'?'v1':'v0');e.textContent=nx===''?'·':nx;markDirty();recalcSoon()});
 }
 const tg=(p,v)=>{const t=String(v??'');const cls=t==='A'||t==='1'?'v1':(t==='R'||t==='0'?'v0':'vn');const lbl=t==='A'||t==='1'?'A':(t==='R'||t==='0'?'R':'·');return`<td class="tg ${cls}" data-p="${p}">${lbl}</td>`};
-function fillCol(v){V.edit.dados.ref=V.edit.dados.ref.map(()=>String(v));markDirty();rGrid();recalc()}
+function fillCol(v){V.edit.dados.ref=V.edit.dados.ref.map(()=>String(v));if(V.edit.simulado)V.edit.simulado=false;markDirty();rGrid();recalc()}
 function getPath(o,p){return p.split('.').reduce((a,k)=>a[k],o)}
 function setPath(o,p,v){const k=p.split('.');const last=k.pop();k.reduce((a,x)=>a[x],o)[last]=v}
 function navKey(e){if(e.key!=='Enter'&&!e.key.startsWith('Arrow'))return;const all=$$('#grid input[data-p]');const i=all.indexOf(e.target);const td=e.target.closest('td'),tr=td.parentNode;
@@ -3095,7 +3101,7 @@ function pbDetect(M){const ne=r=>r.filter(x=>x!=='');const f=ne(M[0]),atr=V.edit
   const B=fr?M.slice(1):M;const seq=B.length>=3&&B[0].length>1&&B.every((r,i)=>String(r[0]).trim()===String(i+1));const fc=seq||(B.length>0&&B[0].length>1&&B.some(r=>r[0]!=='')&&B.every(r=>r[0]===''||!pbIsVal(r[0])));return{fr,fc}}
 function pbNorm(M){const W=Math.max(...M.map(r=>r.length));return M.map(r=>{r=r.slice();while(r.length<W)r.push(null);return r})}
 const pbFits=(M,G,r0,c0)=>r0+M.length<=G.length&&G.slice(r0,r0+M.length).every(r=>c0+M[0].length<=r.length);
-function applyBlock(M,r0,c0,mode,search){const G=gridLogic(),atr=V.edit.tipo==='atr';M=pbNorm(M);let T=mode==='yes';
+function applyBlock(M,r0,c0,mode,search){if(V.edit&&V.edit.simulado)V.edit.simulado=false;const G=gridLogic(),atr=V.edit.tipo==='atr';M=pbNorm(M);let T=mode==='yes';
   if(search){const cands=[];[[0,0],[0,1],[1,0],[1,1]].forEach(([dr,dc])=>[false,true].forEach(t=>cands.push([t,dr,dc])));
     cands.sort((a,b)=>(a[1]+a[2])-(b[1]+b[2])||(+a[0])-(+b[0]));let best=null;
     let bs=-1;const land=X=>{let k=0;X.forEach((r,i)=>r.forEach((v,j)=>{if(v!==null&&(G[r0+i]||[])[c0+j])k++}));return k};
@@ -3172,16 +3178,24 @@ function drawCharts(s,R,sel){const box=$(sel);const cf=chartCfgs(s,R);Object.key
   if(box.dataset.n!=String(cf.length)||!box.querySelector('canvas')){box.innerHTML=cf.map((c,i)=>`<div style="margin-bottom:14px"><div class="l">${c.t}</div><div class="chart" style="height:240px"><canvas id="ed${i}"></canvas></div></div>`).join('');box.dataset.n=cf.length}
   cf.forEach((c,i)=>{box.querySelectorAll('.l')[i].textContent=c.t;charts['ed'+i]=new Chart($('#ed'+i),c.c)})}
 function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o código do estudo','fa-triangle-exclamation');return}
+  /* v79 · EDITAR SEMPRE PODE: colisão de código não bloqueia mais o salvamento. Se o estudo
+     já existia com esse código (duplicidade vinda da nuvem — ex.: estudo apagado que ressuscitou
+     e um novo herdou o código), o sistema RENUMERA automaticamente e salva. O bloqueio continua
+     só quando o usuário DIGITOU um código novo que já pertence a outro estudo (conflito real). */
+  const _prev=S.studies.find(x=>x.id===s.id);let _renum='';
   if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){
-    /* v78: estudo NOVO cujo código foi ocupado nesse meio tempo (outro usuário/aba) → renumera automaticamente; edição de existente continua bloqueada */
-    if(V.isNew){const antigo=s.codigo;s.codigo=nextCode(s.tipo);rEditor();toast(`Código ${antigo} já estava em uso — este estudo passou a ser ${s.codigo}`,'fa-circle-info')}
+    const trocou=_prev&&String(_prev.codigo)!==String(s.codigo);
+    if(!trocou){const antigo=s.codigo;s.codigo=nextCode(s.tipo);
+      _renum=V.isNew?`Código ${antigo} já estava em uso — renumerado para ${s.codigo}`:`O código ${antigo} já pertencia a outro estudo — renumerado para ${s.codigo}`;
+      if(!V.isNew)logHist(s,'Código renumerado',antigo+' → '+s.codigo+' — já existia outro estudo com o código '+antigo+' (duplicidade resolvida ao salvar)');
+      rEditor()}
     else{toast('Já existe um estudo com este código','fa-triangle-exclamation');return}}
-  if(!s.proxima&&+s.freqMeses>0)s.proxima=addMonthsISO(s.data,+s.freqMeses);const _prev=S.studies.find(x=>x.id===s.id);s.atualizadoPor=userName();
+  if(!s.proxima&&+s.freqMeses>0)s.proxima=addMonthsISO(s.data,+s.freqMeses);s.atualizadoPor=userName();
   if(V.isNew){s.criadoPor=(s.criadoPor&&s.criadoPor!=='—')?s.criadoPor:userName();logHist(s,'Estudo criado','tipo '+(TYPES[s.tipo]?.n||s.tipo))}
   else{const dif=['codigo','nome','caracteristica','instrumentoId','instrumentoCod','instrumentoTxt','instrumentoRes','instrumentoSerie','unidade','lie','lse','espec','tolPm','erroPct','responsavel','padrao','freq','area','data','freqMeses','proxima','aprovadoPor','aprovadoEm'].filter(k=>String((_prev||{})[k]??'')!==String(s[k]??''));
    const _cnt=o=>{try{const d=o.dados;if(!d)return 0;const a=(o.tipo==='rr'||o.tipo==='atr')?d.v.flat(2):(o.tipo==='est'?d.m:(o.tipo==='lin'?d.v:d.v));return a.flat().filter(x=>String(x??'').trim()!=='').length}catch(e){return 0}};
    const n0=_cnt(_prev||{}),n1=_cnt(s);logHist(s,'Alteração',(dif.length?'campos: '+dif.join(', '):'identificação sem mudanças')+(n0!==n1?` · medições ${n0}→${n1}`:''))}
-  saveStudy(JSON.parse(JSON.stringify(s)));V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast('Estudo salvo · '+s.resultado.status);$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
+  const _salvo=JSON.parse(JSON.stringify(s));saveStudy(_salvo);s.rev=_salvo.rev;s.cfgSnap=_salvo.cfgSnap;s.resultado=_salvo.resultado;V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast((_renum?_renum+' · ':'')+'Estudo salvo · '+(_salvo.resultado&&_salvo.resultado.status||'—'));$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
  function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
  function fillDemo(q){q=q||'good';if(!simApprove(V.edit,q))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);const R=V.edit.resultado||calc(V.edit);const rot={good:'processo capaz — Aprovado com folga',mid:'cenário limítrofe — Aprovado junto ao limite',bad:'conservador — Aprovado com folga máxima'};const lbl=(R&&R.status!=='Aprovado')?('RESULTADO: '+R.status.toUpperCase()+(R.msg?' — '+String(R.msg).slice(0,120):'')):rot[q];toast(`Simulação realista · ${lbl} · ${dp} ${dp===1?'casa decimal':'casas decimais'}`,'fa-flask')}
 function toggleSim(){if(V.view!=='editor'||!document.getElementById('ddSim'))return;V.simHidden=!V.simHidden;const el=document.getElementById('ddSim');el.style.display=V.simHidden?'none':'';toast(V.simHidden?'Módulo de simulação oculto · Alt+S exibe novamente':'Módulo de simulação exibido · Alt+S oculta novamente',V.simHidden?'fa-eye-slash':'fa-eye')}
@@ -3264,7 +3278,16 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(!ok(T)||T<=0)return fail('Informe limites LIE e LSE válidos antes de simular R&R variável.');
      // CHÃO DE FÁBRICA: peças do processo em posições irregulares da tolerância, viés de técnica por avaliador,
      // interação avaliador×peça e repetibilidade aleatória quantizada no degrau do instrumento — nada determinístico.
-     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN;
+     /* v80 · GAGE MAIS FINO QUANDO A TOLERÂNCIA É CURTA: se a tolerância tem menos de ~24 degraus
+        do degrau de leitura e o estudo é julgado pela %TOLERÂNCIA, a garantia v80 (%GRR ≤ 10% ·
+        ndc ≥ 5) é matematicamente inalcançável — o piso de quantização/reabertura do LSC fixa
+        %GRR ≈ 10,9% (T = 0,2 com 2 decimais). O simulador então usa um instrumento UMA CASA mais
+        fino — prática AIAG de resolução ≤ T/10 — e o lscFix detecta o degrau real dos dados. */
+     const SBsg=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base;
+     let step0=ok(rIns)&&rIns>0?rIns:resolution;
+     if(ok(T)&&T>0&&T/step0<24&&SBsg==='tol')step0=Math.max(10**-(decimalPlaces(s)+1),step0/10);
+     const step=step0;
      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
      const attn=Math.min(att,12);
@@ -3279,10 +3302,11 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      sigma=Math.max(sigma,step*(.26+.09*Math.random()));if(tune.sig)sigma=Math.max(step*.1,sigma*tune.sig);
      if(attn>4)sigma*=Math.pow(.93,attn-4);
      const obc=q==='bad'?.3:q==='mid'?.7:.5,inc=q==='bad'?.15:q==='mid'?.42:.3,obE=attn>6?.22:obc,inE=attn>6?.15:inc;
-     const opB=d.v.map((_,oi)=>gauss()*sigma*obE*(oi===0?1.4:.85));
-     const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE));
+     const opB=d.v.map((_,oi)=>gauss()*sigma*obE*(oi===0?1.4:.85)*(tune.av||1));
+     const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE*(tune.av||1)));
      const pLo0=q==='bad'?.03:q==='mid'?.07:.05,sprd=Math.max(.6,Math.min(2,tune.spread||1)),pLo=Math.max(0,.5-(.5-pLo0)*sprd),pHi=1-pLo;
-     const parts=Array.from({length:d.parts},(_,p)=>+qv(lo+T*Math.max(pLo,Math.min(pHi,(p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05)))));
+     const wd=1+(tune.wide||0),pc=x=>Math.max(-.15,Math.min(1.15,.5+(x-.5)*wd));
+     const parts=Array.from({length:d.parts},(_,p)=>+qv(lo+T*pc((p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05))));
      d.v=d.v.map((o,oi)=>o.map((row,_t)=>row.map((_,p)=>{
         const cap=(q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9)*(tune.cap||1);
         const em=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));
@@ -3322,7 +3346,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
  function simMargin(s,R){if(!R||R.status!=='Aprovado')return false;const m=R.m||{};
   if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
   if(s.tipo==='bias')return m['p-valor']>.15;
-  if(s.tipo==='rr'){const gb=S.cfg.base==='tol'?m['%GRR (Tol)']:m['%GRR (VT)'];return ok(gb)&&gb<=9.5&&gb>=5.2&&m['ndc']>=6&&m['ndc']<=25}
+  if(s.tipo==='rr'){const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,gb=SB==='tol'?m['%GRR (Tol)']:m['%GRR (VT)'];return ok(gb)&&gb<=9.5&&gb>=5.2&&m['ndc']>=6&&m['ndc']<=25}
   if(s.tipo==='atr')return m['Kappa mín. vs ref']>=.85&&m['Eficácia mín.']>=93;
   if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)&&(!X.rr||X.rr.every(r=>r<=.92*X.uclR))&&!X.trend}
   return true}
@@ -3333,8 +3357,13 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
       — metade para cima, metade para baixo — até o LSC cobrir o degrau (R̄̄ alvo ≈ 0,4 degrau).
    Converge: a fase 1 só reduz amplitudes; a fase 2 só age enquanto o alvo não é atingido. */
  function lscFix(s){const d=s.dados;if(!Array.isArray(d.v)||!d.v.length||!Array.isArray(d.v[0]))return;
-  const T=+d.trials||d.v[0].length||3,D4v=D4[T]||2.574,dg=decimalPlaces(s),stp=10**-dg;
-  const qv=x=>(Math.round(x/stp)*stp).toFixed(dg);
+  const T=+d.trials||d.v[0].length||3,D4v=D4[T]||2.574,dg=decimalPlaces(s);
+  /* v80 · degrau REAL dos dados: o simulador pode usar gage uma casa mais fino que as casas do
+     estudo (tolerância curta na base %Tolerância) — detecta a maior casa decimal presente
+     (vírgula ou ponto). Em dados normais mx == dg e o comportamento é idêntico ao da v72. */
+  let mx=dg;d.v.flat(2).forEach(x=>{const t=String(x==null?'':x).trim();if(!t)return;const dm=(t.split(/[.,]/)[1]||'').length;if(dm>mx)mx=dm});
+  const stp=10**-mx;
+  const qv=x=>(Math.round(x/stp)*stp).toFixed(mx);
   for(let it=0;it<60;it++){
     const P=(d.v[0][0]&&d.v[0][0].length)||0;if(!P)return;
     let sum=0,cnt=0;const cells=[];
@@ -3363,20 +3392,45 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
    não-aprovação e ajusta os parâmetros (tune) — amplitude acima do LSC aperta o cap e sobe σ;
    %GRR alto baixa σ e ALARGA a dispersão das peças; %GRR baixo faz o contrário; estabilidade
    cresce σ quando a quantização zera R̄ (Incompleto) e encolhe quando há ponto fora; tendência,
-   linearidade e atributos reduzem desvio/inclinação/habilidade até sair Aprovado. */
- function simApprove(s,q){q=q||'good';let best=null,bestW=-1;const tune={};
+   linearidade e atributos reduzem desvio/inclinação/habilidade até sair Aprovado.
+   v80 · GARANTIA R&R: toda simulação de R&R sai “Aprovado” com %GRR ≤ 10 (na base do estudo —
+   tolerância ou VT, lida do selo cfgSnap da v79 quando existir) e ndc ≥ 5, MESMO que a
+   configuração global aceite mais (grrOk 20/30 · ndcMin 3). As primeiras 40 tentativas exigem
+   margem realista (%GRR 5,2–9,5 · ndc 6–25); depois aceita qualquer resultado dentro da
+   garantia. tune.sig tem PISO adaptativo (SIGF: 0,85 na base VT · 0,55 na base %Tolerância) e
+   a escada é CONSCIENTE DO COLAPSO com CONTROLE PROPORCIONAL: na bacia de reabertura do LSC
+   (R̄̄ < 0,42 degrau) sobe σ firme (×1,2); fora dela, sig segue √(alvo/g) — desce quando o
+   %GRR resiste e sobe quando ficou baixo — assentando em %GRR ≈ 8,5–9% (dentro da garantia
+   e da margem realista).
+   Na base VT o remédio contra %GRR alto é ALARGAR as peças (tune.wide: posições além dos
+   limites, TV↑ → %GRR↓ · ndc↑; peças fora da especificação são amostragem legítima de
+   processo num estudo R&R). Quando a tolerância tem menos de ~24 degraus do degrau de leitura
+   e o estudo é julgado pela %TOLERÂNCIA, nenhum σ honesto alcança 10% (o piso de quantização
+   fixa ≈ 10,9%) — o simulador então usa um GAGE UMA CASA MAIS FINO (prática AIAG: resolução
+   ≤ T/10). Se ainda assim a garantia for inalcançável, mantém a MELHOR tentativa — Aprovado
+   com o menor %GRR — e o toast mostra o resultado real; Condicional só é devolvido se
+   nenhuma tentativa chegou a Aprovado. */
+ function simApprove(s,q){q=q||'good';let best=null,bestW=-1,bestG=Infinity;const tune={};
+  const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,GK=SB==='tol'?'%GRR (Tol)':'%GRR (VT)',isRR=s.tipo==='rr',SIGF=SB==='tol'?.55:.85;
   for(let i=0;i<190;i++){
     if(!simulate(s,q,i,tune))return false;
     let R=null;try{R=calc(s)}catch(e){R=null}
     if(!R)return true;
-    if(R.status==='Aprovado'&&(i>=40||simMargin(s,R)))return true;
-    const m=R.m||{},fn=k=>{const x=+m[k];return ok(x)?x:NaN};
-    if(s.tipo==='rr'){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0,g=fn(S.cfg.base==='tol'?'%GRR (Tol)':'%GRR (VT)'),nd=fn('ndc');
+    const m=R.m||{},fn=k=>{const x=+m[k];return ok(x)?x:NaN},g=fn(GK),nd=fn('ndc');
+    const inG=!isRR||(ok(g)&&g<=10&&ok(nd)&&nd>=5);
+    if(R.status==='Aprovado'&&inG&&(i>=40||simMargin(s,R)))return true;
+    if(isRR){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0;
       if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.1}
-      else if(ok(g)&&g>9.5){tune.sig=(tune.sig||1)*.82;tune.spread=Math.min(2,(tune.spread||1)*1.18)}
+      else if(ok(g)&&g>10){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
+        if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.2);
+        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.8,Math.min(1.25,Math.sqrt(8.5/g))));tune.av=Math.max(.15,(tune.av||1)*.85);tune.wide=Math.min(1.2,(tune.wide||0)+.1)}}
+      else if(ok(g)&&g>9.5){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
+        if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.1);
+        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.9,Math.min(1.15,Math.sqrt(9/g))));tune.av=Math.max(.15,(tune.av||1)*.9);tune.wide=Math.min(1.2,(tune.wide||0)+.06)}}
+      else if(ok(nd)&&nd<5){tune.sig=Math.max(SIGF,(tune.sig||1)*.78);tune.spread=Math.min(2,(tune.spread||1)*1.12);tune.wide=Math.min(1.2,(tune.wide||0)+.12)}
       else if(ok(g)&&g<5.2){tune.sig=(tune.sig||1)*1.3;tune.spread=Math.max(.6,(tune.spread||1)*.9)}
       else if(ok(nd)&&nd>28)tune.sig=(tune.sig||1)*1.25;
-      else if(ok(nd)&&nd<6)tune.sig=(tune.sig||1)*.8;
+      else if(ok(nd)&&nd<6){tune.sig=Math.max(SIGF,(tune.sig||1)*.8);tune.spread=Math.min(2,(tune.spread||1)*1.1)}
       else{tune.sig=(tune.sig||1)*1.05;tune.cap=Math.min(1.7,(tune.cap||1)*1.08)}}
     else if(s.tipo==='est'){if(i>120){tune.sig=1;tune.drift=1}
       else if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.5);
@@ -3388,8 +3442,8 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
     else if(s.tipo==='lin'){if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.4);
       else{tune.delta=(tune.delta||1)*.7;tune.sig=(tune.sig||1)*.95}}
     else if(s.tipo==='atr'){tune.skill=(tune.skill||1)*.85}
-    const w=R.status==='Condicional'?1:0;
-    if(w>bestW){bestW=w;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
+    const w=R.status==='Aprovado'?(inG?3:2):R.status==='Condicional'?1:0,gW=ok(g)?g:Infinity;
+    if(w>bestW||(w===bestW&&gW<bestG)){bestW=w;bestG=gW;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
   }
   if(best){try{const o=JSON.parse(best);s.dados=o.d;s.lie=o.lie;s.lse=o.lse}catch(e){}}
   return true}
@@ -3946,7 +4000,7 @@ function sigAsk(go,title,btn){title=title||'Assinaturas do relatório';btn=btn||
    (sem saveStudy, sem histórico, sem nuvem). Gravar segue exclusivo do botão Salvar/Ctrl+S. */
 function printEditor(){const s=V.edit;if(!s)return;
   if(!String(s.codigo||'').trim()){toast('Informe o código do estudo para imprimir','fa-triangle-exclamation');return}
-  if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id)){toast('Já existe um estudo com este código — ajuste antes de imprimir','fa-triangle-exclamation');return}
+  if(S.studies.some(x=>x.codigo===s.codigo&&x.id!==s.id))toast('Atenção: existe outro estudo com o código '+s.codigo+' — ao salvar cada um, o sistema renumera automaticamente','fa-circle-info'); /* v79: imprime mesmo com duplicidade — o bloqueio impediria o trabalho; a renumeração acontece ao salvar */
   const snap=JSON.parse(JSON.stringify(s));
   sigAsk(sig=>{toast('Relatório gerado — o estudo NÃO foi salvo; use “Salvar” quando quiser gravar','fa-print');setTimeout(()=>openWin(snap.codigo,reportPage(snap,sig)),30)},'Assinaturas do relatório','Imprimir')}
 function printStudies(ids){const L=ids.map(id=>S.studies.find(s=>s.id===id)).filter(Boolean);if(!L.length){toast('Nenhum estudo para imprimir','fa-triangle-exclamation');return}
