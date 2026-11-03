@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v75</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v76</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -1668,10 +1668,10 @@ function procFamCreate(){
    s.responsavel=fam.resp||userName();s.area='';s.data=t0;
    if(/^\d+$/.test(p.freq)){s.freqMeses=+p.freq;s.proxima=addMonthsISO(t0,+p.freq)}else{s.freqMeses=0;s.proxima=''}
    s.obs=`Procedimento ${PROC_ID} (item 2.4) · Equipamento: ${p.eq} · Padrão de referência: ${p.pad} · Frequência: ${/^\d+$/.test(p.freq)?p.freq+' meses':p.freq} · Estudo por família (AIAG MSA 4ª ed.) — cobre todos os instrumentos similares.`;
-   saveStudy(normalize(s));out.push(s)})});
+   logHist(s,'Estudo criado','programa 2.4 · família '+fam.cod); /* v76: rastreabilidade igual aos outros caminhos de criação */saveStudy(normalize(s));out.push(s)})});
  closeModal();
  toast(out.length?`${out.length} estudo(s) criado(s) da tabela 2.4 e vinculados às famílias`:'Nenhum estudo novo — tudo já existe','fa-table-list');
- if(out.length){V.view='estudos';V.f={q:'',tipo:'',status:'',instr:'',periodo:'',area:'',fam:''};render()}}
+ if(out.length){V.f={q:'',tipo:'',status:'',instr:'',periodo:'',area:'',fam:''};refresh()}} /* v76: stay-on-tab — re-renderiza a aba atual (Procedimento), não força Estudos */
 function rProc(){
   $('#main').innerHTML=`<div class="fade"><div class="top"><div><h1>Procedimento ${PROC_ID}</h1><div class="sub">Metrologia de Equipamentos de Teste · Rev. A · 10-jan-2025</div></div><div class="sp"></div>
    <button class="btn pri" onclick="procFamModal()"><i class="fas fa-table-list"></i>Criar estudos 2.4</button>
