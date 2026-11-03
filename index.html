@@ -584,18 +584,6 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
       <button class="ml-btn ml-pri" id="ml_go" type="submit"><span class="ml-spin"></span><span class="ml-lbl">Entrar</span></button>
     </form>
 
-    <div class="ml-sep">ou continue com</div>
-    <div class="ml-alt">
-      <button class="ml-btn" id="ml_goog" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.4-4.7 3.4-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.3 1.7l3.1-3.1A11 11 0 0 0 2.1 7.1l3.6 2.8C6.6 7.400 9.100 5.400 12 5.400z"/></svg>
-        Google
-      </button>
-      <button class="ml-btn ml-local" id="ml_local" type="button" title="Usa o sistema sem a nuvem neste computador">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
-        Usar somente neste computador
-      </button>
-    </div>
-
     <div class="ml-foot">
       <b><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Conexão protegida</b><br>
       Contas são liberadas pelo administrador. Sem acesso? Solicite ao responsável pela qualidade.
@@ -4409,15 +4397,12 @@ $('#f').addEventListener('submit',function(ev){
   auth.setPersistence(per).then(function(){return auth.signInWithEmailAndPassword(em,pw)})
     .catch(function(e){busy(false);$('#pwW').classList.add('ml-err');msg(errTxt(e),'bad')});
 });
-$('#goog').onclick=function(){clr();if(needAuth())return;
-  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){msg(errTxt(e),'bad')})};
 $('#forgot').onclick=function(){
   clr();var em=$('#em').value.trim();
   if(!em){$('#emW').classList.add('ml-err');$('#em').focus();return msg('Digite seu e-mail acima para receber o link de redefinição.','bad')}
   if(needAuth())return;
   auth.sendPasswordResetEmail(em).then(function(){msg('Enviamos um link de redefinição para '+em+'.','ok')}).catch(function(e){msg(errTxt(e),'bad')});
 };
-$('#local').onclick=function(){closeOv();try{skipLogin()}catch(e){}};
 $('#enter').onclick=function(){try{sessionStorage.setItem(KEY,'1')}catch(e){}closeOv()};
 $('#logout').onclick=function(){
   var b=this;try{sessionStorage.removeItem(KEY)}catch(e){}
