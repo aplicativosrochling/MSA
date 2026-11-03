@@ -485,7 +485,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v81</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v83</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -1714,24 +1714,27 @@ function migrateAll(report){const r=migrateProg();
    v80 amplia de novo: R&R simulado “Aprovado” fora da garantia (%GRR > 10% na base do estudo ou ndc < 5) é
    regenerado UMA única vez — guarda “Regenerado (v80)”, independente da guarda v73.
    v81 amplia o gatilho: também regenera quando o %GRR contra a VARIAÇÃO TOTAL passa de 10%
-   (a base %Tolerância não esconde mais um %GRR (VT) acima do limite) — guarda “Regenerado (v81)”. */
+   (a base %Tolerância não esconde mais um %GRR (VT) acima do limite) — guarda “Regenerado (v81)”.
+   v82 · garantia ESTRITA nas duas bases: regenera R&R simulado com %GRR (VT) ≥ 10, %GRR (Tol) ≥ 10,
+   ndc < 5 ou leitura fora da faixa mínimo–máximo informada — guarda “Regenerado (v82)”. */
 function repairSim(){let n=0;const fix=[];
   S.studies.forEach(s=>{if(!s.simulado)return;let R=null;try{R=calc(s)}catch(e){return}
     if(!R||!R.m)return;
     let why='';
     if(R.status==='Incompleto')why='dados sem variação mensurável ou incompletos';
     else if(R.status!=='Aprovado')why='resultado '+R.status+' — o gerador antigo não garantiu “Aprovado”';
-    else if(s.tipo==='rr'){const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,gV=+R.m['%GRR (VT)'],gB=+R.m[SB==='tol'?'%GRR (Tol)':'%GRR (VT)'],ndc=+R.m.ndc;
+    else if(s.tipo==='rr'){if(!ok(tol(s)))return;const gV=+R.m['%GRR (VT)'],gT=+R.m['%GRR (Tol)'],ndc=+R.m.ndc;
       let fmx=0;(s.dados&&Array.isArray(s.dados.v)?s.dados.v.flat(2):[]).forEach(x=>{const t=String(x==null?'':x).trim();if(!t)return;const dm=(t.split(/[.,]/)[1]||'').length;if(dm>fmx)fmx=dm});
       const ndcMax=fmx>decimalPlaces(s)?400:40; /* v80 · gage fino (tolerância curta) gera ndc alto legítimo */
-      if((ok(ndc)&&ndc>ndcMax)||(ok(gV)&&(gV<2||gV>28)))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(gV)?pct(gV,2):'—'})`;
-      else if((ok(gB)&&gB>10)||(ok(gV)&&gV>10)||(ok(ndc)&&ndc<5))why=`fora da garantia v81 (%GRR=${ok(gB)?pct(gB,2):'—'}${ok(gV)&&gV>10?' · VT='+pct(gV,2):''} · ndc=${ok(ndc)?ndc:'∞'} — refazendo: todo R&R simulado sai Aprovado com %GRR ≤ 10% na base E contra a VT, e ndc ≥ 5)`}
+      if(!s.simFaixa&&((ok(ndc)&&ndc>ndcMax)||(ok(gV)&&(gV<2||gV>28))))why=`dados implausíveis (ndc=${ok(ndc)?ndc:'∞'}, %GRR=${ok(gV)?pct(gV,2):'—'})`;
+      else if(!simRRok(s,R))why=`fora da garantia v82 (%GRR VT=${ok(gV)?pct(gV,2):'—'} · Tol=${ok(gT)?pct(gT,2):'—'} · ndc=${ok(ndc)?ndc:'∞'} — refazendo: todo R&R simulado sai Aprovado com %GRR (VT) < 10% E %GRR (Tol) < 10%, ndc ≥ 5)`}
+    if(!why&&s.tipo!=='rr'&&s.simFaixa&&!simInRange(s))why='leituras fora da faixa mínimo–máximo informada (v82)';
     if(!why)return;
-    const v80=why.indexOf('v80')>=0||why.indexOf('v81')>=0,hist=Array.isArray(s.historico)?s.historico:[];
-    if(hist.some(h=>h&&(h.acao==='Regenerado (v81)'||h.acao==='Regenerado (v80)'||(h.acao==='Regenerado (v73)'&&!v80))))return;
+    const v82=why.indexOf('v82')>=0,hist=Array.isArray(s.historico)?s.historico:[];
+    if(hist.some(h=>h&&(h.acao==='Regenerado (v82)'||(h.acao==='Regenerado (v73)'&&!v82))))return;
     simApprove(s,'good');
     let R1=null;try{R1=calc(s)}catch(e){}
-    logHist(s,why.indexOf('v81')>=0?'Regenerado (v81)':(v80?'Regenerado (v80)':'Regenerado (v73)'),why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
+    logHist(s,v82?'Regenerado (v82)':'Regenerado (v73)',why+' · simulação refeita'+(R1&&R1.status!==R.status?' · resultado agora: '+R1.status:''));
     saveStudy(s);n++;fix.push(s.codigo)});
   if(n)setTimeout(()=>toast(`${n} estudo(s) simulado(s) foram regenerados automaticamente para sair “Aprovado”: ${fix.slice(0,4).join(', ')}${fix.length>4?'…':''}`,'fa-wand-magic-sparkles'),1800);
   return n}
@@ -2999,7 +3002,7 @@ function rEditor(){const s=V.edit;if(!s)return goBack();const T=TYPES[s.tipo];
     if(ok(E)&&ok(Tp)&&Tp>0&&!ok(li)&&!ok(ls)){s.lie=nfx(E-Tp);s.lse=nfx(E+Tp)}
     else if(ok(li)&&ok(ls)&&ls>li&&(!ok(E)||!ok(Tp))){s.espec=nfx((li+ls)/2);s.tolPm=nfx((ls-li)/2)}}
   $('#main').innerHTML=`<div class="fade"><div class="top"><button class="btn ic" onclick="goBack()" title="Voltar para a aba de origem"><i class="fas fa-arrow-left"></i></button><div><h1><i class="fas ${T.ic} c-brand"></i> ${T.n}</h1><div class="sub">${esc(s.codigo)} · ${V.isNew?'Novo estudo':'Editando'} <span id="dirty"></span></div></div><div class="sp"></div>
-   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Garantia R&R (v81): sempre Aprovado com %GRR ≤ 10% — na base do estudo E contra a Variação Total (VT) — e ndc ≥ 5 · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
+   <div class="dd" id="ddSim"${V.simHidden?' style="display:none"':''}><button class="btn" onclick="this.parentNode.classList.toggle('open')" title="Preenche com dados simulados realistas de chão de fábrica — ajusta e repete até o estudo sair Aprovado · Pede o mínimo e o máximo medidos em TODOS os estudos e gera as leituras dentro dessa faixa · Garantia R&R (v82): sempre Aprovado com %GRR (VT) < 10% E %GRR (Tol) < 10%, ndc ≥ 5 · Atalho Alt+S oculta/exibe este módulo"><i class="fas fa-wand-magic-sparkles"></i>Simular dados <i class="fas fa-chevron-down" style="font-size:10px"></i></button><div class="dd-m"><div onclick="fillDemo('good');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-check c-ok"></i>Processo capaz — Aprovado com folga</div><div onclick="fillDemo('mid');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-circle-half-stroke c-warn"></i>Limítrofe — Aprovado junto ao limite</div><div onclick="fillDemo('bad');this.parentNode.parentNode.classList.remove('open')"><i class="fas fa-medal c-ok"></i>Conservador — Aprovado com folga máxima</div></div></div>
    <button class="btn" onclick="importCSV()"><i class="fas fa-file-import"></i>Importar CSV</button>
    <button class="btn" onclick="clearData()"><i class="fas fa-eraser"></i>Limpar</button>
    <button class="btn" onclick="printJustStudy()" title="Relatório de perguntas e respostas preparadas para o auditor"><i class="fas fa-clipboard-question"></i>Justificativa</button>
@@ -3073,7 +3076,8 @@ function rGrid(){const s=V.edit,d=s.dados;let h='';
     h+=`<tr><td class="h" colspan="2" style="position:sticky;left:0;z-index:2;min-width:84px">Média peça</td>${Array.from({length:d.parts},(_,p)=>`<td class="c" id="pm${p}"></td>`).join('')}<td class="c" id="pmT"></td></tr></tbody></table>`}
   if(s.tipo==='atr'){const oph=d.v.map((o,oi)=>`<th colspan="${d.trials}"><input data-op="${oi}" value="${esc(d.opNames[oi])}" title="Nome do avaliador"></th>`).join('');
     const trh=d.v.map(o=>o.map((_,t)=>`<th>${t+1}</th>`).join('')).join('');
-    h=`<table class="dg"><thead><tr><th rowspan="2">Peça</th>${oph}<th rowspan="2">Ref.</th><th rowspan="2">Conc.</th></tr><tr>${trh}</tr></thead><tbody>${d.ref.map((rv2,p)=>`<tr><td class="h">${p+1}</td>${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}${tg('ref.'+p,rv2)}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
+    const hasVal=Array.isArray(d.refVal)&&d.refVal.some(x=>String(x==null?'':x).trim()!=='');
+    h=`<table class="dg"><thead><tr><th rowspan="2">Peça</th>${oph}${hasVal?'<th rowspan="2" title="Valor medido da peça (simulação a partir da faixa mínimo–máximo)">Valor</th>':''}<th rowspan="2">Ref.</th><th rowspan="2">Conc.</th></tr><tr>${trh}</tr></thead><tbody>${d.ref.map((rv2,p)=>`<tr><td class="h">${p+1}</td>${d.v.map((o,oi)=>o.map((r,t)=>tg(`v.${oi}.${t}.${p}`,r[p])).join('')).join('')}${hasVal?`<td class="c">${esc(String(d.refVal[p]==null?'':d.refVal[p]).replace('.',','))}</td>`:''}${tg('ref.'+p,rv2)}<td class="c" id="ag${p}"></td></tr>`).join('')}</tbody></table>
     <div class="row" style="padding:10px;gap:10px"><button class="btn sm" onclick="fillCol('A')"><i class="fas fa-check c-ok"></i> Referência: tudo A</button><button class="btn sm" onclick="fillCol('R')"><i class="fas fa-xmark c-bad"></i> Referência: tudo R</button></div>`}
   $('#grid').innerHTML=h;
   $$('#grid input[data-p]').forEach(e=>{e.oninput=()=>{setPath(V.edit.dados,e.dataset.p,e.value);if(V.edit.simulado){V.edit.simulado=false;logHist(V.edit,'Dados editados manualmente','simulação desativada neste estudo — valores digitados não são regenerados pelo sistema')}markDirty();recalcSoon()};e.onkeydown=navKey;e.onpaste=pasteGrid});
@@ -3199,18 +3203,99 @@ function saveEdit(print){const s=V.edit;if(!s.codigo.trim()){toast('Informe o c�
    const n0=_cnt(_prev||{}),n1=_cnt(s);logHist(s,'Alteração',(dif.length?'campos: '+dif.join(', '):'identificação sem mudanças')+(n0!==n1?` · medições ${n0}→${n1}`:''))}
   const _salvo=JSON.parse(JSON.stringify(s));saveStudy(_salvo);s.rev=_salvo.rev;s.cfgSnap=_salvo.cfgSnap;s.resultado=_salvo.resultado;V.isNew=false;V.dirty=false;$('#dirty').innerHTML='· <b class="c-ok">salvo</b>';toast((_renum?_renum+' · ':'')+'Estudo salvo · '+(_salvo.resultado&&_salvo.resultado.status||'—'));$('#cntE').textContent=S.studies.length;if(print)printStudies([s.id])}
  function clearData(){confirmBox('Limpar todos os dados de medição deste estudo?',()=>{const n=newStudy(V.edit.tipo);V.edit.dados=n.dados;V.edit.simulado=false;markDirty();rParams();rGrid();recalc()})}
- function fillDemo(q){q=q||'good';if(!simApprove(V.edit,q))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);const R=V.edit.resultado||calc(V.edit);const rot={good:'processo capaz — Aprovado com folga',mid:'cenário limítrofe — Aprovado junto ao limite',bad:'conservador — Aprovado com folga máxima'};const lbl=(R&&R.status!=='Aprovado')?('RESULTADO: '+R.status.toUpperCase()+(R.msg?' — '+String(R.msg).slice(0,120):'')):rot[q];toast(`Simulação realista · ${lbl} · ${dp} ${dp===1?'casa decimal':'casas decimais'}`,'fa-flask')}
+ function fillDemo(q){q=q||'good';if(V.edit)return askSim(q);runDemo(q)}
+ function runDemo(q){q=q||'good';if(!simApprove(V.edit,q))return;rEditor();markDirty();const dp=decimalPlaces(V.edit);const R=V.edit.resultado||calc(V.edit);const rot={good:'processo capaz — Aprovado com folga',mid:'cenário limítrofe — Aprovado junto ao limite',bad:'conservador — Aprovado com folga máxima'};
+  if(V.edit.tipo==='rr'&&R&&R.m){const f=simFaixaOf(V.edit),c=x=>String(x).replace('.',','),okk=simRRok(V.edit,R);
+    toast(`Simulação R&R · ${okk?'APROVADO':'RESULTADO: '+R.status.toUpperCase()} · %GRR (VT) ${pct(+R.m['%GRR (VT)'],2)} · %GRR (Tol) ${pct(+R.m['%GRR (Tol)'],2)} · ndc ${ok(+R.m.ndc)?R.m.ndc:'∞'}${f?` · faixa ${c(f.rawMin)} a ${c(f.rawMax)}`:''}`,okk?'fa-flask':'fa-triangle-exclamation');return}
+  const fxs=V.edit.simFaixa?simFaixaOf(V.edit):null,cc=x=>String(x).replace('.',',');
+  const lbl=(R&&R.status!=='Aprovado')?('RESULTADO: '+R.status.toUpperCase()+(R.msg?' — '+String(R.msg).slice(0,120):'')):(fxs?'APROVADO':rot[q]);toast(`Simulação realista · ${lbl}${fxs?` · faixa ${cc(fxs.rawMin)} a ${cc(fxs.rawMax)}`:` · ${dp} ${dp===1?'casa decimal':'casas decimais'}`}`,R&&R.status==='Aprovado'?'fa-flask':'fa-triangle-exclamation')}
+ /* v82 · TODOS os estudos: antes de simular, o sistema PEDE o menor e o maior valor medidos (e confirma
+    referência e LIE/LSE quando o estudo precisa deles). As leituras simuladas ficam dentro dessa faixa. */
+ function askSim(q){const s=V.edit;if(!s)return;const t=s.tipo,f=s.simFaixa||{},df=simFaixaOf(s),d=s.dados||{},c=x=>String(x==null?'':x).replace('.',',');
+  const inp=(id,lbl,val,ph)=>`<div><label class="l">${lbl}</label><input class="f" id="${id}" inputmode="decimal" autocomplete="off" value="${esc(val==null?'':String(val))}" placeholder="${esc(ph||'')}" onkeydown="if(event.key==='Enter'){event.preventDefault();runSim('${q}')}"></div>`;
+  const needTol=t!=='est',hasRef=t==='est'||t==='bias';
+  let qtd='',gar='';
+  if(t==='rr'){const O=+d.ops||3,P=+d.parts||10,T=+d.trials||3;qtd=`as ${O*P*T} leituras (${O} avaliadores × ${P} peças × ${T} tentativas)`;gar='resultado <b>Aprovado</b> com <b>%GRR (VT) &lt; 10%</b> e <b>%GRR (Tol) &lt; 10%</b> ao mesmo tempo, e <b>ndc ≥ 5</b>'}
+  if(t==='est'){const g=Math.max(20,+d.g||20),n=+d.n||5;qtd=`as ${g*n} leituras (${g} subgrupos × ${n})`;gar='resultado <b>Aprovado</b> — sistema estável: nenhum ponto fora dos limites de controle X̄ e R e nenhuma sequência de 7 pontos do mesmo lado'}
+  if(t==='bias'){qtd=`as ${+d.n||15} leituras repetidas do padrão`;gar=`resultado <b>Aprovado</b> — tendência estatisticamente igual a zero e <b>%Tendência &lt; ${S.cfg.biasMax}%</b>`}
+  if(t==='lin'){const g=Math.max(5,+d.g||5),m=+d.m||10;qtd=`as ${g*m} leituras (${g} referências × ${m})`;gar=`resultado <b>Aprovado</b> — inclinação e intercepto não significativos, <b>%Linearidade</b> e <b>%Bias máx</b> abaixo de ${S.cfg.biasMax}%`}
+  if(t==='atr'){const O=+d.ops||3,P=+d.parts||50,T=+d.trials||3;qtd=`os valores das ${P} peças e as ${O*P*T} avaliações (${O} avaliadores × ${T} tentativas)`;gar='resultado <b>Aprovado</b> — eficácia, taxa de perda, falso alarme e kappa dentro dos limites'}
+  const extra=t==='lin'?'<p class="legend" style="margin:10px 0 0">Referências já digitadas são mantidas (precisam estar dentro da faixa); em branco, o sistema distribui as referências ao longo da faixa.</p>':t==='atr'?'<p class="legend" style="margin:10px 0 0">A faixa precisa ter valores <b>dentro e fora</b> da especificação: dentro de LIE–LSE a peça é boa (A), fora é ruim (R).</p>':'';
+  const hint=t==='rr'||t==='atr'?'nas peças':'';
+  modal(`<div class="mh"><i class="fas fa-ruler-combined c-brand"></i><h3>Simular ${esc((TYPES[t]||{}).n||'estudo')} com as suas medições</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+   <div class="mb"><p class="legend" style="margin-top:0;line-height:1.6">Informe o <b>menor</b> e o <b>maior</b> valor que você mediu${hint?' '+hint:''}. O sistema gera ${qtd} <b>dentro dessa faixa</b> — o mínimo e o máximo aparecem exatamente nos dados.</p>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">${inp('srMin','Valor mínimo medido',f.min,df?'Ex.: '+c(df.rawMin):'')}${inp('srMax','Valor máximo medido',f.max,df?'Ex.: '+c(df.rawMax):'')}${hasRef?`<div style="grid-column:1/-1">${inp('srRef',t==='bias'?'Valor de referência do padrão':'Valor de referência (opcional)',d.ref,t==='est'?'Em branco = centro da faixa':'')}</div>`:''}${inp('srLie','LIE (limite inferior)'+(needTol?'':' — opcional'),s.lie,'')}${inp('srLse','LSE (limite superior)'+(needTol?'':' — opcional'),s.lse,'')}</div>${extra}
+   <div class="legend" style="margin-top:12px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;line-height:1.55"><i class="fas fa-circle-check c-ok" style="margin-right:6px"></i>Garantia da simulação: ${gar}.</div>
+   <div id="srErr" class="c-bad" style="font-size:12.5px;margin-top:8px;min-height:16px"></div></div>
+   <div class="mf"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" onclick="runSim('${q}')"><i class="fas fa-wand-magic-sparkles"></i>Gerar dados simulados</button></div>`);
+  setTimeout(()=>{const e=document.getElementById(f.min!=null&&f.min!==''?'srMax':'srMin');if(e){e.focus();e.select&&e.select()}},60)}
+ function askSimRR(q){return askSim(q)}
+ function runSim(q){const s=V.edit;if(!s)return;const t=s.tipo,g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim().replace(',','.'):''};
+  const err=m=>{const e=document.getElementById('srErr');if(e)e.textContent=m;return false};
+  const a=g('srMin'),b=g('srMax'),li=g('srLie'),ls=g('srLse'),rf=g('srRef'),na=num(a),nb=num(b),nl=num(li),nu=num(ls),nr=num(rf);
+  if(!ok(na))return err('Informe o valor mínimo medido.');if(!ok(nb))return err('Informe o valor máximo medido.');
+  if(!(nb>na))return err('O valor máximo precisa ser maior que o mínimo.');
+  const needTol=t!=='est';
+  if(needTol&&(!ok(nl)||!ok(nu)))return err(t==='rr'?'Informe LIE e LSE — são necessários para calcular o %GRR (Tol).':t==='atr'?'Informe LIE e LSE — eles definem quais peças são boas (A) e ruins (R).':'Informe LIE e LSE — são necessários para o critério de aprovação (% da tolerância).');
+  if((li!==''||ls!=='')&&!(ok(nl)&&ok(nu)))return err('Informe os dois limites (LIE e LSE) ou deixe ambos em branco.');
+  if(ok(nl)&&ok(nu)&&!(nu>nl))return err('O LSE precisa ser maior que o LIE.');
+  if(t==='bias'){if(!ok(nr))return err('Informe o valor de referência do padrão.');if(!(nr>na&&nr<nb))return err('A referência do padrão precisa ficar entre o mínimo e o máximo medidos.')}
+  if(t==='est'&&rf!==''&&!ok(nr))return err('Valor de referência inválido.');
+  if(t==='est'&&ok(nr)&&!(nr>=na&&nr<=nb))return err('A referência precisa ficar dentro da faixa medida (ou deixe em branco).');
+  if(t==='lin'){const out=(s.dados.refs||[]).map(num).filter(ok).filter(x=>!(x>na&&x<nb));if(out.length)return err('Há referência(s) digitada(s) fora da faixa medida ('+out.map(x=>String(x).replace('.',',')).join('; ')+'). Ajuste a faixa ou as referências.')}
+  if(t==='atr'){const inside=Math.min(nb,nu)-Math.max(na,nl),outside=Math.max(0,nl-na)+Math.max(0,nb-nu);if(!(inside>0)||!(outside>0))return err('A faixa precisa ter valores dentro E fora da especificação (LIE–LSE) para gerar peças boas e ruins.')}
+  s.lie=li;s.lse=ls;if(t==='bias'||t==='est')s.dados.ref=rf;s.simFaixa={min:a,max:b};closeModal();runDemo(q)}
+ function runSimRR(q){return runSim(q)}
 function toggleSim(){if(V.view!=='editor'||!document.getElementById('ddSim'))return;V.simHidden=!V.simHidden;const el=document.getElementById('ddSim');el.style.display=V.simHidden?'none':'';toast(V.simHidden?'Módulo de simulação oculto · Alt+S exibe novamente':'Módulo de simulação exibido · Alt+S oculta novamente',V.simHidden?'fa-eye-slash':'fa-eye')}
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&V.view==='editor'){e.preventDefault();saveEdit()}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&((e.key==='s'||e.key==='S')||e.code==='KeyS')){e.preventDefault();toggleSim()}if(e.key==='Escape')closeModal()});
 window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.preventDefault();e.returnValue=''}});
 
 /* ---------------- simulação de dados ---------------- */
+/* v82 · faixa medida (mínimo/máximo) usada pela simulação de R&R. Sem faixa informada (ex.: dados de
+   exemplo), usa 8%–92% da tolerância. rawMin/rawMax preservam as casas decimais digitadas. */
+let SIMSTEP=NaN;
+function simFaixaOf(s){const f=s&&s.simFaixa;
+  if(f&&ok(num(f.min))&&ok(num(f.max))&&num(f.max)>num(f.min))return{mn:num(f.min),mx:num(f.max),rawMin:String(f.min),rawMax:String(f.max),user:true};
+  const lo=num(s.lie),hi=num(s.lse);if(!(ok(lo)&&ok(hi)&&hi>lo))return null;const T=hi-lo,dg=decimalPlaces(s);
+  const a=(lo+T*.08).toFixed(dg),b=(hi-T*.08).toFixed(dg);return{mn:num(a),mx:num(b),rawMin:a,rawMax:b,user:false}}
+/* v82 · degrau de leitura para a simulação por faixa: resolução do instrumento (ou 10^-casas), nunca mais
+   grosso que as casas digitadas no mínimo/máximo; refinado uma casa por vez quando a faixa tem menos de
+   minSteps degraus (gage mais fino — prática AIAG: resolução ≤ 1/10 da variação). */
+function simGrid(s,fx,minSteps,tune){tune=tune||{};const dg=decimalPlaces(s);
+  const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN;
+  const decOfS=x=>{const t=String(x==null?'':x).trim();return (t.split(/[.,]/)[1]||'').length};
+  const decOfStep=x=>{let k=0;while(k<10&&Math.abs(Math.round(x*10**k)-x*10**k)>1e-7)k++;return k};
+  const fxDec=Math.max(decOfS(fx.rawMin),decOfS(fx.rawMax)),span=fx.mx-fx.mn;
+  let step=ok(rIns)&&rIns>0?rIns:10**-dg;if(fxDec>decOfStep(step))step=10**-fxDec;
+  const onGrid=x=>Math.abs(Math.round(x/step)*step-x)<step*1e-6;if(!onGrid(fx.mn)||!onGrid(fx.mx))step=10**-Math.max(fxDec,decOfStep(step));
+  let fine=0;const fm=2+(tune.fine||0);while(span/step<minSteps&&fine<fm&&decOfStep(step/10)<=8){step/=10;fine++}
+  const dec=Math.min(8,Math.max(dg,fxDec,decOfStep(step)));SIMSTEP=step;
+  return{step,dec,qv:x=>(Math.round(x/step)*step).toFixed(dec)}}
+function simVals(s){const d=s.dados||{};const A=x=>Array.isArray(x)?x.flat(2):[];
+  const a=s.tipo==='est'?A(d.m):s.tipo==='atr'?A(d.refVal):A(d.v);return a.map(num).filter(ok)}
+function simInRange(s){if(s.tipo!=='rr'&&!s.simFaixa)return true;const f=simFaixaOf(s);if(!f)return true;const a=simVals(s);
+  if(!a.length)return false;const e=Math.abs(f.mx-f.mn)*1e-9+1e-12;return Math.min(...a)>=f.mn-e&&Math.max(...a)<=f.mx+e}
+/* v82 · GARANTIA R&R: Aprovado com %GRR (VT) < 10% E %GRR (Tol) < 10% (estritamente) e ndc ≥ 5,
+   com todas as leituras dentro da faixa mínimo–máximo informada. */
+function simRRok(s,R){if(!R||R.status!=='Aprovado'||!R.m)return false;const gV=+R.m['%GRR (VT)'],gT=+R.m['%GRR (Tol)'],nd=+R.m.ndc;
+  return ok(gV)&&gV<10&&ok(gT)&&gT<10&&(nd===Infinity||(ok(nd)&&nd>=5))&&!(R.ser&&R.ser.outR&&R.ser.outR.length)&&simInRange(s)}
  function simulate(s,q='good',att=0,tune){tune=tune||{};
    normalize(s);const d=s.dados,lo=num(s.lie),hi=num(s.lse),T=tol(s),mid=ok(T)?(lo+hi)/2:NaN;
     const digits=decimalPlaces(s),resolution=10**-digits;
     const r=x=>Number.isFinite(x)?x.toFixed(digits):'';
    const offsets=(n,a)=>Array.from({length:n},(_,i)=>n<2?0:((2*i)/(n-1)-1)*a);
    const fail=msg=>{toast(msg,'fa-triangle-exclamation');return false};
+   /* v82 · FAIXA MEDIDA para estabilidade, tendência, linearidade e atributos: o usuário informa o menor e o
+      maior valor medidos (s.simFaixa) e todas as leituras simuladas ficam dentro dessa faixa — o mínimo e o
+      máximo aparecem exatamente nos dados. O R&R variável tem gerador próprio (abaixo). */
+   const RF=(s.tipo!=='rr'&&s.simFaixa)?simFaixaOf(s):null;
+   const RG=RF?simGrid(s,RF,s.tipo==='atr'?20:s.tipo==='lin'?40:s.tipo==='bias'?12:15,tune):null;
+   if(RF&&(s.tipo==='est'||s.tipo==='bias')&&!ok(num(d.ref)))d.ref=RG.qv((RF.mn+RF.mx)/2);
+   if(RF&&s.tipo==='lin'){if(+d.g<5){d.g=5;normalize(s)}
+     const vr=d.refs.map(num).filter(ok);
+     if(vr.length<2){const sgG=Math.min(RG.step*1.6,ok(T)&&T>0?T*.015:Infinity),h=Math.min((RF.mx-RF.mn)*.18,3.2*sgG),G=d.g,a0=RF.mn+h,L=RF.mx-RF.mn-2*h;
+       let rf=Array.from({length:G},(_,i)=>RG.qv(a0+L*Math.max(0,Math.min(1,(i+(i&&i<G-1?gauss()*.08:0))/(G-1)))));
+       if(new Set(rf).size<G)rf=Array.from({length:G},(_,i)=>RG.qv(a0+L*i/(G-1)));d.refs=rf}}
    const refFor=()=>{
      const entered=num(d.ref),ref=ok(entered)?entered:mid;
      if(!ok(ref))return NaN;
@@ -3223,8 +3308,8 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(+d.g<20){d.g=20;normalize(s)}
      // CHÃO DE FÁBRICA: leitura quantizada no degrau do instrumento, repetibilidade σ ≈ 1,0–1,6 degraus (limitada a
      // 9% da tolerância), deriva lenta (desgaste/temperatura) e oscilação entre subgrupos com AR(1); coleta semanal com data/hora.
-     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
-     const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=RG?RG.step:(ok(rIns)&&rIns>0?rIns:resolution);
+     const stepDec=RG?RG.dec:Math.max(digits,(String(step).split('.')[1]||'').length);
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
      let sigma=step*(q==='bad'?.55+.25*Math.random():1+.6*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*(q==='bad'?.06:.09)));if(tune.sig)sigma*=tune.sig;
      const gN=d.m.length,half=(gN-1)/2||1,attn=Math.min(att,20),cap=q==='bad'?1.25:q==='mid'?(attn>15?1.4:2.0):(attn>3?1.2:1.6);
@@ -3243,8 +3328,8 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      // Sem LIE/LSE: faixa de trabalho simétrica de ±5% do padrão para viabilizar %Tendência e %EV (preenchimento automático, revisável).
      if(!ok(T)&&ref>0){s.lie=r(ref*.95);s.lse=r(ref*1.05)}
      // Degrau de leitura = resolução do instrumento (se cadastrada) ou 10^-casas. Leituras são múltiplos desse degrau (como num display real).
-     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
-     const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
+     const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=RG?RG.step:(ok(rIns)&&rIns>0?rIns:resolution);
+     const stepDec=RG?RG.dec:Math.max(digits,(String(step).split('.')[1]||'').length);
      // Dispersão (repetibilidade) típica de um instrumento digital de bancada: ~0,7 degrau; limitada a ≈1,5% da tolerância quando houver LIE/LSE.
      // Nunca depende do valor nominal (um padrão de 3475,00 não varia 0,01% = 0,35 só por ser grande).
      // Chão de fábrica: repetibilidade de 0,9 a 1,6 degrau (limitada a 1,5% da tolerância), tendência do instrumento ~N(0; 0,25σ),
@@ -3267,8 +3352,8 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
      if(!ok(T)&&valid.length>=2){s.lie=r(min-(max-min)*.1);s.lse=r(max+(max-min)*.1)}
       d.refs=d.refs.map((v,i)=>ok(num(v))?v:(valid.length>=2?r(min+(max-min)*(i+.5)/d.g):r(lo+T*(i+.5)/d.g)));
       // Leituras = referência + bias aleatório pequeno (sem inclinação) + repetibilidade típica do instrumento; múltiplos do degrau de leitura.
-      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=ok(rIns)&&rIns>0?rIns:resolution;
-      const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
+      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN,step=RG?RG.step:(ok(rIns)&&rIns>0?rIns:resolution);
+      const stepDec=RG?RG.dec:Math.max(digits,(String(step).split('.')[1]||'').length);
       let sigma=step*(.9+.7*Math.random());if(ok(T)&&T>0)sigma=Math.max(step*.5,Math.min(sigma,T*.015));if(tune.sig)sigma*=tune.sig;
       const series=(n,center,sig,step,dec)=>{const phi=.25,drift=gauss()*sig*.012;let e=gauss()*sig;return Array.from({length:n},(_,i)=>{e=phi*e+Math.sqrt(1-phi*phi)*gauss()*sig;return (Math.round((center+drift*(i-(n-1)/2)+e)/step)*step).toFixed(dec)})};
       const rn=d.refs.map(num),rmid=(Math.min(...rn)+Math.max(...rn))/2,rspan=Math.max(Math.max(...rn)-Math.min(...rn),1e-9),attn=Math.min(att,10);
@@ -3278,45 +3363,91 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
    }
    if(s.tipo==='rr'){
      if(!ok(T)||T<=0)return fail('Informe limites LIE e LSE válidos antes de simular R&R variável.');
-     // CHÃO DE FÁBRICA: peças do processo em posições irregulares da tolerância, viés de técnica por avaliador,
-     // interação avaliador×peça e repetibilidade aleatória quantizada no degrau do instrumento — nada determinístico.
+     /* v82 · R&R A PARTIR DA FAIXA MEDIDA PELO USUÁRIO — o simulador pede o MENOR e o MAIOR valor
+        realmente medidos (s.simFaixa) e gera todas as leituras DENTRO dessa faixa: a peça mais baixa
+        toca exatamente o mínimo e a mais alta toca exatamente o máximo. A dispersão do sistema de
+        medição (GRR) é dimensionada para ficar abaixo de 10% nas DUAS bases ao mesmo tempo:
+          σGRR = min( g·PV/√(1−g²) , g·Tol/k )   com g ≈ 5,5–10% (alvo realista) — PV previsto pela faixa.
+        Repetibilidade, reprodutibilidade (viés por avaliador) e interação avaliador×peça são
+        aleatórias e quantizadas no degrau de leitura; se a dispersão exigida ficar menor que meio
+        degrau, usa-se um gage uma casa mais fino (prática AIAG: resolução ≤ 1/10 da variação). */
+     const fx=simFaixaOf(s);if(!fx)return fail('Informe o valor mínimo e o máximo medidos (máximo maior que mínimo) antes de simular.');
+     const mn=fx.mn,mxv=fx.mx,span=mxv-mn;
      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN;
-     /* v80 · GAGE MAIS FINO QUANDO A TOLERÂNCIA É CURTA: se a tolerância tem menos de ~24 degraus
-        do degrau de leitura e o estudo é julgado pela %TOLERÂNCIA, a garantia v80 (%GRR ≤ 10% ·
-        ndc ≥ 5) é matematicamente inalcançável — o piso de quantização/reabertura do LSC fixa
-        %GRR ≈ 10,9% (T = 0,2 com 2 decimais). O simulador então usa um instrumento UMA CASA mais
-        fino — prática AIAG de resolução ≤ T/10 — e o lscFix detecta o degrau real dos dados. */
-     const SBsg=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base;
-     let step0=ok(rIns)&&rIns>0?rIns:resolution;
-     if(ok(T)&&T>0&&T/step0<24&&SBsg==='tol')step0=Math.max(10**-(decimalPlaces(s)+1),step0/10);
-     const step=step0;
-     const stepDec=Math.max(digits,(String(step).split('.')[1]||'').length);
+     const kSnap=(s.cfgSnap&&s.cfgSnap.k!=null)?+s.cfgSnap.k:+S.cfg.k,kk=[6,5.15].includes(+s.rrK)?+s.rrK:(kSnap===5.15?5.15:6);
+     const decOfS=x=>{const t=String(x==null?'':x).trim();return (t.split(/[.,]/)[1]||'').length};
+     const decOfStep=x=>{let k=0;while(k<10&&Math.abs(Math.round(x*10**k)-x*10**k)>1e-7)k++;return k};
+     const fxDec=Math.max(decOfS(fx.rawMin),decOfS(fx.rawMax));
+     let step=ok(rIns)&&rIns>0?rIns:resolution;
+     if(fxDec>decOfStep(step))step=10**-fxDec;
+     const onGrid=x=>Math.abs(Math.round(x/step)*step-x)<step*1e-6;
+     if(!onGrid(mn)||!onGrid(mxv))step=10**-Math.max(fxDec,decOfStep(step));
+     const P=d.parts,attn=Math.min(att,40);
+     const gT=(q==='mid'?.084:q==='bad'?.052:.066)+Math.random()*.012;
+     const PV0=span*.92*(K3[P]||.32);
+     let sg=Math.min(gT*PV0/Math.sqrt(1-gT*gT),gT*T/kk);
+     if(tune.sig)sg*=tune.sig;
+     let fine=0;const fineMax=2+(tune.fine||0);
+     while(sg<.5*step&&fine<fineMax&&decOfStep(step/10)<=8){step/=10;fine++}
+     SIMSTEP=step;
+     const stepDec=Math.min(8,Math.max(digits,fxDec,decOfStep(step)));
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
-     const attn=Math.min(att,12);
-     // v40: σ dimensionada pela TOLERÂNCIA — alvo %GRR(VT) realista de chão de fábrica
-     // (bom 7,0–8,4% · limítrofe 8,4–9,8% · conservador 6,2–7,6% → ndc ≈ 15–25).
-     // Antes σ saía do degrau do instrumento: em tolerância larga as repetições ficavam
-     // quase idênticas (%GRR<1% e ndc>100 — irreais, caso ndc=264). O degrau continua
-     // QUANTIZANDO a leitura; K3 (constante de peças, escala σ) converte a amplitude
-     // esperada das peças (≈90% da tolerância) no PV previsto; /1,08 compensa o AV.
-     const gTgt=(q==='mid'?.084:q==='bad'?.062:.070)+Math.random()*.014;
-     let sigma=gTgt*(K3[d.parts]||.32)*.9*T/Math.sqrt(1-gTgt*gTgt)/1.08;
-     sigma=Math.max(sigma,step*(.26+.09*Math.random()));if(tune.sig)sigma=Math.max(step*.1,sigma*tune.sig);
-     if(attn>4)sigma*=Math.pow(.93,attn-4);
-     const obc=q==='bad'?.3:q==='mid'?.7:.5,inc=q==='bad'?.15:q==='mid'?.42:.3,obE=attn>6?.22:obc,inE=attn>6?.15:inc;
-     const opB=d.v.map((_,oi)=>gauss()*sigma*obE*(oi===0?1.4:.85)*(tune.av||1));
-     const inter=d.v.map(o=>o[0].map(()=>gauss()*sigma*inE*(tune.av||1)));
-     const pLo0=q==='bad'?.03:q==='mid'?.07:.05,sprd=Math.max(.6,Math.min(2,tune.spread||1)),pLo=Math.max(0,.5-(.5-pLo0)*sprd),pHi=1-pLo;
-     const wd=1+(tune.wide||0),pc=x=>Math.max(-.15,Math.min(1.15,.5+(x-.5)*wd));
-     const parts=Array.from({length:d.parts},(_,p)=>+qv(lo+T*pc((p+.5)/d.parts+(attn>6?gauss()*.03:gauss()*.05))));
-     d.v=d.v.map((o,oi)=>o.map((row,_t)=>row.map((_,p)=>{
-        const cap=(q==='bad'?1.7:q==='mid'?(attn>10?1.6:2.0):attn>6?1.5:1.9)*(tune.cap||1);
-        const em=Math.max(-cap*sigma,Math.min(cap*sigma,gauss()*sigma));
+     const fmt=x=>(+x).toFixed(stepDec);
+     const evS=sg*.88,avS=sg*.42*(tune.av||1),inS=sg*.2*(tune.av||1);
+     const cap=(q==='bad'?1.7:q==='mid'?1.9:1.8)*(tune.cap||1);
+     // posições irregulares das peças na faixa medida (extremos ancorados depois no mínimo/máximo)
+     let u=Array.from({length:P},(_,i)=>i===0?0:i===P-1?1:Math.max(.04,Math.min(.96,(i+gauss()*.28)/(P-1)))).sort((a,b)=>a-b);
+     for(let i=u.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[u[i],u[j]]=[u[j],u[i]]}
+     const h=Math.min(span*.25,1.6*sg);
+     const parts=u.map(x=>mn+h+x*(span-2*h));
+     const opB=d.v.map(()=>gauss()*avS);
+     const inter=d.v.map(o=>o[0].map(()=>gauss()*inS));
+     d.v=d.v.map((o,oi)=>o.map(row=>row.map((_,p)=>{
+        const em=Math.max(-cap*evS,Math.min(cap*evS,gauss()*evS));
         return qv(parts[p]+opB[oi]+inter[oi][p]+em);
      })));
      lscFix(s);
+     // ajuste à faixa: desloca a PEÇA INTEIRA (todas as leituras dela) — não altera amplitudes nem avaliadores
+     const cellsOf=p=>{const a=[];d.v.forEach(o=>o.forEach(r=>a.push(num(r[p]))));return a};
+     const shiftP=(p,dl)=>{if(Math.abs(dl)<step*1e-6)return;d.v.forEach(o=>o.forEach(r=>{r[p]=qv(num(r[p])+dl)}))};
+     for(let p=0;p<P;p++){const a=cellsOf(p),lo2=Math.min(...a),hi2=Math.max(...a);
+       if(hi2-lo2>span){const c=(lo2+hi2)/2;shiftP(p,(mn+mxv)/2-c)}
+       else if(lo2<mn)shiftP(p,mn-lo2);else if(hi2>mxv)shiftP(p,mxv-hi2)}
+     let pl=0,ph=0,vl=Infinity,vh=-Infinity;
+     for(let p=0;p<P;p++){const a=cellsOf(p),lo2=Math.min(...a),hi2=Math.max(...a);if(lo2<vl){vl=lo2;pl=p}if(hi2>vh){vh=hi2;ph=p}}
+     if(pl!==ph){shiftP(pl,mn-vl);const a=cellsOf(ph);shiftP(ph,mxv-Math.max(...a))}
+     d.v=d.v.map(o=>o.map(r=>r.map(x=>{const v=Math.max(mn,Math.min(mxv,num(x)));return fmt(Math.round(v/step)*step)})));
    }
-   if(s.tipo==='atr'){
+   if(s.tipo==='atr'&&RF&&ok(T)&&T>0){
+     /* v82 · atributos a partir da faixa medida: cada peça recebe um VALOR medido dentro de [mín; máx]; a
+        referência A/R sai da especificação (dentro de LIE–LSE = A, fora = R) e a margem até o limite mais
+        próximo decide a dificuldade — peças perto do limite concentram as divergências entre avaliadores. */
+     const Pn=d.parts,mn=RF.mn,mxv=RF.mx,half=T/2;
+     const inLo=Math.max(mn,lo),inHi=Math.min(mxv,hi),Lin=inHi-inLo;
+     const segs=[];if(mn<lo)segs.push([mn,Math.min(lo,mxv),'lo']);if(mxv>hi)segs.push([Math.max(hi,mn),mxv,'hi']);
+     const Lout=segs.reduce((a,g)=>a+(g[1]-g[0]),0);
+     if(!(Lin>0)||!(Lout>0))return fail('R&R por atributos: a faixa medida precisa ter valores dentro E fora da especificação (LIE/LSE) para gerar peças boas (A) e ruins (R).');
+     let nR=Math.round(Pn*(.3+.15*Math.random()));nR=Math.max(2,Math.min(Pn-2,nR));const nA=Pn-nR;
+     const dz=Math.min(T*.03,Lin*.2);
+     const pickA=()=>{let x=inLo+Math.random()*Lin;for(let k=0;k<60&&Math.min(Math.abs(x-lo),Math.abs(x-hi))<dz;k++)x=inLo+Math.random()*Lin;return x};
+     const pickR=()=>{let u=Math.random()*Lout;for(const g of segs){const L=g[1]-g[0];if(u<=L||g===segs[segs.length-1]){const z=Math.min(dz,L*.3);return g[2]==='lo'?g[0]+Math.random()*(L-z):g[0]+z+Math.random()*(L-z)}u-=L}return segs[0][0]};
+     const A=Array.from({length:nA},pickA),Rr=Array.from({length:nR},pickR);
+     const anchor=(val)=>{const L=(val<lo||val>hi)?Rr:A;let bi=0;for(let i=1;i<L.length;i++)if(Math.abs(L[i]-val)<Math.abs(L[bi]-val))bi=i;L[bi]=val};
+     anchor(mn);anchor(mxv);
+     let vals=A.concat(Rr).map(x=>RG.qv(Math.max(mn,Math.min(mxv,x))));
+     for(let i=vals.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[vals[i],vals[j]]=[vals[j],vals[i]]}
+     d.refVal=vals;
+     const marg=vals.map(v=>{const x=num(v);return (x>=lo&&x<=hi)?Math.min(x-lo,hi-x)/half:-Math.max(lo-x,x-hi)/half});
+     d.ref=marg.map((m,i)=>{const x=num(vals[i]);return (x>=lo&&x<=hi)?'A':'R'});
+     const attn=Math.min(att,10);
+     const sigs=d.v.map((_,oi)=>{
+       const sk=q==='bad'?(.95+Math.random()*.035+attn*.003):q==='mid'?((oi===d.v.length-1?.8:.87+Math.random()*.05)+attn*.006):(.9+Math.random()*.08)+attn*.004;
+       return .3*(1.08-sk)/.5*(tune.skill||1)*.9;
+     });
+     const look=d.v.map(()=>Array.from({length:Pn},()=>gauss()*.55));
+     d.v=d.v.map((o,oi)=>o.map(row=>row.map((_,p)=>{const mm=marg[p]+(marg[p]>=0?1e-9:0)+look[oi][p]*sigs[oi];return (mm+gauss()*sigs[oi]*.65>=0)?'A':'R'})));
+   }
+   if(s.tipo==='atr'&&!(RF&&ok(T)&&T>0)){
      // CHÃO DE FÁBRICA: peças com margem latente vs limite (claras + limítrofes), avaliadores com habilidade distinta,
      // decisão = margem + percepção fixa (avaliador×peça) + ruído por tentativa — divergências se concentram nas limítrofes.
      const Pn=d.parts,attn=Math.min(att,10);
@@ -3338,6 +3469,27 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
        return (mm+gauss()*sigs[oi]*.65>0)?'A':'R';
      })));
    }
+   if(RF&&RG&&(s.tipo==='est'||s.tipo==='bias'||s.tipo==='lin')){
+     const mn=RF.mn,mxv=RF.mx,span=mxv-mn,q2=RG.qv;
+     if(s.tipo==='est'){
+       // transformação AFIM das leituras para [mín; máx]: limites X̄/R e regra de sequência são invariantes à escala
+       const a=d.m.flat().map(num).filter(ok),l0=Math.min(...a),h0=Math.max(...a);
+       d.m=d.m.map(row=>row.map(x=>{const v=num(x);return q2(h0>l0?mn+(v-l0)*span/(h0-l0):(mn+mxv)/2)}));
+     }
+     if(s.tipo==='bias'){
+       // escala por partes em torno da referência (mín → mínimo medido · máx → máximo medido) e correção da média
+       // das leituras internas para a média ficar sobre a referência — tendência estatisticamente igual a zero.
+       const ref=num(d.ref),v=d.v.map(num),n=v.length,c=v.reduce((x,y)=>x+y,0)/n,l0=Math.min(...v),h0=Math.max(...v),il=v.indexOf(l0),ih=v.lastIndexOf(h0);
+       let w=v.map((x,i)=>i===il?mn:i===ih?mxv:(x<c?ref-(c-x)*(ref-mn)/Math.max(c-l0,1e-12):ref+(x-c)*(mxv-ref)/Math.max(h0-c,1e-12)));
+       for(let k=0;k<4;k++){const m=w.reduce((x,y)=>x+y,0)/n,sh=(ref-m)*n/Math.max(1,n-2);if(Math.abs(sh)<RG.step*1e-3)break;w=w.map((x,i)=>i===il||i===ih?x:Math.max(mn,Math.min(mxv,x+sh)))}
+       d.v=w.map(q2);
+     }
+     if(s.tipo==='lin'){
+       d.v=d.v.map(row=>row.map(x=>q2(Math.max(mn,Math.min(mxv,num(x))))));
+       let li=0,lj=0,hi2=0,hj=0,lv=Infinity,hv=-Infinity;d.v.forEach((row,i)=>row.forEach((x,j)=>{const t=num(x);if(t<lv){lv=t;li=i;lj=j}if(t>hv){hv=t;hi2=i;hj=j}}));
+       d.v[li][lj]=q2(mn);d.v[hi2][hj]=q2(mxv);
+     }
+   }
    s.simulado=true;return s}
  /* v72 · Gera e verifica com o motor real (calc) ATÉ o estudo sair Aprovado — agora com ajuste
     adaptativo: cada tentativa lê o motivo da não-aprovação (amplitude acima do LSC, %GRR fora da
@@ -3348,7 +3500,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
  function simMargin(s,R){if(!R||R.status!=='Aprovado')return false;const m=R.m||{};
   if(s.tipo==='lin')return m['p-valor (a)']>.15&&m['p-valor (b)']>.15;
   if(s.tipo==='bias')return m['p-valor']>.15;
-  if(s.tipo==='rr'){const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,gb=SB==='tol'?m['%GRR (Tol)']:m['%GRR (VT)'];return ok(gb)&&gb<=9.5&&gb>=5.2&&m['ndc']>=6&&m['ndc']<=25}
+  if(s.tipo==='rr'){const gw=Math.max(+m['%GRR (VT)'],+m['%GRR (Tol)']);return simRRok(s,R)&&ok(gw)&&gw<=9.5&&gw>=4.5&&m['ndc']>=6}
   if(s.tipo==='atr')return m['Kappa mín. vs ref']>=.85&&m['Eficácia mín.']>=93;
   if(s.tipo==='est'){const X=R.ser;if(!X||!X.xb)return true;const lim=(X.ucl-X.X)||1e-12;return X.xb.every(x=>Math.abs(x-X.X)<=.9*lim)&&(!X.rr||X.rr.every(r=>r<=.92*X.uclR))&&!X.trend}
   return true}
@@ -3416,7 +3568,7 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
    nenhuma tentativa chegou a Aprovado. */
  function simApprove(s,q){q=q||'good';let best=null,bestW=-1,bestG=Infinity;const tune={};
   const SB=(s.cfgSnap&&s.cfgSnap.base)||S.cfg.base,GK=SB==='tol'?'%GRR (Tol)':'%GRR (VT)',isRR=s.tipo==='rr',SIGF=SB==='tol'?.55:.85;
-  for(let i=0;i<190;i++){
+  for(let i=0;i<(isRR?260:190);i++){
     if(!simulate(s,q,i,tune))return false;
     let R=null;try{R=calc(s)}catch(e){R=null}
     if(!R)return true;
@@ -3424,21 +3576,20 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
     /* v81 · GARANTIA DUPLA: %GRR ≤ 10 na base do estudo E contra a VARIAÇÃO TOTAL — um estudo
        na base %Tolerância nunca mais esconde um %GRR (VT) acima de 10%: na simulação, o %GRR
        contra a VT é SEMPRE menor que 10%, nunca maior. gE (a pior métrica) guia a sintonia. */
-    const inG=!isRR||(ok(g)&&g<=10&&ok(nd)&&nd>=5&&(!ok(gV)||gV<=10));
+    /* v82 · garantia estrita nas DUAS bases: %GRR (VT) < 10 E %GRR (Tol) < 10, ndc ≥ 5, leituras na faixa medida */
+    const gTl=fn('%GRR (Tol)'),gW=Math.max(ok(gV)?gV:Infinity,ok(gTl)?gTl:Infinity);
+    const inG=isRR?simRRok(s,R):simInRange(s);
+    if(!isRR&&s.simFaixa&&R.status==='Incompleto')tune.fine=Math.min(3,(tune.fine||0)+1);
     if(R.status==='Aprovado'&&inG&&(i>=40||simMargin(s,R)))return true;
-    if(isRR){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0;
-      if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.1}
-      else if(ok(gE)&&gE>10){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
-        if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.2);
-        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.8,Math.min(1.25,Math.sqrt(8.5/gE))));tune.av=Math.max(.15,(tune.av||1)*.85);tune.wide=Math.min(1.2,(tune.wide||0)+.1)}}
-      else if(ok(gE)&&gE>9.5){const rbb=+m['R̄̄'],stpp=ok(rbb)?Math.pow(10,-decimalPlaces(s)):NaN;
-        if(ok(stpp)&&rbb>0&&rbb<.42*stpp)tune.sig=Math.min(1.8,(tune.sig||1)*1.1);
-        else{tune.sig=Math.max(SIGF,(tune.sig||1)*Math.max(.9,Math.min(1.15,Math.sqrt(9/gE))));tune.av=Math.max(.15,(tune.av||1)*.9);tune.wide=Math.min(1.2,(tune.wide||0)+.06)}}
-      else if(ok(nd)&&nd<5){tune.sig=Math.max(SIGF,(tune.sig||1)*.78);tune.spread=Math.min(2,(tune.spread||1)*1.12);tune.wide=Math.min(1.2,(tune.wide||0)+.12)}
-      else if(ok(g)&&g<5.2){tune.sig=(tune.sig||1)*1.3;tune.spread=Math.max(.6,(tune.spread||1)*.9)}
-      else if(ok(nd)&&nd>28)tune.sig=(tune.sig||1)*1.25;
-      else if(ok(nd)&&nd<6){tune.sig=Math.max(SIGF,(tune.sig||1)*.8);tune.spread=Math.min(2,(tune.spread||1)*1.1)}
-      else{tune.sig=(tune.sig||1)*1.05;tune.cap=Math.min(1.7,(tune.cap||1)*1.08)}}
+    if(isRR){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0,rbb=+m['R̄̄'];
+      if(!simInRange(s)){tune.cap=Math.max(.35,(tune.cap||1)*.85)}
+      else if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.05}
+      else if(ok(gW)&&gW>=9.6){if(ok(rbb)&&ok(SIMSTEP)&&rbb<.45*SIMSTEP)tune.fine=Math.min(3,(tune.fine||0)+1);
+        else{tune.sig=Math.max(.02,(tune.sig||1)*Math.max(.55,Math.min(.97,8/gW)));tune.av=Math.max(.3,(tune.av||1)*.92)}}
+      else if(R.status!=='Aprovado'){tune.sig=Math.max(.02,(tune.sig||1)*.85);tune.av=Math.max(.3,(tune.av||1)*.9)}
+      else if(ok(nd)&&nd<6){tune.sig=Math.max(.02,(tune.sig||1)*.85)}
+      else if(ok(gW)&&gW<4.5&&i<40){tune.sig=Math.min(4,(tune.sig||1)*Math.min(1.4,7/Math.max(gW,.5)))}
+      if(i>0&&i%45===0)tune.fine=Math.min(3,(tune.fine||0)+1)}
     else if(s.tipo==='est'){if(i>120){tune.sig=1;tune.drift=1}
       else if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.5);
       else if(R.ser&&R.ser.outX.length){tune.sig=(tune.sig||1)*.75;tune.drift=(tune.drift||1)*.7}
@@ -3449,8 +3600,8 @@ window.addEventListener('beforeunload',e=>{if(V.view==='editor'&&V.dirty){e.prev
     else if(s.tipo==='lin'){if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.4);
       else{tune.delta=(tune.delta||1)*.7;tune.sig=(tune.sig||1)*.95}}
     else if(s.tipo==='atr'){tune.skill=(tune.skill||1)*.85}
-    const w=R.status==='Aprovado'?(inG?3:2):R.status==='Condicional'?1:0,gW=ok(gE)?gE:Infinity;
-    if(w>bestW||(w===bestW&&gW<bestG)){bestW=w;bestG=gW;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
+    const w=R.status==='Aprovado'?(inG?3:2):R.status==='Condicional'?1:0,gWb=isRR?(ok(gW)?gW:Infinity):(ok(gE)?gE:Infinity);
+    if(w>bestW||(w===bestW&&gWb<bestG)){bestW=w;bestG=gWb;best=JSON.stringify({d:s.dados,lie:s.lie,lse:s.lse})}
   }
   if(best){try{const o=JSON.parse(best);s.dados=o.d;s.lie=o.lie;s.lse=o.lse}catch(e){}}
   return true}
