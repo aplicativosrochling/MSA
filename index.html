@@ -719,8 +719,10 @@ function confirmOverwrite(doc,remoteRev){const nome=(doc.codigo||'')+' — '+(do
   $('#cwOver').onclick=()=>{closeModal();doc.rev=remoteRev+1;doc.atualizadoEm=new Date().toISOString();logHist(doc,'Conflito resolvido','sobrescreveu a revisão '+remoteRev+' gravada por outro usuário');cloudSet('msapro_estudos',doc).then(ok=>res(ok));if(V.view==='editor'&&V.edit&&V.edit.id===doc.id){V.staleRemote=false;rEditor()}};
   $('#cwKeep').onclick=()=>{closeModal();if(V.view==='editor'&&V.edit&&V.edit.id===doc.id){toast('Versão da nuvem mantida — as alterações desta tela foram descartadas','fa-cloud-arrow-down');const r=S.studies.find(x=>x.id===doc.id);if(r){V.edit=JSON.parse(JSON.stringify(r));V.dirty=false;rEditor()}}res(false)}})}
 function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
-let cloudOk=false,unsub=null,syncTimer=null;
-function setSync(on,err){cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Sem Firebase — alterações NÃO ficam salvas')}
+let cloudOk=false,unsub=null,syncTimer=null,_ar=0,subsAt=0,cloudErrFlag=false;
+/* v87: 'already-exists' (Target ID already exists) = corrida entre dois subscribe/unsubscribe seguidos no boot; religa sozinho */
+function autoRetryCloud(){if(_ar>=3)return;clearTimeout(autoRetryCloud.t);autoRetryCloud.t=setTimeout(()=>{_ar++;retryCloud()},1200*(_ar+1))}
+function setSync(on,err){if(on){_ar=0;cloudErrFlag=false}else if(err&&err!=='conectando…'){cloudErrFlag=true;if(String(err)==='already-exists')autoRetryCloud()}cloudOk=!!on;$('#syncDot').className='dot'+(on?' on':'');$('#syncTxt').textContent=on?'Firebase conectado · tempo real':(err?`Sem conexão Firebase (${err}) · clique para reconectar`:'Sem Firebase — alterações NÃO ficam salvas')}
 let progDone=false;
 function ensureProg(){if(progDone)return;progDone=true;migrateProg()} /* apenas deduplicação; o planejamento agora é por Famílias */
 function retryCloud(){progDone=false;S.cfg.cloud=true;persist();setSync(false,'conectando…');try{if(db)db.enableNetwork()}catch(e){}initCloud();S.studies.forEach(x=>cloudSet('msapro_estudos',x));S.instruments.forEach(x=>cloudSet('msapro_instrumentos',x));S.inv.forEach(x=>cloudSet('msapro_inventario',x))}
@@ -743,7 +745,7 @@ const RULES_TXT=[
 "}"].join('\n');
 let USER=null,unAuth=null;
 function authUser(){if(!USER||!USER.uid)return null;const p=(USER.providerData&&USER.providerData[0]&&USER.providerData[0].providerId)||'password';return{uid:USER.uid,email:USER.email||'',label:((USER.displayName||'').trim())||USER.email||('conta '+String(USER.uid).slice(0,6)),provider:p}}
-function authInit(){if(typeof firebase==='undefined'||!firebase||!firebase.auth)return;try{const a=firebase.auth();if(unAuth){try{unAuth()}catch(e){}}unAuth=a.onAuthStateChanged(u=>{const was=!!USER;USER=(u&&u.uid)?u:null;updUserChip();if(USER){if(!was)toast('Conta conectada: '+(USER.email||authUser().label),'fa-user-check');if(!cloudOk)retryCloud()}else if(was){setSync(false,'sem conta — entre para usar a nuvem')}})}catch(e){}}
+function authInit(){if(typeof firebase==='undefined'||!firebase||!firebase.auth)return;try{const a=firebase.auth();if(unAuth){try{unAuth()}catch(e){}}unAuth=a.onAuthStateChanged(u=>{const was=!!USER;USER=(u&&u.uid)?u:null;updUserChip();if(USER){if(!was)toast('Conta conectada: '+(USER.email||authUser().label),'fa-user-check');if(!cloudOk&&(cloudErrFlag||!subsAt))retryCloud()}else if(was){setSync(false,'sem conta — entre para usar a nuvem')}})}catch(e){}}
 function updUserChip(){const el=$('#userChip');if(!el)return;const u=authUser();
   el.innerHTML=u?`<div class="nav-s" style="padding:15px 10px 7px">Conta</div><div style="display:flex;align-items:center;gap:9px;padding:4px 10px 8px;font-size:12px;color:#fff;font-weight:600;word-break:break-all"><i class="fas fa-user-circle" style="color:#7FB2E0;font-size:16px"></i><span style="flex:1">${esc(u.label)}${u.email&&u.email!==u.label?`<small style="display:block;font-weight:400;color:#8B93A7">${esc(u.email)}</small>`:''}</span></div><button class="btn sm" style="margin:0 10px;width:calc(100% - 20px);justify-content:center;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#fff" onclick="signOutNow()"><i class="fas fa-right-from-bracket"></i>Sair da conta</button>`
   :`<div class="nav-s" style="padding:15px 10px 7px">Conta</div><button class="btn sm" style="margin:0 10px;width:calc(100% - 20px);justify-content:center;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#fff" onclick="openLogin()"><i class="fas fa-right-to-bracket"></i>Entrar no Firebase</button><small style="display:block;margin:6px 10px 10px;font-size:10.5px;color:#8B93A7;line-height:1.5">Sem conta, a nuvem fica bloqueada pelas regras e a aprovação é registrada como “local”.</small>`}
@@ -767,6 +769,7 @@ function initCloud(){
   }catch(e){db=null;setSync(false,e.code||'erro');ensureProg()}
 }
 function startSubs(){
+  subsAt=Date.now();
   const col='msapro_estudos';let first=true;
   if(unsub){try{unsub()}catch(e){}}
   clearTimeout(syncTimer);syncTimer=setTimeout(()=>{if(!cloudOk)setSync(false,'servidor não respondeu — verifique internet/firewall (firestore.googleapis.com)')},12000);
