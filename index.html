@@ -2903,10 +2903,9 @@ function csvApply(){const p=window._csvParsed;const s=V.edit;if(!p||p.err||!s)re
 function dashSet(){const p=+V.dash.periodo,a=V.dash.area;return S.studies.filter(s=>(!p||daysTo(s.data)>=-p)&&(!a||s.area===a))}
 const areas=()=>[...new Set([...S.studies.map(s=>s.area),...S.instruments.map(i=>i.area)].filter(Boolean))].sort();
 /* ================= v24 · VIEW FAMÍLIAS ================= */
-function rFams(){const invOn=!!S.inv.length;
-  const cov=new Set();S.studies.forEach(s=>{if(s.familiaId)famCovList(s.familiaId).forEach(x=>cov.add('f'+x.id));else{const i=instrOf(s);if(i)cov.add('i'+i.id)}});
-  const semFam=invOn?S.inv.filter(x=>!x.famId||!S.fams.some(f=>f.id===x.famId)).length:S.instruments.filter(i=>!famInstrFam(i)).length;
-  const stat=(lb,v,sub,ic,cls,k,tip)=>`<div class="card kpi" role="button" tabindex="0" title="${tip}" onclick="famKpi('${k}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();famKpi('${k}')}"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+function rFams(){
+  const nPend=S.fams.filter(f=>['over','soon'].includes(famStatus(f.id).w)).length,nOk=S.fams.filter(f=>famStatus(f.id).w==='future').length;
+  const stat=(lb,v,sub,ic,cls,k,tip)=>`<div class="card kpi" style="${famF===k?'border-color:var(--brand);box-shadow:var(--sh2)':''}" role="button" tabindex="0" title="${tip}" onclick="famKpi('${k}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();famKpi('${k}')}"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
   $('#main').innerHTML=`<div class="fade">
   <div class="top"><div><h1>Famílias de Instrumentos</h1><div class="sub">Estudos MSA por família — AIAG MSA 4ª ed.: instrumentos similares podem ser avaliados por um estudo representativo</div></div><div class="sp"></div>
   ${S.fams.length?'':`<button class="btn" onclick="seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Catálogo padrão</button>`}
@@ -2914,43 +2913,20 @@ function rFams(){const invOn=!!S.inv.length;
   <button class="btn" onclick="impInv()"><i class="fas fa-file-import"></i>Importar inventário (CSV)</button>
   <button class="btn pri" onclick="famModal()"><i class="fas fa-layer-group"></i>Nova família</button></div>
   <div class="grid kpis" style="margin-bottom:16px">
-   ${stat('Famílias',S.fams.length,'grupos de instrumentos similares','fa-layer-group','brand','fam','Ver a lista de famílias')}
-   ${stat('Inventário',invOn?S.inv.length:S.instruments.length,invOn?'instrumentos importados do sistema de calibração':'sem importação — usando instrumentos internos','fa-ruler-combined','ok','inv','Ver o inventário e a família de cada instrumento')}
-   ${stat('Cobertos',cov.size,'instrumentos com cobertura de estudos MSA','fa-shield-halved','ok','cob','Ver os instrumentos cobertos por estudos MSA')}
-   ${stat('Sem família',semFam,invOn?'importe e vincule a uma família':'tipos fora das famílias cadastradas','fa-circle-question',semFam?'warn':'ok','sem','Ver os instrumentos/tipos sem família')}
+   ${stat('Famílias',S.fams.length,'grupos de instrumentos similares — ver todas','fa-layer-group','brand','fam','Mostrar todas as famílias')}
+   ${stat('Com pendência',nPend,'vencido, vencendo, sem agendamento ou revalidação','fa-triangle-exclamation',nPend?'warn':'ok','pend','Filtrar famílias com pendência (clique de novo para limpar)')}
+   ${stat('Em dia',nOk,'famílias com estudos dentro do prazo','fa-circle-check','ok','ok','Filtrar famílias em dia (clique de novo para limpar)')}
   </div>
   ${S.fams.length?`<div id="famList">${famCards()}</div>`:`<div class="card"><div class="empty"><i class="fas fa-layer-group"></i>Nenhuma família cadastrada.<br>Crie famílias (ex.: Paquímetros, Micrômetros, CMM) ou use o catálogo padrão baseado nos tipos do sistema de calibração.<br><br><button class="btn pri" onclick="famModal()"><i class="fas fa-plus"></i>Criar primeira família</button> <button class="btn" onclick="seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Catálogo padrão (AIAG)</button></div></div>`}
   <p class="legend" style="margin-top:10px"><b>Por que estudos por família?</b> O AIAG MSA 4ª ed. permite agrupar instrumentos <b>similares</b> (mesmo princípio de medição, construção, faixa e resolução) e avaliar um <b>estudo representativo</b> por família, com seleção racional de instrumentos, operadores e peças. Com centenas de instrumentos no sistema de calibração, isso elimina estudos redundantes: cada família tem seu cronograma de recálculo e o resultado aprovado cobre todos os instrumentos vinculados. Importe o inventário CSV para ter a contagem real de cobertura.</p>
  </div>`}
 
-/* v91 · KPIs clicáveis da aba Famílias + detalhe de instrumentos por família */
-function famItems(){return S.inv.length
-  ?S.inv.map(x=>({id:x.id,codigo:x.eqid,descricao:x.desc,tipo:x.tipo,fam:S.fams.find(f=>f.id===x.famId)||null}))
-  :S.instruments.map(i=>({id:i.id,codigo:i.codigo,descricao:i.descricao,tipo:i.tipo,fam:famInstrFam(i)}))}
-function famCovItems(){const m=new Map();
-  S.studies.forEach(s=>{if(s.familiaId)famCovList(s.familiaId).forEach(x=>m.set('f'+x.id,{codigo:x.codigo,descricao:x.descricao,tipo:x.tipo,fam:S.fams.find(f=>f.id===s.familiaId)||null}));
-    else{const i=instrOf(s);if(i)m.set('i'+i.id,{codigo:i.codigo,descricao:i.descricao,tipo:i.tipo,fam:famInstrFam(i)})}});
-  return [...m.values()]}
-function famTbl(rows){return rows.length?`<div class="tw" style="max-height:380px"><table class="t" style="font-size:12.5px"><thead><tr><th>Código</th><th>Descrição</th><th>Tipo</th><th>Família</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.codigo||'—')}</b></td><td>${esc(r.descricao||'—')}</td><td>${esc(r.tipo||'(sem tipo)')}</td><td>${r.fam?`<span class="tag">${esc(r.fam.cod)}</span> ${esc(r.fam.nome)}`:'<span class="legend">— sem família —</span>'}</td></tr>`).join('')}</tbody></table></div>`:''}
-function famKpiModal(ic,tt,body){modal(`<div class="mh"><h3><i class="fas ${ic} c-brand"></i>${tt}</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb">${body}</div>`)}
-function famKpi(k){
-  if(k==='fam'){const el=$('#famList');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});else famModal();return}
-  const invOn=!!S.inv.length,it=famItems();
-  if(k==='inv'){
-    if(!it.length){famKpiModal('fa-ruler-combined','Inventário',`<div class="empty"><i class="fas fa-ruler-combined"></i>Nenhum instrumento cadastrado.<br><br><button class="btn pri" onclick="closeModal();impInv()"><i class="fas fa-file-import"></i>Importar inventário (CSV)</button></div>`);return}
-    famKpiModal('fa-ruler-combined','Inventário',`<p class="legend" style="margin-bottom:8px">${it.length} instrumento(s) ${invOn?'importados do sistema de calibração':'internos (sem importação de CSV)'}.</p>${famTbl(it)}${invOn?'':`<div style="margin-top:10px"><button class="btn" onclick="closeModal();impInv()"><i class="fas fa-file-import"></i>Importar inventário (CSV)</button></div>`}`);return}
-  if(k==='cob'){const c=famCovItems();
-    famKpiModal('fa-shield-halved','Instrumentos cobertos por estudos MSA',c.length?`<p class="legend" style="margin-bottom:8px">${c.length} instrumento(s) com cobertura direta ou via família.</p>${famTbl(c)}`:'<div class="empty"><i class="fas fa-shield-halved"></i>Nenhum instrumento coberto ainda.</div>');return}
-  if(k==='sem'){const sem=it.filter(r=>!r.fam);
-    if(!sem.length){famKpiModal('fa-circle-question','Sem família','<div class="empty"><i class="fas fa-circle-check"></i>Todos os instrumentos pertencem a uma família.</div>');return}
-    const g={};sem.forEach(r=>{const t=r.tipo||'(sem tipo)';(g[t]=g[t]||[]).push(r)});
-    famKpiModal('fa-circle-question','Sem família',`<p class="legend" style="margin-bottom:8px">${sem.length} instrumento(s) em ${Object.keys(g).length} tipo(s) que não constam em nenhuma família. Para vincular, inclua o tipo em <b>Editar família</b>${invOn?' ou escolha a família ao importar o CSV':''}.</p><div class="tw" style="max-height:380px"><table class="t" style="font-size:12.5px"><thead><tr><th>Tipo</th><th style="text-align:right">Qtd.</th><th>Instrumentos</th></tr></thead><tbody>${Object.keys(g).sort().map(t=>`<tr><td><b>${esc(t)}</b></td><td style="text-align:right">${g[t].length}</td><td>${esc(g[t].map(r=>r.codigo).filter(Boolean).slice(0,8).join(', '))}${g[t].length>8?'…':''}</td></tr>`).join('')}</tbody></table></div>`)}}
-function famCovModal(fid){const f=S.fams.find(x=>x.id===fid);if(!f)return;const c=famCovList(fid);
-  const body=c.length?`<p class="legend" style="margin-bottom:8px">${c.length} instrumento(s) vinculado(s) a esta família.</p>${famTbl(c.map(x=>({codigo:x.codigo,descricao:x.descricao,tipo:x.tipo,fam:f})))}`
-  :`<div class="empty"><i class="fas fa-circle-info"></i><b>Nenhum instrumento vinculado a ${esc(f.cod)}.</b><br>A contagem vem do inventário e dos instrumentos internos cujo <b>tipo</b> coincide com um dos tipos da família (ignorando maiúsculas e acentos).<br><br>Tipos da família: ${(f.tipos||[]).map(t=>`<span class="tag" style="font-size:10px">${esc(t)}</span>`).join(' ')||'<i>nenhum</i>'}<br>Tipos existentes nos instrumentos: ${[...new Set(famItems().map(r=>r.tipo||'(sem tipo)'))].map(t=>`<span class="tag" style="font-size:10px">${esc(t)}</span>`).join(' ')||'<i>nenhum instrumento cadastrado</i>'}<br><br><button class="btn pri" onclick="closeModal();famModal('${f.id}')"><i class="fas fa-pen"></i>Editar família</button> <button class="btn" onclick="closeModal();impInv()"><i class="fas fa-file-import"></i>Importar inventário (CSV)</button></div>`;
-  famKpiModal('fa-layer-group',esc(f.cod)+' · '+esc(f.nome),body)}
-function famCards(){return S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(f=>{
-  const cov=famCovList(f.id),st=famStatus(f.id);
+/* v92 · KPIs clicáveis da aba Famílias (por status dos estudos; instrumentos ficam no controle próprio) */
+let famF='';
+function famKpi(k){famF=(k==='fam'||famF===k)?'':k;rFams()}
+const famFOk=f=>!famF||(famF==='pend'?['over','soon'].includes(famStatus(f.id).w):famStatus(f.id).w==='future');
+function famCards(){const L=S.fams.filter(famFOk);if(!L.length)return `<div class="card"><div class="empty"><i class="fas fa-filter"></i>Nenhuma família neste filtro.<br><br><button class="btn" onclick="famKpi('fam')">Mostrar todas</button></div></div>`;return L.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(f=>{
+  const st=famStatus(f.id);
   /* v74: lista TODOS os estudos da família, mais recentes primeiro — o corte em 4 itens escondia
      estudos recém-atribuídos (ex.: GRR-2026-009 no PAQ ficava atrás da nota "+ 1 estudo(s)") */
   const ss=S.studies.filter(s=>s.familiaId===f.id).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))||String(b.codigo||'').localeCompare(String(a.codigo||'')));
@@ -2968,7 +2944,6 @@ function famCards(){return S.fams.slice().sort((a,b)=>a.cod.localeCompare(b.cod)
     ${f.criterio?`<div class="legend" style="margin-top:5px"><i class="fas fa-scale-balanced"></i> ${esc(f.criterio)}</div>`:''}
    </div>
    <div class="row" style="gap:18px;text-align:center">
-    <div style="cursor:pointer" title="Ver os instrumentos desta família" onclick="famCovModal('${f.id}')"><div style="font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace">${cov.length}</div><small class="legend">instrumentos${cov.length?'':' <i class="fas fa-circle-question" style="font-size:10px"></i>'}</small></div>
     <div><div style="font-size:12.5px;font-weight:600">${st.np?fdate(st.np):'—'}</div><small class="legend">próx. vencimento</small></div>
    </div>
    <span style="display:inline-flex;gap:6px">
