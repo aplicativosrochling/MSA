@@ -3068,11 +3068,11 @@ function rDash(){
   ${S.studies.length?'':`<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><i class="fas fa-circle-info c-brand" style="font-size:22px"></i><div style="flex:1"><b>Nenhum estudo cadastrado ainda.</b><div class="sub" style="color:var(--muted)">Crie seu primeiro estudo ou carregue dados de exemplo para conhecer o sistema.</div></div><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Novo estudo</button></div>`}
   <div class="grid kpis" style="margin-bottom:16px">
    ${kpi('Total de estudos',tot,`${done} concluídos`,'fa-folder-open','brand',100,{})}
-   ${kpi('Aprovados',ap,pct(done?ap/done*100:0)+' dos concluídos','fa-circle-check','ok',done?ap/done*100:0,{status:'Aprovado'})}
-   ${kpi('Condicionais',co,pct(done?co/done*100:0),'fa-triangle-exclamation','warn',done?co/done*100:0,{status:'Condicional'})}
-   ${kpi('Reprovados',re,pct(done?re/done*100:0),'fa-circle-xmark','bad',done?re/done*100:0,{status:'Reprovado'})}
-   ${kpi('Índice de conformidade',pct(conf),'aprovados / concluídos','fa-gauge-high',conf>=80?'ok':conf>=60?'warn':'bad',conf,null,"go('estudos',{f:{status:'Aprovado'}})")}
-   ${kpi('%GRR médio',ok(grrM)?pct(grrM):'—',`${grr.length} estudos R&R`,'fa-users',!ok(grrM)?'brand':grrM<=S.cfg.grrOk?'ok':grrM<=S.cfg.grrCond?'warn':'bad',ok(grrM)?Math.min(100,grrM/40*100):0,{tipo:'rr'})}
+   ${kpi('Aprovados',ap,pct(done?ap/done*100:0,1)+' dos concluídos','fa-circle-check','ok',done?ap/done*100:0,{status:'Aprovado'})}
+   ${kpi('Condicionais',co,pct(done?co/done*100:0,1),'fa-triangle-exclamation','warn',done?co/done*100:0,{status:'Condicional'})}
+   ${kpi('Reprovados',re,pct(done?re/done*100:0,1),'fa-circle-xmark','bad',done?re/done*100:0,{status:'Reprovado'})}
+   ${kpi('Índice de conformidade',pct(conf,1),'aprovados / concluídos','fa-gauge-high',conf>=80?'ok':conf>=60?'warn':'bad',conf,null,"go('estudos',{f:{status:'Aprovado'}})")}
+   ${kpi('%GRR médio',ok(grrM)?pct(grrM,2):'—',`${grr.length} estudos R&R`,'fa-users',!ok(grrM)?'brand':grrM<=S.cfg.grrOk?'ok':grrM<=S.cfg.grrCond?'warn':'bad',ok(grrM)?Math.min(100,grrM/40*100):0,{tipo:'rr'})}
   </div>
   <div class="grid g2" style="margin-bottom:16px">
    <div class="card"><h3><i class="fas fa-chart-pie c-brand"></i>Resultado dos estudos<span class="hint">clique para filtrar</span></h3><div class="chart"><canvas id="chSt"></canvas></div></div>
