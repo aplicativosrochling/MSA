@@ -2201,11 +2201,10 @@ function upcomingCards(){const ev=[
 function rCron(){const t=new Date();if(!V.cal)V.cal={y:t.getFullYear(),m:t.getMonth()};if(!V.ctab)V.ctab='prox';
   const items=schedItems().sort((a,b)=>a.p.localeCompare(b.p));
   const over=items.filter(x=>x.st==='over'),soon=items.filter(x=>x.st==='soon'),fut=items.filter(x=>x.st==='future');
-  const insts=new Set();S.studies.forEach(s=>{if(s.familiaId)famCovList(s.familiaId).forEach(x=>insts.add('f'+x.id));else{if(s.instrumentoId)insts.add(s.instrumentoId);else{const c=String(s.instrumentoTxt||'').toUpperCase().trim();if(c)S.instruments.forEach(i=>{if(String(i.codigo||'').toUpperCase()===c)insts.add(i.id)})}}});
-  const nFam=[...new Set(S.studies.filter(s=>s.familiaId).map(s=>s.familiaId))].length;
-  const nInst=insts.size||S.instruments.length||S.inv.length;
   const av=+S.cfg.diasAviso||30;
-  const stat=(lb,v,sub,ic,cls)=>`<div class="card kpi"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const stat=(lb,v,sub,ic,cls,k)=>`<div class="card kpi" style="${V.cst===k?'border-color:var(--brand);box-shadow:var(--sh2)':''}" role="button" tabindex="0" title="Filtrar por ${lb.toLowerCase()} (clique de novo para limpar)" onclick="cronKpi('${k}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cronKpi('${k}')}"><div class="lb"><i class="fas ${ic} bg-${cls} c-${cls}"></i>${lb}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const vis=V.cst?items.filter(x=>x.st===V.cst):items,vOver=vis.filter(x=>x.st==='over'),vSoon=vis.filter(x=>x.st==='soon'),vFut=vis.filter(x=>x.st==='future');
+  const cstNome={over:'Vencidos',soon:'Vencendo',future:'Em dia'}[V.cst];
   $('#main').innerHTML=`<div class="fade">
    <div class="top"><div><h1>Cronograma</h1><div class="sub">Agenda de recálculos MSA · aviso com ${av} dias de antecedência</div></div><div class="sp"></div>
    <button class="btn" onclick="mailDigest()" title="Envio manual — abre o seu cliente de e-mail com o resumo pronto (o automático dispara sozinho quando há vencidos, se ativado em Configurações)"><i class="fas fa-envelope"></i>Avisos por e-mail</button>
@@ -2213,15 +2212,16 @@ function rCron(){const t=new Date();if(!V.cal)V.cal={y:t.getFullYear(),m:t.getMo
    <button class="btn" onclick="printSched()"><i class="fas fa-print"></i>Imprimir anual</button>
    <button class="btn pri" onclick="schedPicker()"><i class="fas fa-calendar-plus"></i>Agendar estudo</button></div>
   <div class="grid kpis" style="margin-bottom:16px">
-   ${stat('Vencidos',over.length,'atrasados · inclui revalidação obrigatória','fa-triangle-exclamation','bad')}
-   ${stat('Vencendo',soon.length,`próximos ${av} dias`,'fa-clock','warn')}
-   ${stat('Em dia',fut.length,'agendados no futuro','fa-circle-check','ok')}
-   ${stat('Instrumentos',nInst,nFam?`cobertura via ${nFam} família(s) · estudos MSA`:'monitorados por estudos MSA','fa-ruler-combined','brand')}
+   ${stat('Vencidos',over.length,'atrasados · inclui revalidação obrigatória','fa-triangle-exclamation','bad','over')}
+   ${stat('Vencendo',soon.length,`próximos ${av} dias`,'fa-clock','warn','soon')}
+   ${stat('Em dia',fut.length,'agendados no futuro','fa-circle-check','ok','future')}
   </div>
+  ${V.cst?`<div style="margin-bottom:10px"><span class="chip on" onclick="cronKpi('${V.cst}')" style="cursor:pointer">Filtro: ${cstNome} (${vis.length}) ✕</span></div>`:''}
   <div class="tabs"><div class="tab ${V.ctab==='prox'?'on':''}" onclick="V.ctab='prox';rCron()"><i class="fas fa-list-check"></i>Próximos</div><div class="tab ${V.ctab==='agenda'?'on':''}" onclick="V.ctab='agenda';rCron()"><i class="fas fa-calendar-days"></i>Agenda</div><div class="tab ${V.ctab==='tl'?'on':''}" onclick="V.ctab='tl';rCron()"><i class="fas fa-timeline"></i>Linha do Tempo</div><div class="tab ${V.ctab==='ex'?'on':''}" onclick="V.ctab='ex';rCron()"><i class="fas fa-diagram-project"></i>Execução</div><div class="tab ${V.ctab==='al'?'on':''}" onclick="V.ctab='al';rCron()"><i class="fas fa-bell"></i>Alertas</div></div>
-  ${V.ctab==='agenda'?schedCal():V.ctab==='tl'?ganttTL(items):V.ctab==='ex'?ganttEX():V.ctab==='al'?ganttAL():schedList(items,over,soon,fut)}
+  ${V.ctab==='agenda'?schedCal():V.ctab==='ex'?ganttEX():V.ctab==='al'?ganttAL():(V.cst&&!vis.length)?`<div class="card"><div class="empty"><i class="fas fa-filter"></i>Nenhum item em <b>${cstNome}</b>.<br><br><button class="btn" onclick="cronKpi('${V.cst}')">Limpar filtro</button></div></div>`:V.ctab==='tl'?ganttTL(vis):schedList(vis,vOver,vSoon,vFut)}
  </div>`}
 
+function cronKpi(k){V.cst=(V.cst===k)?'':k;if(V.cst&&['agenda','ex','al'].includes(V.ctab))V.ctab='prox';rCron()}
 function schedList(items,over,soon,fut){
   const row=x=>{const s=x.s;return `<div class="list-i" onclick="openStudy('${s.id}')">
     <div class="ico ${x.st==='over'?'bg-bad c-bad':x.st==='soon'?'bg-warn c-warn':'bg-brand c-brand'}"><i class="fas ${TYPES[s.tipo].ic}"></i></div>
