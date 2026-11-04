@@ -673,6 +673,10 @@ const num=v=>{if(v===''||v==null)return NaN;const n=parseFloat(String(v).replace
 const ok=v=>typeof v==='number'&&isFinite(v);
 const decimalPlaces=(s=null)=>{const raw=s&&s.decimais!==undefined&&s.decimais!==null&&s.decimais!==''?Number(s.decimais):Number(S.cfg.decimais);return Number.isFinite(raw)?Math.max(0,Math.min(8,Math.round(raw))):4};
 const fxd=(v,d)=>ok(v)?(+v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+/* v90: casas realmente digitadas/geradas nas leituras (relatório e grade nunca mostram menos casas que os dados) */
+const dataDec=s=>{try{const d=s&&s.dados;if(!d)return 0;let m=0;const walk=x=>{if(Array.isArray(x))x.forEach(walk);else if(typeof x==='string'||typeof x==='number'){const t=String(x).trim();if(/^[-+]?\d*[.,]\d+$/.test(t)){const k=t.split(/[.,]/)[1].length;if(k>m)m=k}}};['v','m','refs','ref','refVal'].forEach(k=>walk(d[k]));return Math.min(8,m)}catch(e){return 0}};
+/* v90: rótulo de eixo sem repetição — casas suficientes para distinguir o passo dos ticks */
+const tickFmt=base=>(v,i,t)=>{let dd=base;if(t&&t.length>1){const st=Math.abs((+t[1].value)-(+t[0].value));if(st>0)dd=Math.max(dd,Math.min(8,Math.ceil(-Math.log10(st)-1e-9)))}return fxd(+v,dd)};
 const fsig=(v,dp)=>{if(!ok(v))return'—';const a=Math.abs(v);let d=dp;if(a>0&&a<1)d=Math.max(dp,Math.min(8,3-Math.floor(Math.log10(a))));return fxd(v,d)};
 const fmt=(v,d=decimalPlaces())=>ok(v)?(+v.toFixed(d)).toLocaleString('pt-BR',{maximumFractionDigits:d}):'—';
 const pct=(v,d=decimalPlaces())=>ok(v)?v.toFixed(d).replace('.',',')+'%':'—';
@@ -3309,8 +3313,8 @@ function recalc(){const s=V.edit,R=calc(s);s.resultado=R;const d=s.dados;
   if(s.tipo==='est')d.m.forEach((r,i)=>{const a=r.map(num);const full=a.every(ok);const cx=$('#cx'+i),cr=$('#cr'+i);if(!cx)return;cx.textContent=full?fxd(mean(a),decimalPlaces(s)):'';cr.textContent=full?fxd(rng(a),decimalPlaces(s)):'';const fi=R.ser?d.m.slice(0,i).filter(rr=>rr.map(num).every(ok)).length:-1;cx.classList.toggle('out',!!(full&&R.ser&&R.ser.outX.includes(fi)));cr.classList.toggle('out',!!(full&&R.ser&&R.ser.outR.includes(fi)))});
   if(s.tipo==='bias'){const ref=num(d.ref);d.v.forEach((v,i)=>{const e=$('#bb'+i);if(e)e.textContent=ok(num(v))&&ok(ref)?sfx(num(v)-ref,decimalPlaces(s)):''})}
   if(s.tipo==='lin')d.v.forEach((r,i)=>{const R0=num(d.refs[i]);const e=$('#lb'+i);if(e)e.textContent=ok(R0)?fmt(mean(r.map(num).filter(ok).map(x=>x-R0)),decimalPlaces(s)):''});
-  if(s.tipo==='rr'){const uclR=R.ser?.uclR;d.v.forEach((o,oi)=>{o.forEach((r,t)=>{const e=$(`#rm${oi}_${t}`);if(e)e.textContent=fmt(mean(r.map(num)),decimalPlaces(s))});const rs=[];for(let p=0;p<d.parts;p++){const c=o.map(r=>num(r[p]));const e=$(`#rr${oi}_${p}`);const v=c.every(ok)?rng(c):NaN;rs.push(v);if(e){e.textContent=ok(v)?fmt(v,decimalPlaces(s)):'';e.classList.toggle('out',ok(uclR)&&v>uclR)}}const e=$('#rb'+oi);if(e)e.textContent=fmt(mean(rs),decimalPlaces(s))});
-    for(let p=0;p<d.parts;p++){const e=$('#pm'+p);if(e)e.textContent=fmt(mean(d.v.flatMap(o=>o.map(r=>num(r[p])))),decimalPlaces(s))}$('#pmT').textContent=fmt(mean(d.v.flat(2).map(num)),decimalPlaces(s))}
+  if(s.tipo==='rr'){const dpv=Math.max(decimalPlaces(s),dataDec(s)),uclR=R.ser?.uclR;d.v.forEach((o,oi)=>{o.forEach((r,t)=>{const e=$(`#rm${oi}_${t}`);if(e)e.textContent=fmt(mean(r.map(num)),dpv)});const rs=[];for(let p=0;p<d.parts;p++){const c=o.map(r=>num(r[p]));const e=$(`#rr${oi}_${p}`);const v=c.every(ok)?rng(c):NaN;rs.push(v);if(e){e.textContent=ok(v)?fmt(v,dpv):'';e.classList.toggle('out',ok(uclR)&&v>uclR)}}const e=$('#rb'+oi);if(e)e.textContent=fmt(mean(rs),dpv)});
+    for(let p=0;p<d.parts;p++){const e=$('#pm'+p);if(e)e.textContent=fmt(mean(d.v.flatMap(o=>o.map(r=>num(r[p])))),dpv)}$('#pmT').textContent=fmt(mean(d.v.flat(2).map(num)),dpv)}
   if(s.tipo==='atr')d.ref.forEach((rv,p)=>{const e=$('#ag'+p);if(!e)return;const calls=d.v.flatMap(o=>o.map(r=>r[p]));if(rv===''||calls.some(c=>c===''))e.textContent='';else{const a=calls.every(c=>String(c)===String(rv));e.innerHTML=a?'<span class="c-ok">✔</span>':'<span class="c-bad">✘</span>'}});
   // painel de resultado
   const vc={Aprovado:['bg-ok c-ok','fa-circle-check'],Condicional:['bg-warn c-warn','fa-triangle-exclamation'],Reprovado:['bg-bad c-bad','fa-circle-xmark'],Incompleto:['bg-inc','fa-hourglass-half']}[R.status];
@@ -3424,11 +3428,12 @@ function simGrid(s,fx,minSteps,tune){tune=tune||{};const dg=decimalPlaces(s);
   const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN;
   const decOfS=x=>{const t=String(x==null?'':x).trim();return (t.split(/[.,]/)[1]||'').length};
   const decOfStep=x=>{let k=0;while(k<10&&Math.abs(Math.round(x*10**k)-x*10**k)>1e-7)k++;return k};
-  const fxDec=Math.max(decOfS(fx.rawMin),decOfS(fx.rawMax)),span=fx.mx-fx.mn;
-  let step=ok(rIns)&&rIns>0?rIns:10**-dg;if(fxDec>decOfStep(step))step=10**-fxDec;
-  const onGrid=x=>Math.abs(Math.round(x/step)*step-x)<step*1e-6;if(!onGrid(fx.mn)||!onGrid(fx.mx))step=10**-Math.max(fxDec,decOfStep(step));
-  let fine=0;const fm=2+(tune.fine||0);while(span/step<minSteps&&fine<fm&&decOfStep(step/10)<=8){step/=10;fine++}
-  const dec=Math.min(8,Math.max(dg,fxDec,decOfStep(step)));SIMSTEP=step;
+  const fxDec=Math.max(decOfS(fx.rawMin),decOfS(fx.rawMax)),resK=ok(rIns)&&rIns>0;
+  /* v90: o degrau NUNCA fica mais fino que a resolução do instrumento (sem refinar para "aprovar") */
+  let step=resK?rIns:10**-dg;if(!resK&&fxDec>decOfStep(step))step=10**-fxDec;
+  const onGrid=x=>Math.abs(Math.round(x/step)*step-x)<step*1e-6;
+  if(!onGrid(fx.mn)||!onGrid(fx.mx)){if(resK){const a=Math.ceil(fx.mn/step-1e-9)*step,b=Math.floor(fx.mx/step+1e-9)*step;if(b>a){fx.mn=a;fx.mx=b}}else step=10**-Math.max(fxDec,decOfStep(step))}
+  const dec=Math.min(8,Math.max(dg,decOfStep(step),resK?0:fxDec));SIMSTEP=step;
   return{step,dec,qv:x=>(Math.round(x/step)*step).toFixed(dec)}}
 function simVals(s){const d=s.dados||{};const A=x=>Array.isArray(x)?x.flat(2):[];
   const a=s.tipo==='est'?A(d.m):s.tipo==='atr'?A(d.refVal):A(d.v);return a.map(num).filter(ok)}
@@ -3531,23 +3536,22 @@ function simRRok(s,R){if(!R||R.status!=='Aprovado'||!R.m)return false;const gV=+
         aleatórias e quantizadas no degrau de leitura; se a dispersão exigida ficar menor que meio
         degrau, usa-se um gage uma casa mais fino (prática AIAG: resolução ≤ 1/10 da variação). */
      const fx=simFaixaOf(s);if(!fx)return fail('Informe o valor mínimo e o máximo medidos (máximo maior que mínimo) antes de simular.');
-     const mn=fx.mn,mxv=fx.mx,span=mxv-mn;
+     let mn=fx.mn,mxv=fx.mx,span=mxv-mn;
      const ins=(typeof instrOf==='function')?(instrOf(s)||(typeof instrDisp==='function'?instrDisp(s):null)):null,rIns=ins?num(ins.resolucao):NaN;
      const kSnap=(s.cfgSnap&&s.cfgSnap.k!=null)?+s.cfgSnap.k:+S.cfg.k,kk=[6,5.15].includes(+s.rrK)?+s.rrK:(kSnap===5.15?5.15:6);
      const decOfS=x=>{const t=String(x==null?'':x).trim();return (t.split(/[.,]/)[1]||'').length};
      const decOfStep=x=>{let k=0;while(k<10&&Math.abs(Math.round(x*10**k)-x*10**k)>1e-7)k++;return k};
      const fxDec=Math.max(decOfS(fx.rawMin),decOfS(fx.rawMax));
-     let step=ok(rIns)&&rIns>0?rIns:resolution;
-     if(fxDec>decOfStep(step))step=10**-fxDec;
+     /* v90: degrau = resolução do instrumento; nunca refina (antes gerava casas que o instrumento não lê) */
+     const resK=ok(rIns)&&rIns>0;let step=resK?rIns:resolution;
+     if(!resK&&fxDec>decOfStep(step))step=10**-fxDec;
      const onGrid=x=>Math.abs(Math.round(x/step)*step-x)<step*1e-6;
-     if(!onGrid(mn)||!onGrid(mxv))step=10**-Math.max(fxDec,decOfStep(step));
+     if(!onGrid(mn)||!onGrid(mxv)){if(resK){const a=Math.ceil(mn/step-1e-9)*step,b=Math.floor(mxv/step+1e-9)*step;if(!(b>a))return fail('A faixa medida é menor que a resolução do instrumento ('+rIns+'). Amplie o mínimo/máximo.');mn=a;mxv=b;span=mxv-mn}else step=10**-Math.max(fxDec,decOfStep(step))}
      const P=d.parts,attn=Math.min(att,40);
      const gT=(q==='mid'?.084:q==='bad'?.052:.066)+Math.random()*.012;
      const PV0=span*.92*(K3[P]||.32);
      let sg=Math.min(gT*PV0/Math.sqrt(1-gT*gT),gT*T/kk);
      if(tune.sig)sg*=tune.sig;
-     let fine=0;const fineMax=2+(tune.fine||0);
-     while(sg<.5*step&&fine<fineMax&&decOfStep(step/10)<=8){step/=10;fine++}
      SIMSTEP=step;
      const stepDec=Math.min(8,Math.max(digits,fxDec,decOfStep(step)));
      const qv=x=>(Math.round(x/step)*step).toFixed(stepDec);
@@ -3738,17 +3742,14 @@ function simRRok(s,R){if(!R||R.status!=='Aprovado'||!R.m)return false;const gV=+
     /* v82 · garantia estrita nas DUAS bases: %GRR (VT) < 10 E %GRR (Tol) < 10, ndc ≥ 5, leituras na faixa medida */
     const gTl=fn('%GRR (Tol)'),gW=Math.max(ok(gV)?gV:Infinity,ok(gTl)?gTl:Infinity);
     const inG=isRR?simRRok(s,R):simInRange(s);
-    if(!isRR&&s.simFaixa&&R.status==='Incompleto')tune.fine=Math.min(3,(tune.fine||0)+1);
     if(R.status==='Aprovado'&&inG&&(i>=40||simMargin(s,R)))return true;
     if(isRR){const out=(R.ser&&R.ser.outR)?R.ser.outR.length:0,rbb=+m['R̄̄'];
       if(!simInRange(s)){tune.cap=Math.max(.35,(tune.cap||1)*.85)}
       else if(out>0){tune.cap=Math.max(.35,(tune.cap||1)*.8);tune.sig=(tune.sig||1)*1.05}
-      else if(ok(gW)&&gW>=9.6){if(ok(rbb)&&ok(SIMSTEP)&&rbb<.45*SIMSTEP)tune.fine=Math.min(3,(tune.fine||0)+1);
-        else{tune.sig=Math.max(.02,(tune.sig||1)*Math.max(.55,Math.min(.97,8/gW)));tune.av=Math.max(.3,(tune.av||1)*.92)}}
+      else if(ok(gW)&&gW>=9.6){tune.sig=Math.max(.02,(tune.sig||1)*Math.max(.55,Math.min(.97,8/gW)));tune.av=Math.max(.3,(tune.av||1)*.92)}
       else if(R.status!=='Aprovado'){tune.sig=Math.max(.02,(tune.sig||1)*.85);tune.av=Math.max(.3,(tune.av||1)*.9)}
       else if(ok(nd)&&nd<6){tune.sig=Math.max(.02,(tune.sig||1)*.85)}
-      else if(ok(gW)&&gW<4.5&&i<40){tune.sig=Math.min(4,(tune.sig||1)*Math.min(1.4,7/Math.max(gW,.5)))}
-      if(i>0&&i%45===0)tune.fine=Math.min(3,(tune.fine||0)+1)}
+      else if(ok(gW)&&gW<4.5&&i<40){tune.sig=Math.min(4,(tune.sig||1)*Math.min(1.4,7/Math.max(gW,.5)))}}
     else if(s.tipo==='est'){if(i>120){tune.sig=1;tune.drift=1}
       else if(R.status==='Incompleto')tune.sig=Math.min(3,(tune.sig||1)*1.5);
       else if(R.ser&&R.ser.outX.length){tune.sig=(tune.sig||1)*.75;tune.drift=(tune.drift||1)*.7}
@@ -4081,14 +4082,14 @@ function dataTable(s){const d=s.dados;const c=v=>esc(v===''?'':v);
     return`<table class="dt rr">${head}${body}${foot}</table>`}
   if(s.tipo==='atr'){const per=s.resultado?.ser?.per||[];return`<table class="dt"><tr><th>Avaliador</th><th>Eficácia</th><th>Perda</th><th>Falso alarme</th><th>Kappa</th></tr>${per.map(p=>`<tr><td>${esc(p.nome)}</td><td>${pct(p.eff,decimalPlaces(s))}</td><td>${pct(p.miss,decimalPlaces(s))}</td><td>${pct(p.fa,decimalPlaces(s))}</td><td>${fmt(p.k,decimalPlaces(s))}</td></tr>`).join('')}</table>
     <table class="dt"><tr><th>Peça</th><th>Ref</th>${d.v.map((o,oi)=>o.map((_,t)=>`<th>${esc(d.opNames[oi])}${t+1}</th>`).join('')).join('')}</tr>${d.ref.map((r,p)=>`<tr><td>${p+1}</td><td><b>${c(r)}</b></td>${d.v.map(o=>o.map(rr=>`<td>${c(rr[p])}</td>`).join('')).join('')}</tr>`).join('')}</table>`}}
-function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=v=>fxd(+v,dp),cols=['#1E6FBE','#E26A3E','#12B76A'],lb=Array.from({length:P},(_,i)=>String(i+1));
+function rrCharts(s,R){const X=R.ser,d=s.dados,P=d.parts,dp=decimalPlaces(s),ft=tickFmt(dp),cols=['#1E6FBE','#E26A3E','#12B76A'],lb=Array.from({length:P},(_,i)=>String(i+1));
   const pr=d.v.map(o=>Array.from({length:P},(_,p)=>rng(o.map(r=>num(r[p]))))),bs={maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}},flat=pr.flat();
   const A={type:'line',data:{labels:lb.map(x=>'P'+x),datasets:X.pm.map((o,i)=>({label:d.opNames[i],data:o,borderColor:cols[i],backgroundColor:cols[i],pointRadius:3,tension:.2}))},options:{...bs,scales:{y:{ticks:{callback:ft}}}}};
   const B={type:'bar',data:{labels:lb,datasets:pr.map((o,i)=>({label:d.opNames[i],data:o,backgroundColor:cols[i]}))},options:{...bs,scales:{y:{beginAtZero:true,ticks:{callback:ft}}}}};
   const C={type:'line',data:{labels:flat.map((_,i)=>String(i%P+1)),datasets:[{label:'Amplitude',data:flat,borderColor:'#1E6FBE',backgroundColor:'#1E6FBE',pointRadius:2.5,borderWidth:1.5},{label:'LSC',data:flat.map(()=>X.uclR),borderColor:'#F04438',borderDash:[6,4],pointRadius:0,borderWidth:1.5}]},
     options:{maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}}},layout:{padding:{bottom:18}},scales:{y:{beginAtZero:true,ticks:{callback:ft}},x:{ticks:{autoSkip:false,maxRotation:0,font:{size:10}}}}},
     plugins:[{id:'opn',afterDraw(ch){const a=ch.chartArea,w=(a.right-a.left)/d.ops,x=ch.ctx;x.save();x.strokeStyle='#C9D6E2';x.setLineDash([3,3]);for(let i=1;i<d.ops;i++){const xx=a.left+w*i;x.beginPath();x.moveTo(xx,a.top);x.lineTo(xx,a.bottom);x.stroke()}x.fillStyle='#252423';x.font="bold 13px 'Segoe UI',Arial";x.textAlign='center';d.opNames.forEach((n,i)=>x.fillText(n,a.left+w*(i+.5),ch.height-3));x.restore()}}]};
-  const ft2=v=>fxd(+v,dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
+  const ft2=tickFmt(dp+1);[B,C].forEach(c=>c.options.scales.y.ticks.callback=ft2);
   const cb=(t,c,w,h)=>{c.options.layout=c.options.layout||{};c.options.layout.padding=Object.assign({},c.options.layout.padding,{top:40,left:6,right:10});c.plugins=[...(c.plugins||[]),{id:'ban',afterDraw(ch){const x=ch.ctx;x.save();x.fillStyle='#165A9C';x.fillRect(0,0,ch.width,30);x.fillStyle='#fff';x.font="bold 14px 'Segoe UI',Arial";x.textAlign='center';x.textBaseline='middle';x.fillText(t,ch.width/2,15);x.restore()}}];return`<div class="cb"><img src="${chartImg({c},w,h,14)}" alt="${t}"></div>`};
   return`<div class="rch2">${cb('Gráfico das médias por operador',A,760,440)}${cb('Gráfico de amplitudes — superpostas',B,760,440)}</div>${cb('Gráfico de amplitudes — não superpostas (tracejado = LSC R)',C,1500,434).replace('class="cb"','class="cb wide"')}`}
 const SIMBAN='';/* v39: selo de dados simulados removido dos relatórios impressos */
@@ -4289,7 +4290,7 @@ function sigLastOnly(h,s,sig){const re=/<!--SIG-->[\s\S]*?<!--\/SIG-->/g,n=(h.ma
   h=h.replace(re,()=>++k===n?sigBlock(s,sig):'');
   const key='<div class="pg ',i=h.lastIndexOf(key);if(i>=0)h=h.slice(0,i)+'<div class="pg lastpg '+h.slice(i+key.length);return h}
 function reportPage(s,sig){let all=reportPageCore(s,sig);if(S.cfg.justRel!==false){try{const R=s.resultado;if(R&&R.status!=='Incompleto'){const jp=justPageHTML(s,R,true);if(jp)all+=jp}}catch(e){}}return sigLastOnly(all,s,sig)}
-function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);if(s.tipo==='bias'&&R.ser)return reportTend(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrDisp(s);
+function reportPageCore(s,sig){const R=calc(s);s.resultado=R;if(s.tipo!=='atr'){const dd=dataDec(s);if(dd>decimalPlaces(s))s=Object.assign({},s,{decimais:dd})}if(s.tipo==='rr'&&R.ser)return reportRR(s,R,sig);if(s.tipo==='atr'&&R.ser)return reportAtr(s,R,sig);if(s.tipo==='est'&&R.ser)return reportEst(s,R,sig);if(s.tipo==='lin'&&R.ser)return reportLin(s,R,sig);if(s.tipo==='bias'&&R.ser)return reportTend(s,R,sig);const cc=chartCfgs(s,R),one=cc.length===1;const imgs=cc.map(c=>`<div><div style="font-weight:700;font-size:11.5px;margin-bottom:3px">${c.t}</div><img src="${one?chartImg(c,900,380,13):chartImg(c,520,400,15)}"></div>`).join('');const i=instrDisp(s);
   return`<div class="pg land"><div class="hd"><div><small>${esc(S.cfg.empresa)}</small><h1>Relatório MSA — ${TYPES[s.tipo].n}</h1></div><div style="text-align:right"><b style="font-size:14px">${esc(s.codigo)}</b><br><small>Emitido em ${new Date().toLocaleString('pt-BR')}</small></div></div>
   <table class="info"><tr><td>Peça</td><td>${esc(s.nome)}</td><td>Característica</td><td>${esc(s.caracteristica)}</td><td>Data</td><td>${fdate(s.data)}</td></tr><tr><td>Instrumento</td><td>${esc(instrName(s))}${s.instrumentoCod&&famOf(s)?` <small>(unid. ${esc(s.instrumentoCod)})</small>`:''}${famNote(s)}</td><td>Nº série / Resolução</td><td>${esc(i?.serie||'')} ${i?.resolucao?'· Res. '+esc(i.resolucao)+' '+esc(i.unidade||s.unidade||'mm'):''}</td><td>Área</td><td>${esc(s.area)}</td></tr><tr><td>Tolerância</td><td>${esc(s.lie)} — ${esc(s.lse)} ${esc(s.unidade)}</td><td>Responsável</td><td>${esc(s.responsavel)}</td><td>Fabricante</td><td>${esc(i?.fabricante||'—')}</td></tr><tr><td>Aprovado por</td><td>${esc(s.aprovadoPor||'—')}${s.aprovadoEm?' em '+fdate(s.aprovadoEm):''}${s.aprovadoVia==='local'?' <small>(local, sem conta)</small>':(s.aprovadoUid?' <small>(conta verificada)</small>':'')}</td><td>Criado por</td><td>${esc(s.criadoPor||'—')} ${s.criadoEm?'em '+fdate(s.criadoEm.slice(0,10)):''}</td><td>Alterado por</td><td>${esc(s.atualizadoPor||'—')}</td></tr><tr><td>Parâmetros do veredito</td><td colspan="5">${esc(cfgSnapLabel(s.cfgSnap))}${s.cfgSnap&&s.cfgSnap.alg?' · motor '+esc(s.cfgSnap.alg):''}</td></tr></table>
   ${(s.historico||[]).length?`<table class="info"><tr><td colspan="6"><b>Rastreabilidade</b> — ${(s.historico||[]).length} evento(s) registrado(s). Últimos: ${(s.historico||[]).slice(-4).map(h=>fdate(String(h.ts).slice(0,10))+' '+esc(h.acao)+' ('+esc(h.por)+')').join(' · ')}</td></tr></table>`:''}
