@@ -703,7 +703,7 @@ let S={studies:[],instruments:[],fams:[],inv:[],trash:[],cfg:{empresa:'Minha Emp
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S.studies=d.studies||[];S.instruments=d.instruments||[];S.fams=d.fams||[];S.inv=d.inv||[];S.trash=d.trash||[];Object.assign(S.cfg,d.cfg||{})}}catch(e){}}
 /* Dados vivem SOMENTE no Firebase. O localStorage é lido uma única vez (migração) e depois apagado. */
 function cloudCfg(){return db?db.collection('msapro_config').doc('cfg').set({id:'cfg',json:JSON.stringify(S.cfg)}).then(()=>true).catch(()=>false):Promise.resolve(false)}
-function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify({studies:S.studies,instruments:S.instruments,fams:S.fams,inv:S.inv,trash:S.trash||[],cfg:S.cfg}))}catch(e){}}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify({studies:S.studies,instruments:S.instruments,fams:S.fams,inv:S.inv,trash:S.trash||[],cfg:S.cfg}))}catch(e){/* v94: falha de gravação deixava de ser avisada → risco de perda silenciosa de dados */if(!saveLocal.w){saveLocal.w=1;setTimeout(()=>{saveLocal.w=0},60000);try{toast('Atenção: não foi possível salvar neste navegador (armazenamento cheio ou bloqueado). Baixe um backup JSON agora.','fa-triangle-exclamation')}catch(_){}}}}
 function persist(){clearTimeout(persist.t);persist.t=setTimeout(saveLocal,300);clearTimeout(persist.c);persist.c=setTimeout(cloudCfg,500)}
 window.addEventListener('beforeunload',()=>{try{if(persist.t){clearTimeout(persist.t);saveLocal()}}catch(e){}});
 let db=null;
@@ -2917,14 +2917,19 @@ function rFams(){
    ${stat('Com pendência',nPend,'vencido, vencendo, sem agendamento ou revalidação','fa-triangle-exclamation',nPend?'warn':'ok','pend','Filtrar famílias com pendência (clique de novo para limpar)')}
    ${stat('Em dia',nOk,'famílias com estudos dentro do prazo','fa-circle-check','ok','ok','Filtrar famílias em dia (clique de novo para limpar)')}
   </div>
-  ${S.fams.length?`<div id="famList">${famCards()}</div>`:`<div class="card"><div class="empty"><i class="fas fa-layer-group"></i>Nenhuma família cadastrada.<br>Crie famílias (ex.: Paquímetros, Micrômetros, CMM) ou use o catálogo padrão baseado nos tipos do sistema de calibração.<br><br><button class="btn pri" onclick="famModal()"><i class="fas fa-plus"></i>Criar primeira família</button> <button class="btn" onclick="seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Catálogo padrão (AIAG)</button></div></div>`}
+  ${S.fams.length?`${famFilters()}<div id="famList">${famCards()}</div>`:`<div class="card"><div class="empty"><i class="fas fa-layer-group"></i>Nenhuma família cadastrada.<br>Crie famílias (ex.: Paquímetros, Micrômetros, CMM) ou use o catálogo padrão baseado nos tipos do sistema de calibração.<br><br><button class="btn pri" onclick="famModal()"><i class="fas fa-plus"></i>Criar primeira família</button> <button class="btn" onclick="seedFams()"><i class="fas fa-wand-magic-sparkles"></i>Catálogo padrão (AIAG)</button></div></div>`}
   <p class="legend" style="margin-top:10px"><b>Por que estudos por família?</b> O AIAG MSA 4ª ed. permite agrupar instrumentos <b>similares</b> (mesmo princípio de medição, construção, faixa e resolução) e avaliar um <b>estudo representativo</b> por família, com seleção racional de instrumentos, operadores e peças. Com centenas de instrumentos no sistema de calibração, isso elimina estudos redundantes: cada família tem seu cronograma de recálculo e o resultado aprovado cobre todos os instrumentos vinculados. Importe o inventário CSV para ter a contagem real de cobertura.</p>
  </div>`}
 
 /* v92 · KPIs clicáveis da aba Famílias (por status dos estudos; instrumentos ficam no controle próprio) */
-let famF='';
-function famKpi(k){famF=(k==='fam'||famF===k)?'':k;rFams()}
-const famFOk=f=>!famF||(famF==='pend'?['over','soon'].includes(famStatus(f.id).w):famStatus(f.id).w==='future');
+let famF='',famArea='',famTipo='';
+function famKpi(k){if(k==='fam'){famF='';famArea='';famTipo=''}else famF=(famF===k)?'':k;rFams()}
+const famFOk=f=>{const ss=S.studies.filter(x=>x.familiaId===f.id);return(!famF||(famF==='pend'?['over','soon'].includes(famStatus(f.id).w):famStatus(f.id).w==='future'))&&(!famArea||ss.some(x=>x.area===famArea))&&(!famTipo||ss.some(x=>x.tipo===famTipo))};
+/* v94 · estudo representativo = R&R mais recente da família (AIAG: um estudo representativo cobre os instrumentos similares) */
+function famRep(fid){const ss=S.studies.filter(x=>x.familiaId===fid&&x.tipo==='rr').sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))||String(b.codigo||'').localeCompare(String(a.codigo||'')));return ss[0]||null}
+function famRepTag(f){const r=famRep(f.id);if(!r)return `<span class="tag" title="Nenhum estudo R&R vinculado — a família ainda não tem estudo representativo" style="color:var(--warn);background:var(--warn-bg)"><i class="fas fa-star"></i> sem R&R representativo</span>`;const st=r.resultado?.status||'Incompleto',c=st==='Aprovado'?'ok':st==='Reprovado'?'bad':st==='Condicional'?'warn':'';return `<span class="tag" title="Estudo representativo = R&R mais recente da família" ${c?`style="color:var(--${c});background:var(--${c}-bg)"`:''}><i class="fas fa-star"></i> Representativo: ${esc(r.codigo)} · ${st}</span>`}
+function famFilters(){const ss=S.studies.filter(x=>x.familiaId),ar=[...new Set(ss.map(x=>x.area).filter(Boolean))].sort(),tp=[...new Set(ss.map(x=>x.tipo))].filter(t=>TYPES[t]);
+  if(!ar.length&&tp.length<2)return'';return `<div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center"><span class="legend"><i class="fas fa-filter"></i> Filtrar famílias por</span>${ar.length?`<select class="f" style="width:auto" onchange="famArea=this.value;rFams()"><option value="">Todas as áreas</option>${ar.map(a=>`<option ${a===famArea?'selected':''}>${esc(a)}</option>`).join('')}</select>`:''}${tp.length>1?`<select class="f" style="width:auto" onchange="famTipo=this.value;rFams()"><option value="">Todos os tipos de estudo</option>${tp.map(t=>`<option value="${t}" ${t===famTipo?'selected':''}>${esc(TYPES[t].n)}</option>`).join('')}</select>`:''}${(famF||famArea||famTipo)?`<button class="btn sm" onclick="famKpi('fam')"><i class="fas fa-xmark"></i>Limpar filtros</button>`:''}</div>`}
 function famCards(){const L=S.fams.filter(famFOk);if(!L.length)return `<div class="card"><div class="empty"><i class="fas fa-filter"></i>Nenhuma família neste filtro.<br><br><button class="btn" onclick="famKpi('fam')">Mostrar todas</button></div></div>`;return L.slice().sort((a,b)=>a.cod.localeCompare(b.cod)).map(f=>{
   const st=famStatus(f.id);
   /* v74: lista TODOS os estudos da família, mais recentes primeiro — o corte em 4 itens escondia
@@ -2938,7 +2943,7 @@ function famCards(){const L=S.fams.filter(famFOk);if(!L.length)return `<div clas
     <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
      <span class="tag" style="background:var(--brand-t);color:var(--brand-d);font-weight:800;font-family:'JetBrains Mono',monospace">${esc(f.cod)}</span>
      <b style="font-size:14px">${esc(f.nome)}</b>
-     <span class="tag" style="${tg}">${lbl}</span>${st.n?`<span class="tag">${st.n} estudo${st.n===1?'':'s'}</span>`:''}
+     <span class="tag" style="${tg}">${lbl}</span>${st.n?`<span class="tag">${st.n} estudo${st.n===1?'':'s'}</span>`:''}${famRepTag(f)}
     </div>
     ${f.tipos.length?`<div style="margin-top:6px">${f.tipos.map(t=>`<span class="tag" style="font-size:10px">${esc(t)}</span>`).join(' ')}</div>`:''}
     ${f.criterio?`<div class="legend" style="margin-top:5px"><i class="fas fa-scale-balanced"></i> ${esc(f.criterio)}</div>`:''}
@@ -3065,6 +3070,7 @@ function rDash(){
    <select class="f" style="width:auto" id="dArea"><option value="">Todas as áreas</option>${areas().map(a=>`<option ${a===V.dash.area?'selected':''}>${esc(a)}</option>`).join('')}</select>
    <button class="btn" onclick="openPrint()"><i class="fas fa-print"></i>Imprimir</button>
    <button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Novo estudo</button></div>
+  ${backupBanner()}
   ${S.studies.length?'':`<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><i class="fas fa-circle-info c-brand" style="font-size:22px"></i><div style="flex:1"><b>Nenhum estudo cadastrado ainda.</b><div class="sub" style="color:var(--muted)">Crie seu primeiro estudo ou carregue dados de exemplo para conhecer o sistema.</div></div><button class="btn" onclick="seed()"><i class="fas fa-wand-magic-sparkles"></i>Carregar exemplos</button><button class="btn pri" onclick="openNew()"><i class="fas fa-plus"></i>Novo estudo</button></div>`}
   <div class="grid kpis" style="margin-bottom:16px">
    ${kpi('Total de estudos',tot,`${done} concluídos`,'fa-folder-open','brand',100,{})}
@@ -3808,9 +3814,13 @@ function wipe(){confirmBox('Apagar <b>todos</b> os estudos e instrumentos? Recom
 
 /* ---------------- exportação / importação ---------------- */
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
-function exportJSON(){download(`msa_backup_${today()}.json`,JSON.stringify({versao:1,exportadoEm:new Date().toISOString(),...S},null,1),'application/json');toast('Backup baixado','fa-download')}
+const BK_KEY='msapro_ultimoBackup',BK_DIAS=30;
+function backupInfo(){let d='';try{d=localStorage.getItem(BK_KEY)||''}catch(e){}return d}
+function backupBanner(){if(!S.studies.length&&!S.instruments.length)return'';const d=backupInfo(),n=d?-daysTo(d):null;if(d&&n<BK_DIAS)return'';
+  return `<div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-color:var(--warn)"><i class="fas fa-floppy-disk c-warn" style="font-size:22px"></i><div style="flex:1;min-width:220px"><b>${d?`Último backup há ${n} dias (${fdate(d)})`:'Nenhum backup baixado neste navegador'}</b><div class="legend">Os dados ficam no navegador e na nuvem; um backup JSON é a garantia contra perda. Recomendado a cada ${BK_DIAS} dias.</div></div><button class="btn pri" onclick="exportJSON();go('dashboard')"><i class="fas fa-download"></i>Baixar backup agora</button></div>`}
+function exportJSON(){try{localStorage.setItem(BK_KEY,today())}catch(e){}download(`msa_backup_${today()}.json`,JSON.stringify({versao:1,exportadoEm:new Date().toISOString(),...S},null,1),'application/json');toast('Backup baixado','fa-download')}
  function exportCSV(ids){const L=ids?S.studies.filter(s=>ids.includes(s.id)):filtered();const cols=['Código','Tipo','Peça','Característica','Instrumento','Código do instrumento','Família','Área','Data','Responsável','LIE','LSE','Casas decimais','Status','Origem dos dados','Resultado','Mensagem'];
-  const allM=[...new Set(L.flatMap(s=>Object.keys(s.resultado?.m||{})))];const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const allM=[...new Set(L.flatMap(s=>Object.keys(s.resultado?.m||{})))];const q=v=>{let t=String(v??'');if(/^[=+@\t\r]/.test(t)||/^-(?![0-9.,])/.test(t))t="'"+t;/* v94: bloqueia injeção de fórmula no Excel */return `"${t.replace(/"/g,'""')}"`};
    const rows=L.map(s=>{s.resultado=calc(s);const R=s.resultado;return[s.codigo,TYPES[s.tipo].n,s.nome,s.caracteristica,instrName(s),s.instrumentoCod||'',famLabel(s),s.area,fdate(s.data),s.responsavel,s.lie,s.lse,decimalPlaces(s),R.status,'Registrado/manual',R.chave,R.msg,...allM.map(k=>{const v=R.m?.[k];return ok(v)?String(+v.toFixed(decimalPlaces(s))).replace('.',','):''})].map(q).join(';')});
   download(`msa_estudos_${today()}.csv`,'\ufeff'+[cols.concat(allM).map(q).join(';'),...rows].join('\n'),'text/csv');toast(`${L.length} estudo(s) exportado(s)`,'fa-file-csv')}
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
@@ -3824,7 +3834,9 @@ function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileRe
     if(!studies.length&&!instruments.length&&!fams.length&&!inv.length)throw new Error('vazio');
     const cfgOk={};if(isO(d.cfg))Object.keys(S.cfg).forEach(k=>{if(k!=='cloud'&&Object.prototype.hasOwnProperty.call(d.cfg,k))cfgOk[k]=d.cfg[k]});
     const aviso=bad.length?`<br><span class="c-warn">${bad.length} item(ns) inválido(s) serão ignorados: ${esc(bad.slice(0,5).join(', '))}${bad.length>5?'…':''}</span>`:'';
-    confirmBox(`Importar <b>${studies.length}</b> estudo(s), <b>${instruments.length}</b> instrumento(s), <b>${fams.length}</b> família(s) e <b>${inv.length}</b> item(ns) de inventário? Itens com o mesmo identificador serão atualizados.${aviso}`,()=>{try{instruments.forEach(saveInstr);fams.forEach(saveFam);inv.forEach(saveInvItem);studies.forEach(s=>saveStudy(s));if(Array.isArray(d.trash))S.trash=mergeById(S.trash||[],d.trash.filter(x=>x&&typeof x==='object'&&x.id));Object.assign(S.cfg,cfgOk);persist();toast('Backup importado')}catch(x){console.error(x);toast('Falha durante a importação — confira o arquivo','fa-triangle-exclamation')}render()})}catch(x){toast('Arquivo inválido','fa-triangle-exclamation')}};r.readAsText(f);e.target.value=''}
+    const nw=(arr,cur)=>arr.filter(x=>!cur.some(y=>y.id===x.id)).length,upd=(arr,cur)=>arr.length-nw(arr,cur);
+    const nUp=upd(studies,S.studies)+upd(instruments,S.instruments)+upd(fams,S.fams)+upd(inv,S.inv),nNew=nw(studies,S.studies)+nw(instruments,S.instruments)+nw(fams,S.fams)+nw(inv,S.inv);
+    confirmBox(`Importar <b>${studies.length}</b> estudo(s), <b>${instruments.length}</b> instrumento(s), <b>${fams.length}</b> família(s) e <b>${inv.length}</b> item(ns) de inventário?<br><b>${nNew}</b> novo(s) · <b>${nUp}</b> já existente(s) — ${nUp?'os existentes serão <b>sobrescritos</b> pela versão do arquivo; itens que não estão no arquivo são mantidos (mesclagem). Baixe um backup antes se tiver dúvida.':'nada será sobrescrito.'}${aviso}`,()=>{try{instruments.forEach(saveInstr);fams.forEach(saveFam);inv.forEach(saveInvItem);studies.forEach(s=>saveStudy(s));if(Array.isArray(d.trash))S.trash=mergeById(S.trash||[],d.trash.filter(x=>x&&typeof x==='object'&&x.id));Object.assign(S.cfg,cfgOk);persist();toast('Backup importado')}catch(x){console.error(x);toast('Falha durante a importação — confira o arquivo','fa-triangle-exclamation')}render()})}catch(x){toast('Arquivo inválido','fa-triangle-exclamation')}};r.readAsText(f);e.target.value=''}
 
 /* ---------------- impressão ---------------- */
 function openPrint(){const L=dashSet();modal(`<div class="mh"><h3>Imprimir</h3><button class="btn ic" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div><div class="mb"><div class="types">
