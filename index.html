@@ -618,7 +618,7 @@ label.l{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-b
 <button class="btn ic mbtn" id="mbtn" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
 <div class="app">
   <aside class="side" id="side">
-    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab</small></div></div>
+    <div class="logo"><div class="ic"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3.5v17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M5 7.5h4.2M5 12h6.4M5 16.5h4.2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/><circle cx="16.2" cy="12" r="3.1" stroke="#fff" stroke-width="2"/><path d="M16.2 5.4v2M16.2 16.6v2" stroke="rgba(255,255,255,.72)" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>MSA Pro</b><small>Precision Lab · v83</small></div></div>
     <div class="nav-s">Visão geral</div>
     <button class="nav" data-v="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
     <button class="nav" data-v="estudos"><i class="fas fa-folder-open"></i>Estudos<span class="cnt" id="cntE">0</span></button>
@@ -718,7 +718,7 @@ function confirmOverwrite(doc,remoteRev){const nome=(doc.codigo||'')+' — '+(do
   return new Promise(res=>{modal(`<div class="mh"><i class="fas fa-triangle-exclamation c-warn"></i><h3>Estudo alterado por outra pessoa</h3></div><div class="mb"><p style="font-size:13.5px;line-height:1.65">O estudo <b>${esc(nome)}</b> está na <b>revisão ${remoteRev}</b> na nuvem; você estava gravando a <b>revisão ${(+doc.rev||0)-1}</b>.<br><small class="legend">Manter a nuvem descarta as alterações deste dispositivo (o estudo permanece como está na nuvem). Sobrescrever mantém o SEU trabalho e registra o conflito no histórico de rastreabilidade.</small></p></div><div class="mf"><button class="btn" id="cwKeep"><i class="fas fa-cloud-arrow-down"></i>Manter a versão da nuvem</button><button class="btn dan" id="cwOver"><i class="fas fa-arrow-up"></i>Sobrescrever mesmo assim</button></div>`);
   $('#cwOver').onclick=()=>{closeModal();doc.rev=remoteRev+1;doc.atualizadoEm=new Date().toISOString();logHist(doc,'Conflito resolvido','sobrescreveu a revisão '+remoteRev+' gravada por outro usuário');cloudSet('msapro_estudos',doc).then(ok=>res(ok));if(V.view==='editor'&&V.edit&&V.edit.id===doc.id){V.staleRemote=false;rEditor()}};
   $('#cwKeep').onclick=()=>{closeModal();if(V.view==='editor'&&V.edit&&V.edit.id===doc.id){toast('Versão da nuvem mantida — as alterações desta tela foram descartadas','fa-cloud-arrow-down');const r=S.studies.find(x=>x.id===doc.id);if(r){V.edit=JSON.parse(JSON.stringify(r));V.dirty=false;rEditor()}}res(false)}})}
-function cloudDel(col,id){if(db)db.collection(col).doc(id).delete().catch(()=>{})}
+function cloudDel(col,id){if(!db)return Promise.resolve(false);return db.collection(col).doc(id).delete().then(()=>true).catch(e=>{if(!cloudDel.t){cloudDel.t=setTimeout(()=>{cloudDel.t=0},4000);toast((e&&e.code==='permission-denied')?'Sem permissão para excluir na nuvem — ajuste as regras do Firestore (permitir delete nesta coleção)':'Não foi possível excluir na nuvem ('+((e&&e.code)||'erro')+')','fa-triangle-exclamation')}return false})}
 let cloudOk=false,unsub=null,syncTimer=null,_ar=0,subsAt=0,cloudErrFlag=false;
 /* v87: 'already-exists' (Target ID already exists) = corrida entre dois subscribe/unsubscribe seguidos no boot; religa sozinho */
 function autoRetryCloud(){if(_ar>=3)return;clearTimeout(autoRetryCloud.t);autoRetryCloud.t=setTimeout(()=>{_ar++;retryCloud()},1200*(_ar+1))}
@@ -830,6 +830,7 @@ function subsExtra(){
       saveLocal()}
     else S.fams=rem;
     S.fams.forEach(x=>{if(!x.syncEm)x.syncEm=1});
+    try{dedupeFams(false)}catch(e){}
     refresh()},e=>{setSync(false,(e&&e.code)||'erro')}));
   un2.push(db.collection('msapro_inventario').onSnapshot({includeMetadataChanges:true},snap=>{
     if(f5&&snap.metadata.fromCache)return;
@@ -919,7 +920,29 @@ function famStatus(fid){const ss=S.studies.filter(s=>s.familiaId===fid);let w='n
     if(st==='over')w='over';else if(st==='soon'&&w!=='over')w='soon';else if(w==='none'&&st==='future')w='future';
     if(s.proxima&&(!np||s.proxima<np))np=s.proxima}
   return{w,np,n:ss.length}}
-function saveFam(x){x.atualizadoEm=new Date().toISOString();const i=S.fams.findIndex(y=>y.id===x.id);if(i>=0)S.fams[i]=x;else S.fams.push(x);persist();cloudSet('msapro_familias',x)}
+function saveFam(x){const i=S.fams.findIndex(y=>y.id===x.id);
+  if(i<0){const k=String(x.cod||'').trim().toUpperCase();const dup=k&&S.fams.find(y=>String(y.cod||'').trim().toUpperCase()===k);if(dup){toast('Já existe a família '+dup.cod+' — nenhuma duplicata foi criada','fa-circle-info');return dup}}
+  x.atualizadoEm=new Date().toISOString();if(i>=0)S.fams[i]=x;else S.fams.push(x);persist();cloudSet('msapro_familias',x)}
+/* v89 · mescla famílias duplicadas (mesmo código): fica a que tem mais estudos (empate: a mais antiga); estudos, instrumentos
+   e inventário das cópias são religados à família mantida; tipos/critério/responsável são unidos; cópias são excluídas. */
+function dedupeFams(silent){
+  const norm=c=>String(c||'').trim().toUpperCase();const g=new Map();
+  S.fams.forEach(f=>{const k=norm(f.cod);if(!k)return;if(!g.has(k))g.set(k,[]);g.get(k).push(f)});
+  let merged=0,moved=0;
+  g.forEach(arr=>{if(arr.length<2)return;
+    const cnt=f=>S.studies.filter(s=>s.familiaId===f.id).length;
+    arr.sort((a,b)=>cnt(b)-cnt(a)||String(a.criadoEm||'').localeCompare(String(b.criadoEm||''))||String(a.id).localeCompare(String(b.id)));
+    const keep=arr[0];keep.tipos=Array.isArray(keep.tipos)?keep.tipos:[];
+    arr.slice(1).forEach(d=>{
+      (d.tipos||[]).forEach(t=>{if(!keep.tipos.some(x=>String(x).toLowerCase().trim()===String(t).toLowerCase().trim()))keep.tipos.push(t)});
+      if(!keep.resp&&d.resp)keep.resp=d.resp;if(!keep.criterio&&d.criterio)keep.criterio=d.criterio;
+      S.studies.forEach(st=>{if(st.familiaId===d.id){st.familiaId=keep.id;logHist(st,'Família mesclada','família duplicada '+d.cod+' unificada em uma só');saveStudy(st);moved++}});
+      S.instruments.forEach(x=>{if(x.famId===d.id){x.famId=keep.id;cloudSet('msapro_instrumentos',x)}});
+      S.inv.forEach(x=>{if(x.famId===d.id){x.famId=keep.id;cloudSet('msapro_inventario',x)}});
+      S.fams=S.fams.filter(x=>x!==d);cloudDel('msapro_familias',d.id);merged++});
+    keep.atualizadoEm=new Date().toISOString();cloudSet('msapro_familias',keep)});
+  if(merged){persist();if(!silent)toast(merged+' família(s) duplicada(s) mesclada(s) — '+moved+' estudo(s) religado(s)','fa-code-merge')}
+  return merged}
 function delFam(id){S.fams=S.fams.filter(x=>x.id!==id);persist();cloudDel('msapro_familias',id)}
 function saveInvItem(x){const i=S.inv.findIndex(y=>y.id===x.id);if(i>=0)S.inv[i]=x;else S.inv.push(x);persist();cloudSet('msapro_inventario',x)}
 function defaultFams(){const D=[
@@ -939,7 +962,7 @@ function defaultFams(){const D=[
   ['MET','Metrologia dimensional geral',['Escala Métrica','Trena métrica','Nível','Esquadro','Esquadro Inox'],'Réguas, trenas, níveis e esquadros'],
   ['DIS','Dispositivos de controle',['Dispositivo de Controle','Dispositivo de controle','GD&T - Dispositivo de Controle'],'Gabaritos e dispositivos de verificação de características'],
   ['ENS','Equipamentos de ensaio',['Máquina Universal de ensaios','Máquina de Tração e Compressão','Plastômetro','Mufla','Determinador de Umidade','Espectofotometro','Fluxometro'],'Ensaios físicos e químicos de laboratório']
- ];return D.map(d=>({id:uid(),cod:d[0],nome:d[1],tipos:d[2],criterio:d[3],resp:'',criadoEm:new Date().toISOString(),criadoPor:userName()}))}
+ ];return D.map(d=>({id:'fam_'+d[0],cod:d[0],nome:d[1],tipos:d[2],criterio:d[3],resp:'',criadoEm:new Date().toISOString(),criadoPor:userName()}))}
 function guessTipo(desc){const d=String(desc||'').toLowerCase();const T=[
   [/paqu[ií]metro/,'Paquímetro'],[/micr[oô]metro/,'Micrômetro'],[/rel[oó]gio apalpador/,'Relógio Apalpador'],
   [/rel[oó]gio comparador/,'Relógio Comparador'],[/tridimensional|\bcmm\b|máquina de medi[çc][ãa]o 3d|mmc /,'Tridimensional'],
@@ -1838,9 +1861,9 @@ function migrateProg(){
     }else{empty.sort((a,b)=>(b.progId?1:0)-(a.progId?1:0)||recency(b).localeCompare(recency(a)));empty.slice(1).forEach(s=>drop.add(s))}
     drop.forEach(s=>{S.studies=S.studies.filter(x=>x.id!==s.id);cloudDel('msapro_estudos',s.id);removed++})});
   return{removed,fixed}}
-function migrateAll(report){const r=migrateProg();
+function migrateAll(report){const r=migrateProg();let fm=0;try{fm=dedupeFams(true)}catch(e){}if(fm){r.fixed+=0;toast(fm+' família(s) duplicada(s) mesclada(s)','fa-code-merge')}
   if(r.removed||r.fixed){persist();if(report||r.removed)toast(`${r.removed} duplicado(s) removido(s) · ${r.fixed} estudo(s) vinculado(s) ao programa`,'fa-broom')}
-  else if(report)toast('Nenhuma duplicidade encontrada','fa-circle-info');
+  else if(report&&!fm)toast('Nenhuma duplicidade encontrada','fa-circle-info');
   return r}
 /* v40→v73: estudos SIMULADOS são conferidos no boot; estudos reais nunca são alterados.
    v40 regenerava só R&R com valores implausíveis (%GRR<2 ou >28 · ndc>40). v72/v73 ampliam:
@@ -2994,7 +3017,7 @@ function ivApply(){const iv=window._iv;if(!iv){toast('Importe ou cole o CSV prim
     if(v==='_new'&&criarFam){const cat=defaultFams().find(f=>t!=='(sem tipo)'&&f.tipos.some(x=>ivN(x)===ivN(t)));
       const cod=cat?cat.cod:(t.replace(/\(.*\)/,'').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,4)||'FAM');
       const f={id:uid(),cod,nome:cat?cat.nome:t,tipos:cat?cat.tipos:[t],criterio:cat?cat.criterio:'Mesmo princípio de medição, construção, faixa e resolução — AIAG MSA 4ª ed.',resp:'',criadoEm:new Date().toISOString(),criadoPor:userName()};
-      if(!S.fams.some(x=>x.cod===f.cod)){saveFam(f);novas.push(f.cod)}assign[t]=f.id;return}
+      const ex=S.fams.find(x=>String(x.cod||'').trim().toUpperCase()===String(f.cod).trim().toUpperCase());if(ex){assign[t]=ex.id;return}saveFam(f);novas.push(f.cod);assign[t]=f.id;return}
     assign[t]=''});
   if(sub){S.inv.forEach(x=>cloudDel('msapro_inventario',x.id));S.inv=[]}
   iv.rows.forEach(r=>{r.famId=assign[r.tipo||'(sem tipo)']||'';S.inv.push(r)});
